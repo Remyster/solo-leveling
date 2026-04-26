@@ -3,310 +3,1103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hunter System • Solo Leveling</title>
+<title>Hunter System</title>
 <meta name="theme-color" content="#07071a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:#07071a; --s1:#0e0e24; --s2:#14142e; --s3:#1c1c3a; --border:#28285a;
-  --blue:#00c8ff; --purple:#7c3aff; --gold:#f5c842; --green:#00ff88;
+  --bg:#07071a;--s1:#0e0e24;--s2:#14142e;--s3:#1c1c3a;--border:#28285a;
+  --blue:#00c8ff;--blue2:#006aff;--purple:#7c3aff;--gold:#f5c842;
+  --green:#00ff88;--red:#ff3355;--text:#dde4ff;--dim:#5555aa;
+  --str:#ff6b35;--int:#4fc3f7;--vit:#ff4d6d;--agi:#69ff47;--sen:#c77dff;--wis:#90e0ef;
 }
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:85px}
-body::before{content:'';position:fixed;inset:0;z-index:-1;
-  background:radial-gradient(ellipse 70% 35% at 50% 0%,rgba(0,106,255,.15) 0%,transparent 60%),
-             radial-gradient(ellipse 60% 30% at 90% 90%,rgba(124,58,255,.1) 0%,transparent 70%)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;padding-bottom:72px}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 35% at 50% 0%,rgba(0,106,255,.14) 0%,transparent 60%),
+             radial-gradient(ellipse 50% 25% at 90% 90%,rgba(124,58,255,.1) 0%,transparent 50%)}
 
-.notif{position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(135deg,rgba(0,200,255,.15),rgba(124,58,255,.15));border-bottom:1px solid var(--blue);padding:12px;text-align:center;font-family:'Share Tech Mono',monospace;color:var(--blue);transform:translateY(-100%);transition:.4s}
+/* NOTIF */
+.notif{position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(135deg,rgba(0,200,255,.15),rgba(124,58,255,.15));border-bottom:1px solid rgba(0,200,255,.5);padding:.7rem 1rem;text-align:center;font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--blue);letter-spacing:.12em;transform:translateY(-100%);transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
 .notif.on{transform:translateY(0)}
 
-header{background:rgba(7,7,26,.98);border-bottom:1px solid var(--border);padding:1rem;backdrop-filter:blur(20px)}
-.tabs{display:flex;margin:0 -1rem;border-top:1px solid var(--border)}
-.tab{flex:1;padding:12px;background:none;border:none;color:var(--dim);font-weight:700;font-size:0.8rem;cursor:pointer;border-bottom:3px solid transparent}
-.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+/* HEADER */
+header{position:sticky;top:0;z-index:100;background:rgba(7,7,26,.98);border-bottom:1px solid var(--border);backdrop-filter:blur(20px)}
+.header-inner{padding:1rem 1rem 0}
 
-.quest{display:flex;gap:12px;align-items:center;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
-.quest.done{background:rgba(0,255,136,.08);border-color:#00ff88}
-.q-check{width:38px;height:38px;border:3px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer}
-.quest.done .q-check{background:#00ff88;color:#000}
+.status-panel{display:flex;gap:.85rem;align-items:flex-start;margin-bottom:.85rem}
+.avatar-wrap{position:relative;flex-shrink:0}
+.avatar{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--s3),var(--s2));border:2px solid var(--purple);box-shadow:0 0 20px rgba(124,58,255,.4);display:flex;align-items:center;justify-content:center;font-size:2.2rem;cursor:pointer;transition:transform .2s}
+.avatar:active{transform:scale(.95)}
+.rank-pip{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-family:'Orbitron',monospace;font-size:.62rem;font-weight:900;padding:.1rem .5rem;border-radius:4px;border:1px solid currentColor;white-space:nowrap;background:var(--bg);letter-spacing:.08em}
+.rE{color:#aaa}.rD{color:#5f5}.rC{color:#59f}.rB{color:#a4f;box-shadow:0 0 8px rgba(170,68,255,.5)}.rA{color:#fa0;box-shadow:0 0 10px rgba(255,170,0,.5)}.rS{color:#f40;box-shadow:0 0 12px rgba(255,68,0,.6)}.rSS{color:#f08;animation:ssG 1.5s infinite}
+@keyframes ssG{0%,100%{opacity:1}50%{opacity:.6}}
 
-.shadow-card, .shop-item{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
-.levelup{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column}
-.levelup.on{display:flex}
-.lu-num{font-family:'Orbitron',monospace;font-size:6.5rem;font-weight:900;color:var(--gold);text-shadow:0 0 60px var(--gold)}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(7,7,26,.98);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);z-index:100}
-.nav-btn{padding:10px 4px;color:var(--dim);font-size:0.65rem;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px}
-.nav-btn.active{color:var(--blue)}
+.status-info{flex:1;min-width:0;padding-top:.1rem}
+.hunter-label{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim);letter-spacing:.2em;margin-bottom:.15rem}
+.hunter-name{font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;color:var(--text);line-height:1.1;letter-spacing:.04em}
+.hunter-class{font-size:.7rem;color:var(--purple);margin-bottom:.1rem;font-weight:600;letter-spacing:.06em}
+.hunter-title-disp{font-size:.65rem;color:var(--gold);margin-bottom:.35rem;font-weight:600}
+.lv-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem}
+.lv-text{font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;color:var(--blue)}
+.xp-frac{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim)}
+.xp-bar{height:5px;background:var(--s3);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
+.xp-fill{height:100%;background:linear-gradient(90deg,var(--blue2),var(--blue));box-shadow:0 0 8px var(--blue);border-radius:3px;transition:width .7s cubic-bezier(.34,1.56,.64,1)}
+
+.mini-stats{display:flex;gap:.4rem;margin-bottom:.65rem}
+.mini-stat{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:.4rem .2rem;text-align:center}
+.ms-val{font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700;line-height:1;color:var(--gold)}
+.ms-lbl{font-size:.55rem;color:var(--dim);letter-spacing:.06em;margin-top:.1rem}
+
+/* ATTRS */
+.attrs{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.6rem .75rem;margin-bottom:.6rem}
+.attrs-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.2em;margin-bottom:.5rem}
+.attrs-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:.35rem}
+.attr{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:.35rem .15rem;text-align:center}
+.attr-ico{font-size:.9rem;line-height:1}
+.attr-val{font-family:'Orbitron',monospace;font-size:.8rem;font-weight:700;margin:.1rem 0;transition:all .3s}
+.attr-lbl{font-size:.52rem;color:var(--dim)}
+.a-str .attr-val{color:var(--str)}.a-int .attr-val{color:var(--int)}.a-vit .attr-val{color:var(--vit)}
+.a-agi .attr-val{color:var(--agi)}.a-sen .attr-val{color:var(--sen)}.a-wis .attr-val{color:var(--wis)}
+
+/* RANKUP */
+.rankup-panel{background:linear-gradient(135deg,rgba(0,200,255,.06),rgba(124,58,255,.06));border:1px solid rgba(0,200,255,.25);border-radius:10px;padding:.6rem .8rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.7rem}
+.rankup-arrow{width:26px;height:26px;flex-shrink:0;background:rgba(0,200,255,.15);border:1px solid var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--blue)}
+.rankup-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--blue);letter-spacing:.12em;margin-bottom:.1rem}
+.rankup-text{font-size:.78rem;font-weight:600;color:var(--text)}
+.rankup-ring{margin-left:auto;flex-shrink:0}
+.ring-svg{width:36px;height:36px;transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--s3);stroke-width:3}
+.ring-fill{fill:none;stroke:var(--blue);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;transition:stroke-dashoffset .8s;filter:drop-shadow(0 0 3px var(--blue))}
+
+/* WEATHER BANNER */
+.weather-banner{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.6rem;font-size:.78rem;cursor:pointer}
+.wb-ico{font-size:1.3rem}
+.wb-info{flex:1}
+.wb-title{font-weight:700;color:var(--blue)}
+.wb-sub{font-size:.65rem;color:var(--dim)}
+
+/* TABS */
+.tabs{display:flex;border-top:1px solid var(--border);margin:0 -1rem;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;padding:.52rem .7rem;background:none;border:none;color:var(--dim);font-size:.68rem;font-weight:600;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--text)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* MAIN */
+main{position:relative;z-index:1;padding:1rem}
+
+.type-switch{display:flex;gap:.5rem;margin-bottom:1rem}
+.type-btn{padding:.38rem .9rem;background:var(--s2);border:1px solid var(--border);color:var(--dim);border-radius:20px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:all .2s}
+.type-btn.active{background:rgba(0,200,255,.1);border-color:var(--blue);color:var(--blue)}
+
+/* EMERGENCY QUEST */
+.emergency-quest{background:linear-gradient(135deg,rgba(255,51,85,.12),rgba(255,51,85,.05));border:1px solid rgba(255,51,85,.5);border-radius:10px;padding:.85rem;margin-bottom:1rem;animation:emergencyPulse 2s infinite}
+@keyframes emergencyPulse{0%,100%{border-color:rgba(255,51,85,.5)}50%{border-color:rgba(255,51,85,1);box-shadow:0 0 20px rgba(255,51,85,.3)}}
+.eq-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem}
+.eq-badge{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--red);letter-spacing:.15em;background:rgba(255,51,85,.15);padding:.15rem .5rem;border-radius:4px;border:1px solid var(--red)}
+.eq-timer{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--red);font-weight:700}
+.eq-title{font-size:.95rem;font-weight:700;margin-bottom:.4rem}
+.eq-rewards{display:flex;gap:.75rem;margin-bottom:.5rem}
+.eq-r{font-family:'Share Tech Mono',monospace;font-size:.68rem}
+.eq-btn{width:100%;padding:.5rem;background:rgba(255,51,85,.2);border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;text-transform:uppercase;transition:all .2s}
+.eq-btn:hover{background:rgba(255,51,85,.35)}
+.eq-btn:disabled{opacity:.4;cursor:default}
+
+/* BOSS RAID */
+.boss-raid{background:linear-gradient(135deg,rgba(124,58,255,.15),rgba(0,200,255,.08));border:1px solid rgba(124,58,255,.4);border-radius:12px;padding:1rem;margin-bottom:1rem}
+.boss-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem}
+.boss-badge{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--purple);letter-spacing:.15em;background:rgba(124,58,255,.15);padding:.15rem .5rem;border-radius:4px;border:1px solid var(--purple)}
+.boss-name{font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700;color:var(--text)}
+.boss-hp-wrap{margin-bottom:.75rem}
+.boss-hp-bar{height:8px;background:var(--s3);border-radius:4px;overflow:hidden;border:1px solid var(--border);margin-bottom:.25rem}
+.boss-hp-fill{height:100%;background:linear-gradient(90deg,var(--red),#ff6b35);border-radius:4px;transition:width .5s;box-shadow:0 0 8px rgba(255,51,85,.5)}
+.boss-hp-txt{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);display:flex;justify-content:space-between}
+.boss-reqs{font-size:.72rem;color:var(--dim);margin-bottom:.75rem}
+.boss-reqs span{color:var(--text);font-weight:600}
+.boss-btn{width:100%;padding:.6rem;background:linear-gradient(135deg,rgba(124,58,255,.25),rgba(0,200,255,.15));border:1px solid var(--purple);color:var(--text);border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;font-family:'Orbitron',monospace;letter-spacing:.08em;transition:all .2s}
+.boss-btn:hover{background:linear-gradient(135deg,rgba(124,58,255,.4),rgba(0,200,255,.25))}
+.boss-btn:disabled{opacity:.4;cursor:default}
+
+/* CAT DIV */
+.cat-div{display:flex;align-items:center;gap:.6rem;margin:1rem 0 .5rem}
+.cat-div-line{flex:1;height:1px;background:linear-gradient(90deg,var(--cc,var(--border)),transparent)}
+.cat-div-label{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.15em;color:var(--cc,var(--dim))}
+.cat-div-icon{font-size:.9rem}
+
+/* QUEST */
+.quest{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;background:var(--s1);border:1px solid var(--border);border-radius:10px;margin-bottom:.45rem;position:relative;overflow:hidden;transition:background .15s,border-color .15s}
+.quest::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cc,var(--border));box-shadow:0 0 8px var(--cc,transparent)}
+.quest:hover{background:var(--s2);border-color:rgba(0,200,255,.2)}
+.quest.done{background:rgba(0,255,136,.03);border-color:rgba(0,255,136,.12)}
+.quest.done::before{background:var(--green);box-shadow:0 0 8px rgba(0,255,136,.4)}
+.quest.locked{opacity:.5}
+.q-check{width:26px;height:26px;flex-shrink:0;border:2px solid var(--border);border-radius:6px;background:var(--s2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;transition:all .2s;color:var(--green)}
+.quest:not(.done) .q-check{color:transparent}
+.quest:hover .q-check{border-color:var(--blue)}
+.quest.done .q-check{background:rgba(0,255,136,.15);border-color:var(--green);box-shadow:0 0 8px rgba(0,255,136,.3)}
+.q-info{flex:1;min-width:0}
+.q-title{font-size:.88rem;font-weight:600;line-height:1.2;transition:color .2s}
+.quest.done .q-title{color:var(--dim);text-decoration:line-through}
+.q-sub{font-size:.63rem;color:var(--dim);margin-top:.12rem;letter-spacing:.04em}
+.q-rewards{display:flex;flex-direction:column;align-items:flex-end;gap:.12rem;flex-shrink:0}
+.q-xp{font-family:'Share Tech Mono',monospace;font-size:.65rem;font-weight:700;color:var(--blue)}
+.q-gold{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--gold)}
+.quest.done .q-xp,.quest.done .q-gold{opacity:.3}
+.q-loc-btn{padding:.2rem .5rem;background:rgba(105,255,71,.1);border:1px solid var(--agi);color:var(--agi);border-radius:5px;font-size:.62rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap;transition:all .2s;margin-top:.2rem}
+.q-loc-btn:hover{background:rgba(105,255,71,.2)}
+.q-photo-btn{padding:.2rem .5rem;background:rgba(200,119,255,.1);border:1px solid var(--sen);color:var(--sen);border-radius:5px;font-size:.62rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap;transition:all .2s;margin-top:.2rem}
+.q-del{background:none;border:none;color:var(--border);font-size:.8rem;cursor:pointer;padding:.2rem;transition:color .15s;flex-shrink:0}
+.q-del:hover{color:var(--red)}
+
+.add-row{display:flex;gap:.45rem;margin-top:.35rem;margin-bottom:1rem}
+.add-inp{flex:1;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:.45rem .7rem;font-size:.8rem;outline:none;font-family:'Rajdhani',sans-serif;transition:border-color .2s}
+.add-inp:focus{border-color:var(--blue)}.add-inp::placeholder{color:var(--dim)}
+.add-btn{padding:.45rem .9rem;background:rgba(0,200,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
+.add-btn:hover{background:rgba(0,200,255,.2)}
+
+/* SHADOW ARMY */
+.shadow-summary{background:linear-gradient(135deg,rgba(0,0,0,.5),rgba(124,58,255,.1));border:1px solid var(--border);border-radius:12px;padding:.85rem;margin-bottom:1rem;text-align:center}
+.shadow-count{font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:900;color:var(--purple);line-height:1;text-shadow:0 0 30px rgba(124,58,255,.6)}
+.shadow-label{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);letter-spacing:.15em;margin-top:.25rem}
+.shadow-influence{font-size:.72rem;color:var(--text);margin-top:.5rem;font-weight:600}
+.shadow-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-bottom:1rem}
+.shadow-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.75rem .5rem;text-align:center;transition:all .2s}
+.shadow-card.active{border-color:var(--purple);background:rgba(124,58,255,.1);box-shadow:0 0 15px rgba(124,58,255,.2)}
+.shadow-card:not(.active){filter:grayscale(.9);opacity:.35}
+.sh-ico{font-size:1.8rem;margin-bottom:.3rem}
+.sh-name{font-size:.62rem;font-weight:700;color:var(--text);line-height:1.2}
+.sh-rank{font-size:.55rem;color:var(--dim);margin-top:.1rem}
+.shadow-unlock-txt{text-align:center;font-size:.72rem;color:var(--dim);margin-top:.5rem}
+
+/* TITLES */
+.title-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.title-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.8rem;transition:all .2s;cursor:pointer}
+.title-card.owned{border-color:rgba(245,200,66,.35);background:rgba(245,200,66,.05)}
+.title-card.equipped{border-color:var(--gold);background:rgba(245,200,66,.1);box-shadow:0 0 12px rgba(245,200,66,.15)}
+.title-card:not(.owned){opacity:.4;filter:grayscale(.7);cursor:default}
+.tc-name{font-size:.82rem;font-weight:700;margin-bottom:.25rem;color:var(--gold)}
+.tc-bonus{font-size:.65rem;color:var(--green);margin-bottom:.2rem;font-weight:600}
+.tc-desc{font-size:.62rem;color:var(--dim);line-height:1.3}
+.tc-eq{font-size:.6rem;color:var(--gold);margin-top:.35rem;font-weight:700;letter-spacing:.08em}
+
+/* SHOP */
+.shop-gold{text-align:center;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.85rem;margin-bottom:1rem}
+.shop-gold-val{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--gold);line-height:1}
+.shop-gold-lbl{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--dim);letter-spacing:.15em;margin-top:.2rem}
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.shop-item{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.85rem;text-align:center;transition:all .2s}
+.shop-item.affordable{border-color:rgba(245,200,66,.3);cursor:pointer}
+.shop-item.affordable:hover{border-color:var(--gold);background:rgba(245,200,66,.06)}
+.si-ico{font-size:1.8rem;margin-bottom:.4rem}
+.si-name{font-size:.8rem;font-weight:700;margin-bottom:.2rem}
+.si-desc{font-size:.62rem;color:var(--dim);margin-bottom:.5rem;line-height:1.3}
+.si-price{font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700;color:var(--gold)}
+.si-price.can{color:var(--gold)}.si-price.cant{color:var(--red)}
+.si-owned{font-size:.65rem;color:var(--green);font-weight:700;margin-top:.2rem}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.stat-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.8rem;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--blue));box-shadow:0 0 8px var(--accent,var(--blue))}
+.sc-val{font-family:'Orbitron',monospace;font-size:1.35rem;font-weight:900;color:var(--accent,var(--blue));line-height:1}
+.sc-lbl{font-size:.68rem;color:var(--dim);margin-top:.25rem;font-weight:600;letter-spacing:.05em}
+
+/* ACHIEVEMENTS */
+.ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.ach{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.8rem;display:flex;align-items:center;gap:.6rem;transition:all .2s}
+.ach.unlocked{border-color:rgba(245,200,66,.4);background:rgba(245,200,66,.04);box-shadow:0 0 12px rgba(245,200,66,.08)}
+.ach:not(.unlocked){opacity:.3;filter:grayscale(.9)}
+.ach-ico{font-size:1.5rem;flex-shrink:0}
+.ach-name{font-size:.72rem;font-weight:700}
+.ach-desc{font-size:.6rem;color:var(--dim);margin-top:.1rem;line-height:1.3}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(7,7,26,.98);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(6,1fr);z-index:50;backdrop-filter:blur(20px)}
+.nav-btn{padding:.6rem .2rem;background:none;border:none;color:var(--dim);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:.55rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:.15rem;transition:color .2s}
+.nav-btn .ico{font-size:1.1rem;line-height:1}.nav-btn.active{color:var(--blue)}
+
+/* LEVEL UP */
+.levelup{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:900;display:flex;align-items:center;justify-content:center;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .4s}
+.levelup.on{opacity:1;pointer-events:all}
+.lu-label{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--blue);letter-spacing:.3em;margin-bottom:.75rem}
+.lu-num{font-family:'Orbitron',monospace;font-size:6rem;font-weight:900;line-height:1;color:var(--gold);text-shadow:0 0 60px var(--gold),0 0 120px rgba(245,200,66,.4);animation:popIn .5s cubic-bezier(.34,1.56,.64,1) forwards}
+.lu-rank{font-family:'Orbitron',monospace;font-size:.85rem;color:var(--text);margin-top:.5rem;letter-spacing:.15em}
+.lu-attr{margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center}
+.lu-attr-pill{font-size:.72rem;padding:.25rem .6rem;background:rgba(0,200,255,.1);border:1px solid var(--blue);border-radius:20px;color:var(--blue)}
+.lu-tap{margin-top:2rem;font-size:.7rem;color:var(--dim);letter-spacing:.2em;animation:blink 1s infinite}
+
+/* PARTICLES */
+#particles{position:fixed;inset:0;z-index:890;pointer-events:none}
+.particle{position:absolute;border-radius:50%;animation:particleFly 1.5s forwards}
+@keyframes particleFly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:800;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal-overlay.on{opacity:1;pointer-events:all}
+.modal-box{background:var(--s1);border:1px solid var(--border);border-radius:18px 18px 0 0;padding:1.25rem;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;transform:translateY(20px);transition:transform .3s}
+.modal-overlay.on .modal-box{transform:translateY(0)}
+.modal-title{font-family:'Orbitron',monospace;font-size:1rem;color:var(--blue);margin-bottom:1rem;letter-spacing:.06em}
+.modal-close{width:100%;padding:.65rem;background:var(--s2);border:1px solid var(--border);color:var(--dim);border-radius:10px;font-size:.85rem;cursor:pointer;margin-top:1rem;font-family:'Rajdhani',sans-serif;transition:all .15s}
+.modal-close:hover{border-color:var(--dim)}
+
+/* PHOTO PREVIEW */
+.photo-preview{width:100%;aspect-ratio:16/9;background:var(--s3);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;margin-bottom:.75rem;color:var(--dim);font-size:.85rem}
+.photo-preview img{width:100%;height:100%;object-fit:cover}
+
+@keyframes popIn{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+
+/* VOICE BTN */
+.voice-btn{position:fixed;right:1rem;bottom:80px;width:44px;height:44px;background:rgba(124,58,255,.25);border:2px solid var(--purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;z-index:60;transition:all .2s;box-shadow:0 0 15px rgba(124,58,255,.3)}
+.voice-btn:hover{background:rgba(124,58,255,.4)}
+.voice-btn.speaking{animation:speakPulse 1s infinite}
+@keyframes speakPulse{0%,100%{box-shadow:0 0 15px rgba(124,58,255,.3)}50%{box-shadow:0 0 30px rgba(124,58,255,.7)}}
 </style>
 </head>
 <body>
-
 <div class="notif" id="notif"></div>
+<canvas id="particles" style="pointer-events:none"></canvas>
 
 <header>
-  <div id="header-status"></div>
-  <div class="tabs">
-    <button class="tab active" data-tab="quests">⚔ Quests</button>
-    <button class="tab" data-tab="shadow">🌑 Army</button>
-    <button class="tab" data-tab="shop">🛒 Shop</button>
-    <button class="tab" data-tab="stats">📊 Stats</button>
+<div class="header-inner">
+  <div class="status-panel">
+    <div class="avatar-wrap">
+      <div class="avatar" id="avatarEl" onclick="speakStatus()">🗡️</div>
+      <div class="rank-pip rE" id="rankPip">E-RANK</div>
+    </div>
+    <div class="status-info">
+      <div class="hunter-label">[ HUNTER STATUS ]</div>
+      <div class="hunter-name">REMY EGBERTS</div>
+      <div class="hunter-class" id="hunterClass">Rookie Hunter</div>
+      <div class="hunter-title-disp" id="hunterTitleDisp" style="display:none"></div>
+      <div class="lv-row">
+        <div class="lv-text" id="lvText">LV. 1</div>
+        <div class="xp-frac" id="xpFrac">0 / 100 XP</div>
+      </div>
+      <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+    </div>
   </div>
+  <div class="mini-stats">
+    <div class="mini-stat"><div class="ms-val" id="msXp">0</div><div class="ms-lbl">TOTAL XP</div></div>
+    <div class="mini-stat"><div class="ms-val" id="msGold">0</div><div class="ms-lbl">GOLD 🪙</div></div>
+    <div class="mini-stat"><div class="ms-val" id="msStreak">0</div><div class="ms-lbl">STREAK 🔥</div></div>
+    <div class="mini-stat"><div class="ms-val" id="msDone">0</div><div class="ms-lbl">GEDAAN</div></div>
+  </div>
+  <div class="attrs">
+    <div class="attrs-label">[ ATTRIBUTES ]</div>
+    <div class="attrs-grid">
+      <div class="attr a-str"><div class="attr-ico">💪</div><div class="attr-val" id="aStr">10</div><div class="attr-lbl">STR</div></div>
+      <div class="attr a-int"><div class="attr-ico">🧠</div><div class="attr-val" id="aInt">10</div><div class="attr-lbl">INT</div></div>
+      <div class="attr a-vit"><div class="attr-ico">🍎</div><div class="attr-val" id="aVit">10</div><div class="attr-lbl">VIT</div></div>
+      <div class="attr a-agi"><div class="attr-ico">⚡</div><div class="attr-val" id="aAgi">10</div><div class="attr-lbl">AGI</div></div>
+      <div class="attr a-sen"><div class="attr-ico">❤️</div><div class="attr-val" id="aSen">10</div><div class="attr-lbl">SEN</div></div>
+      <div class="attr a-wis"><div class="attr-ico">💤</div><div class="attr-val" id="aWis">10</div><div class="attr-lbl">WIS</div></div>
+    </div>
+  </div>
+  <div class="rankup-panel">
+    <div class="rankup-arrow">↑</div>
+    <div>
+      <div class="rankup-label">[ RANK UP OPPORTUNITY ]</div>
+      <div class="rankup-text" id="rankupText">Voltooi quests om te ranken</div>
+    </div>
+    <div class="rankup-ring">
+      <svg class="ring-svg" viewBox="0 0 38 38">
+        <circle class="ring-bg" cx="19" cy="19" r="15"/>
+        <circle class="ring-fill" id="rankRing" cx="19" cy="19" r="15" stroke-dashoffset="100"/>
+      </svg>
+    </div>
+  </div>
+  <div class="weather-banner" id="weatherBanner" onclick="fetchWeather()" style="display:none">
+    <div class="wb-ico" id="wbIco">🌤</div>
+    <div class="wb-info">
+      <div class="wb-title" id="wbTitle">Weather Dungeon Active</div>
+      <div class="wb-sub" id="wbSub">Tik om te verversen</div>
+    </div>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab active" data-tab="quests">⚔ Quests</button>
+  <button class="tab" data-tab="shadow">👥 Army</button>
+  <button class="tab" data-tab="titles">🏷 Titles</button>
+  <button class="tab" data-tab="shop">🏪 Shop</button>
+  <button class="tab" data-tab="stats">📊 Stats</button>
+  <button class="tab" data-tab="achievements">🏆 Trofeeën</button>
+</div>
 </header>
 
 <main id="main"></main>
 
+<button class="voice-btn" id="voiceBtn" onclick="speakStatus()" title="System Voice">🔊</button>
+
 <div class="bottom-nav">
-  <button class="nav-btn active" onclick="switchType('daily')">☀️ Daily</button>
-  <button class="nav-btn" onclick="switchType('weekly')">📅 Weekly</button>
-  <button class="nav-btn" onclick="resetConfirm()">🔄 Reset</button>
-  <button class="nav-btn" onclick="showSettings()">⚙️ Reset All</button>
+  <button class="nav-btn active" id="nb-daily" onclick="switchType('daily')"><span class="ico">☀️</span>Daily</button>
+  <button class="nav-btn" id="nb-weekly" onclick="switchType('weekly')"><span class="ico">📅</span>Weekly</button>
+  <button class="nav-btn" onclick="triggerEmergency()"><span class="ico">🚨</span>Event</button>
+  <button class="nav-btn" onclick="resetConfirm()"><span class="ico">🔄</span>Reset</button>
+  <button class="nav-btn" onclick="fetchWeather()"><span class="ico">🌤</span>Weer</button>
+  <button class="nav-btn" onclick="showSettings()"><span class="ico">⚙️</span>Reset All</button>
 </div>
 
+<!-- LEVEL UP -->
 <div class="levelup" id="levelup" onclick="closeLu()">
   <div>
-    <div style="color:var(--blue);font-family:'Share Tech Mono';letter-spacing:4px">【 SYSTEM ALERT 】</div>
-    <div class="lu-num" id="luNum">42</div>
-    <div id="luRank" style="color:var(--gold);font-size:1.4rem;margin-top:10px"></div>
-    <div style="margin-top:30px;color:#666;font-size:0.9rem">Tik om door te gaan</div>
+    <div class="lu-label">[ LEVEL UP ]</div>
+    <div class="lu-num" id="luNum">2</div>
+    <div class="lu-rank" id="luRank">Iron Hunter</div>
+    <div class="lu-attr" id="luAttr"></div>
+    <div class="lu-tap">— tik om door te gaan —</div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="e=>{if(e.target===this)closeModal()}">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle">Modal</div>
+    <div id="modalContent"></div>
+    <button class="modal-close" onclick="closeModal()">Sluiten</button>
   </div>
 </div>
 
 <script>
-// ==================== DATA ====================
-const STORE = 'hunter-v5';
-
-const CATS = {
-  sport: {icon:'🏋️',label:'SPORT',attr:'str',col:'#ff6b35'},
-  werk: {icon:'💼',label:'WERK',attr:'int',col:'#4fc3f7'},
-  voeding: {icon:'🍎',label:'VOEDING',attr:'vit',col:'#ff4d6d'},
-  slaap: {icon:'💤',label:'SLAAP',attr:'wis',col:'#90e0ef'},
-  locatie: {icon:'📍',label:'DUNGEON',attr:'agi',col:'#00ffaa'}
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+const STORE='hunter-v4';
+const RANKS=[
+  {r:'E',min:1,cls:'rE',title:'Rookie Hunter',avatar:'🗡️'},
+  {r:'D',min:6,cls:'rD',title:'Iron Hunter',avatar:'⚔️'},
+  {r:'C',min:11,cls:'rC',title:'Silver Hunter',avatar:'🛡️'},
+  {r:'B',min:21,cls:'rB',title:'Gold Hunter',avatar:'🌟'},
+  {r:'A',min:31,cls:'rA',title:'Platinum Hunter',avatar:'💎'},
+  {r:'S',min:46,cls:'rS',title:'Shadow Hunter',avatar:'🌑'},
+  {r:'SS',min:61,cls:'rSS',title:'Monarch',avatar:'👑'},
+];
+const CATS={
+  sport:     {icon:'💪',label:'SPORT',     attr:'str',col:'#ff6b35'},
+  werk:      {icon:'💼',label:'WERK',       attr:'int',col:'#4fc3f7'},
+  voeding:   {icon:'🍎',label:'VOEDING',    attr:'vit',col:'#ff4d6d'},
+  huishouden:{icon:'⚡',label:'HUISHOUDEN', attr:'agi',col:'#69ff47'},
+  gezin:     {icon:'❤️',label:'GEZIN',      attr:'sen',col:'#c77dff'},
+  slaap:     {icon:'💤',label:'SLAAP',      attr:'wis',col:'#90e0ef'},
 };
-
-let tasksBase = [
-  // Daily
-  {id:'d1',cat:'sport',type:'daily',title:'Push Day gedaan',xp:60,gold:35},
-  {id:'d2',cat:'sport',type:'daily',title:'Pull Day gedaan',xp:60,gold:35},
-  {id:'d3',cat:'sport',type:'daily',title:'Leg Day gedaan',xp:70,gold:40},
-  {id:'d4',cat:'voeding',type:'daily',title:'Eiwitdoel gehaald',xp:30,gold:20},
-  {id:'d5',cat:'slaap',type:'daily',title:'Voor 23:00 in bed',xp:35,gold:25},
-  
-  // Location Dungeons
-  {id:'loc1',cat:'locatie',type:'daily',title:'Sportschool Gate Clear',xp:80,gold:45,location:true},
-  {id:'loc2',cat:'locatie',type:'daily',title:'Mana Fountain (koffie/wandeling)',xp:50,gold:30,location:true},
-  {id:'loc3',cat:'locatie',type:'weekly',title:'Forest Gate (5km+ wandelen)',xp:180,gold:90,location:true},
-  
-  // Weekly
-  {id:'w1',cat:'sport',type:'weekly',title:'4x Training (Push/Pull/Leg)',xp:200,gold:120},
-  {id:'w2',cat:'sport',type:'weekly',title:'PR verbroken (Persoonlijk Record)',xp:150,gold:80}
+const DTASKS=[
+  // SPORT DAILY
+  {id:'d-sp1',cat:'sport',     type:'daily', title:'Training gedaan',             xp:50, gold:30},
+  {id:'d-sp2',cat:'sport',     type:'daily', title:'8.000 stappen gehaald',       xp:30, gold:15},
+  {id:'d-sp3',cat:'sport',     type:'daily', title:'Eiwitten gehaald',             xp:20, gold:10},
+  {id:'d-sp4',cat:'sport',     type:'daily', title:'Push-ups of pull-ups gedaan', xp:25, gold:12},
+  {id:'d-sp5',cat:'sport',     type:'daily', title:'10 min cardio of core',       xp:20, gold:10},
+  // WERK DAILY
+  {id:'d-wk1',cat:'werk',      type:'daily', title:'Werkdag afgerond',             xp:35, gold:20},
+  {id:'d-wk2',cat:'werk',      type:'daily', title:'Taken bijgewerkt',             xp:15, gold:10},
+  {id:'d-wk3',cat:'werk',      type:'daily', title:'Focus block van 90 min',      xp:40, gold:25},
+  // VOEDING DAILY
+  {id:'d-vd1',cat:'voeding',   type:'daily', title:'Gezond ontbijt gehad',         xp:20, gold:10},
+  {id:'d-vd2',cat:'voeding',   type:'daily', title:'Caloriedoel gehaald',          xp:25, gold:15},
+  {id:'d-vd3',cat:'voeding',   type:'daily', title:'2L water gedronken',           xp:20, gold:10},
+  // HUISHOUDEN DAILY
+  {id:'d-hh1',cat:'huishouden',type:'daily', title:'Kamer opgeruimd',              xp:15, gold:10},
+  {id:'d-hh2',cat:'huishouden',type:'daily', title:'Was of afwas gedaan',          xp:20, gold:10},
+  {id:'d-hh3',cat:'huishouden',type:'daily', title:'Bed opgemaakt',                xp:10, gold:5},
+  // GEZIN DAILY
+  {id:'d-gz1',cat:'gezin',     type:'daily', title:'Quality time met kinderen',    xp:35, gold:20},
+  {id:'d-gz2',cat:'gezin',     type:'daily', title:'Avondroutine gedaan',           xp:15, gold:10},
+  {id:'d-gz3',cat:'gezin',     type:'daily', title:'Compliment gegeven',           xp:15, gold:10},
+  // SLAAP DAILY
+  {id:'d-sl1',cat:'slaap',     type:'daily', title:'Voor 23:00 naar bed',          xp:25, gold:15},
+  {id:'d-sl2',cat:'slaap',     type:'daily', title:'7+ uur geslapen',              xp:30, gold:15},
+  {id:'d-sl3',cat:'slaap',     type:'daily', title:'Geen scherm na 22:30',         xp:25, gold:15},
+  // SPORT WEEKLY
+  {id:'w-sp1',cat:'sport',     type:'weekly',title:'3x of vaker getraind',         xp:100,gold:60},
+  {id:'w-sp2',cat:'sport',     type:'weekly',title:'5x sporten deze week',         xp:150,gold:80},
+  {id:'w-sp3',cat:'sport',     type:'weekly',title:'Weging gedaan',                xp:30, gold:20},
+  // WERK WEEKLY
+  {id:'w-wk1',cat:'werk',      type:'weekly',title:'Weekplanning gemaakt',          xp:60, gold:35},
+  {id:'w-wk2',cat:'werk',      type:'weekly',title:'Aan project gewerkt',           xp:80, gold:50},
+  {id:'w-wk3',cat:'werk',      type:'weekly',title:'1 groot project afgerond',     xp:120,gold:70},
+  // VOEDING WEEKLY
+  {id:'w-vd1',cat:'voeding',   type:'weekly',title:'5 dagen doel gehaald',         xp:80, gold:50},
+  {id:'w-vd2',cat:'voeding',   type:'weekly',title:'Geen junkfood 6/7 dagen',      xp:100,gold:60},
+  // HUISHOUDEN WEEKLY
+  {id:'w-hh1',cat:'huishouden',type:'weekly',title:'Gestofzuigd & schoongemaakt',  xp:40, gold:25},
+  {id:'w-hh2',cat:'huishouden',type:'weekly',title:'Administratie bijgewerkt',     xp:50, gold:30},
+  // GEZIN WEEKLY
+  {id:'w-gz1',cat:'gezin',     type:'weekly',title:'Activiteit met gezin',          xp:70, gold:40},
+  {id:'w-gz2',cat:'gezin',     type:'weekly',title:'Uitje of spel met gezin',      xp:90, gold:55},
+  // SLAAP WEEKLY
+  {id:'w-sl1',cat:'slaap',     type:'weekly',title:'5x voor 23:00 naar bed',       xp:60, gold:35},
+  // LOCATIE (geen locatie check, gewoon GPS quests)
+  {id:'d-loc1',cat:'sport',    type:'daily', title:'Check-in sportschool 📍',      xp:60, gold:40,location:true},
+  {id:'w-loc1',cat:'sport',    type:'weekly',title:'5km wandeling buiten 📍',      xp:80, gold:50,location:true},
+  // PHOTO PROOF
+  {id:'d-ph1', cat:'voeding',  type:'daily', title:'Foto: gezonde maaltijd 📸',    xp:30, gold:18,photo:true},
+  {id:'w-ph1', cat:'sport',    type:'weekly',title:'Foto: na de training 📸',      xp:50, gold:30,photo:true},
 ];
 
-const SHADOW_ARMY = [
-  {id:'igris', name:'Igris the Red', icon:'🗡️', power:25, unlocked:false},
-  {id:'beru', name:'Beru', icon:'🐺', power:30, unlocked:false},
-  {id:'tank', name:'Iron Tank', icon:'🛡️', power:18, unlocked:false},
-  {id:'kaisel', name:'Kaisel', icon:'🐎', power:22, unlocked:false},
-  {id:'blood', name:'Blood Red Commander', icon:'🩸', power:35, unlocked:false}
+const SHADOWS=[
+  {id:'sh1', ico:'⚔️', name:'Iron Knight',    rank:'Common', threshold:5,  cat:'sport'},
+  {id:'sh2', ico:'🏹', name:'Shadow Archer',  rank:'Common', threshold:10, cat:'sport'},
+  {id:'sh3', ico:'🧙', name:'Mage of Will',   rank:'Rare',   threshold:5,  cat:'werk'},
+  {id:'sh4', ico:'🛡️', name:'Guardian',       rank:'Rare',   threshold:5,  cat:'huishouden'},
+  {id:'sh5', ico:'🌿', name:'Life Bringer',   rank:'Rare',   threshold:5,  cat:'voeding'},
+  {id:'sh6', ico:'❤️', name:'Bond Keeper',    rank:'Rare',   threshold:5,  cat:'gezin'},
+  {id:'sh7', ico:'🌙', name:'Dream Walker',   rank:'Rare',   threshold:5,  cat:'slaap'},
+  {id:'sh8', ico:'🔥', name:'Berserker',      rank:'Epic',   threshold:20, cat:'sport'},
+  {id:'sh9', ico:'💀', name:'Death Knight',   rank:'Epic',   threshold:30, cat:'sport'},
+  {id:'sh10',ico:'👑', name:'Igris the Red',  rank:'Legend', threshold:50, cat:'sport'},
 ];
 
-const SHOP_ITEMS = [
-  {id:'title1', name:'Title: Shadow Monarch Candidate', cost:450, desc:'+15% XP permanent'},
-  {id:'boost1', name:'24u XP Boost (x1.6)', cost:180, desc:'Tijdelijke boost'},
-  {id:'title2', name:'Title: The One Who Overcame', cost:650, desc:'+20% Gold'},
+const TITLES=[
+  {id:'t1', name:'The Determined',      desc:'Eerste quest voltooid',        bonus:'+5% XP',     mult:1.05, ach:'first'},
+  {id:'t2', name:'Iron Will',           desc:'7 dagen streak',               bonus:'+10% gold',  goldMult:1.1, ach:'str7'},
+  {id:'t3', name:'Week Conqueror',      desc:'Week Meester achievement',     bonus:'+15% XP weekly',mult:1.15, ach:'allweek'},
+  {id:'t4', name:'The Athlete',         desc:'10 sport quests voltooid',     bonus:'+20% STR XP', ach:'sp10'},
+  {id:'t5', name:'Shadow Monarch',      desc:'Level 25 bereikt',             bonus:'+10% alles', mult:1.1,goldMult:1.1, ach:'lv25'},
+  {id:'t6', name:'Ruler\'s Authority',  desc:'Level 50 bereikt',             bonus:'+25% alles', mult:1.25,goldMult:1.25, ach:'lv50'},
 ];
 
-let db = JSON.parse(localStorage.getItem(STORE)) || {
-  p: {level:1, xp:0, xpNext:100, totalXp:0, gold:120, streak:0, attrs:{str:12,int:10,vit:11,agi:13,sen:10,wis:12}},
-  tasks: tasksBase.map(t=>({...t, done:false, doneCount:0})),
-  shadows: SHADOW_ARMY,
-  owned: []
-};
+const SHOP_ITEMS=[
+  {id:'si1', ico:'⚡',  name:'XP Boost',      desc:'2x XP voor 24 uur',        price:100, type:'boost_xp'},
+  {id:'si2', ico:'🪙',  name:'Gold Rush',      desc:'2x Gold voor 24 uur',      price:80,  type:'boost_gold'},
+  {id:'si3', ico:'💊',  name:'Revive Token',   desc:'Herstel je streak 1x',     price:200, type:'streak_revive'},
+  {id:'si4', ico:'🔮',  name:'XP Crystal',    desc:'+500 XP direct',           price:150, type:'xp_grant'},
+  {id:'si5', ico:'🎯',  name:'Quest Scroll',   desc:'Unlock 3 geheime quests',  price:120, type:'secret_quests'},
+  {id:'si6', ico:'👤',  name:'Shadow Shard',   desc:'+1 Shadow soldaat direct', price:300, type:'shadow_shard'},
+];
 
-let currentType = 'daily';
-let currentTab = 'quests';
+const ACHS=[
+  {id:'first',  ico:'⚡', name:'Eerste Stap',          desc:'Eerste quest voltooid'},
+  {id:'allday', ico:'🌟', name:'Dag Meester',          desc:'Alle daily quests op één dag'},
+  {id:'allweek',ico:'👑', name:'Week Meester',         desc:'Alle weekly quests in één week'},
+  {id:'str7',   ico:'🔥', name:'Week Warrior',         desc:'7 dagen streak'},
+  {id:'str30',  ico:'💎', name:'Maand Warrior',        desc:'30 dagen streak'},
+  {id:'str90',  ico:'🌀', name:'Shadow Monarch Cand.', desc:'90 dagen streak'},
+  {id:'lv10',   ico:'🗡', name:'Veteraan',             desc:'Level 10 bereikt'},
+  {id:'lv25',   ico:'⚔', name:'Elite Hunter',         desc:'Level 25 bereikt'},
+  {id:'lv50',   ico:'🏆', name:'S-Rank Hunter',        desc:'Level 50 bereikt'},
+  {id:'lv100',  ico:'👑', name:'Monarch',              desc:'Level 100 bereikt'},
+  {id:'xp1k',   ico:'💫', name:'XP Grinder',           desc:'1.000 totale XP'},
+  {id:'xp5k',   ico:'🌙', name:'XP Slayer',            desc:'5.000 totale XP'},
+  {id:'xp10k',  ico:'🌌', name:'Grinding Arc',         desc:'10.000 totale XP'},
+  {id:'g500',   ico:'🪙', name:'Rijk Worden',          desc:'500 Gold gespaard'},
+  {id:'g2k',    ico:'💰', name:'Gold Hoarder',         desc:'2.000 Gold verzameld'},
+  {id:'sp10',   ico:'💪', name:'Gym Rat',              desc:'10 sport quests'},
+  {id:'sp50',   ico:'🏋', name:'The Necromancer',      desc:'50 sport quests'},
+  {id:'sl7',    ico:'😴', name:'Slaap King',           desc:'7 slaap quests'},
+  {id:'cust1',  ico:'✏', name:'Eigen Baas',           desc:'Eigen quest aangemaakt'},
+  {id:'shadow1',ico:'🌑', name:'Shadow Extraction',    desc:'Eerste shadow soldier'},
+  {id:'shadow10',ico:'👥',name:'Army Builder',         desc:'10 shadow soldiers'},
+  {id:'perfect',ico:'✨', name:'Perfect Day',          desc:'Alle daily quests gedaan'},
+  {id:'rankC',  ico:'🔵', name:'System Recognizes You',desc:'Rank C bereikt'},
+  {id:'rankS',  ico:'🔴', name:'Awakened',             desc:'Rank S bereikt'},
+  {id:'allattr',ico:'💠', name:'Double Awakening',     desc:'Alle attributes op 30+'},
+];
 
-// ==================== FUNCTIONS ====================
-function save(){ localStorage.setItem(STORE, JSON.stringify(db)); }
+const SYS_MSGS=[
+  '【SYSTEM】 The System has acknowledged your growth...',
+  '【SYSTEM】 You have acquired the qualifications to be a Player.',
+  '【SYSTEM】 A new Gate has been detected in your vicinity.',
+  '【SYSTEM】 Daily Quests have been updated.',
+  '【SYSTEM】 Warning: Penalty Zone approaching. Complete your quests.',
+  '【SYSTEM】 Hidden Quest unlocked based on your performance.',
+  '【SYSTEM】 The Shadow Army grows stronger with each passing day.',
+  '【SYSTEM】 Your resolve has been recognized. Continue forward.',
+  '【SYSTEM】 Dungeon Break detected. All hunters on high alert.',
+  '【SYSTEM】 You are the strongest within this domain.',
+];
 
-function notify(msg){
-  const n = document.getElementById('notif');
-  n.textContent = msg;
-  n.classList.add('on');
-  setTimeout(()=>n.classList.remove('on'), 3800);
+const EMERGENCY_QUESTS=[
+  {title:'20 push-ups NU',      xp:60, gold:40, mins:30},
+  {title:'Drink 500ml water',   xp:30, gold:20, mins:15},
+  {title:'5 min mediteren',     xp:40, gold:25, mins:20},
+  {title:'10 min wandelen',     xp:50, gold:35, mins:30},
+  {title:'Kamer opruimen in 10 min', xp:45, gold:30, mins:15},
+  {title:'30 squats NU',        xp:55, gold:35, mins:20},
+  {title:'Stuur een lief bericht', xp:35, gold:20, mins:10},
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+function fresh(){
+  return{
+    p:{level:1,xp:0,xpNext:100,totalXp:0,gold:0,totalGold:0,streak:0,lastLogin:null,lastDaily:null,lastWeekly:null,
+       attrs:{str:10,int:10,vit:10,agi:10,sen:10,wis:10},attrXp:{str:0,int:0,vit:0,agi:0,sen:0,wis:0},
+       equippedTitle:null,boosts:{xp:null,gold:null}},
+    tasks:JSON.parse(JSON.stringify(DTASKS)).map(t=>({...t,done:false,doneCount:0,custom:false})),
+    ach:{},stats:{total:0,sport:0,sleep:0,werk:0},
+    titles:[],shop:{},shadows:[],shadowPoints:{},
+    emergency:null,photos:{},
+  };
 }
 
-function getRank(lv){
-  const ranks = [{r:'E',min:1,title:'Rookie'},{r:'D',min:6,title:'Iron'},{r:'C',min:11,title:'Silver'},{r:'B',min:21,title:'Gold'},{r:'A',min:31,title:'Platinum'},{r:'S',min:46,title:'Shadow'},{r:'SS',min:61,title:'Monarch'}];
-  for(let r of ranks) if(lv >= r.min) return r;
-  return ranks[0];
-}
+let db=(()=>{try{const s=localStorage.getItem(STORE);return s?JSON.parse(s):fresh();}catch{return fresh();}})();
+// migrations
+if(!db.p){db=fresh();}
+['attrs','attrXp'].forEach(k=>{if(!db.p[k])db.p[k]={str:10,int:10,vit:10,agi:10,sen:10,wis:10};});
+if(!db.stats)db.stats={total:0,sport:0,sleep:0,werk:0};
+if(!db.shadows)db.shadows=[];
+if(!db.shadowPoints)db.shadowPoints={};
+if(!db.titles)db.titles=[];
+if(!db.shop)db.shop={};
+if(!db.photos)db.photos={};
+if(!db.p.boosts)db.p.boosts={xp:null,gold:null};
+if(!db.p.totalGold)db.p.totalGold=db.p.gold||0;
 
-function addXP(amount){
-  db.p.xp += amount;
-  db.p.totalXp += amount;
-  while(db.p.xp >= db.p.xpNext){
-    db.p.xp -= db.p.xpNext;
-    db.p.level++;
-    db.p.xpNext = db.p.level * 110;
-    showLevelUp();
-  }
+function save(){localStorage.setItem(STORE,JSON.stringify(db));}
+
+// ═══════════════════════════════════════════════════════
+// RESETS & INIT
+// ═══════════════════════════════════════════════════════
+function weekStart(){const d=new Date(),day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff)).toDateString();}
+
+function checkResets(){
+  const today=new Date().toDateString(),wk=weekStart();
+  const yest=new Date();yest.setDate(yest.getDate()-1);
+  if(db.p.lastDaily!==today){db.tasks.filter(t=>t.type==='daily').forEach(t=>t.done=false);db.p.lastDaily=today;}
+  if(db.p.lastWeekly!==wk){db.tasks.filter(t=>t.type==='weekly').forEach(t=>t.done=false);db.p.lastWeekly=wk;}
+  if(!db.p.lastLogin){db.p.streak=1;}
+  else if(db.p.lastLogin===yest.toDateString()){db.p.streak=(db.p.streak||0)+1;}
+  else if(db.p.lastLogin!==today){db.p.streak=0;}
+  db.p.lastLogin=today;
+  // clear expired boosts
+  const now=Date.now();
+  if(db.p.boosts.xp&&db.p.boosts.xp<now)db.p.boosts.xp=null;
+  if(db.p.boosts.gold&&db.p.boosts.gold<now)db.p.boosts.gold=null;
   save();
-  updateHeader();
 }
 
-function showLevelUp(){
-  const rk = getRank(db.p.level);
-  document.getElementById('luNum').textContent = db.p.level;
-  document.getElementById('luRank').textContent = rk.title + " Hunter";
-  document.getElementById('levelup').classList.add('on');
+// ═══════════════════════════════════════════════════════
+// XP / LEVEL / ATTRS
+// ═══════════════════════════════════════════════════════
+function getRank(lv){let r=RANKS[0];for(const rk of RANKS)if(lv>=rk.min)r=rk;return r;}
+function xpForLv(lv){return lv*100;}
+function getXPMult(){
+  let m=1;
+  if(db.p.boosts.xp&&db.p.boosts.xp>Date.now())m*=2;
+  const t=db.p.equippedTitle?TITLES.find(x=>x.id===db.p.equippedTitle):null;
+  if(t?.mult)m*=t.mult;
+  return m;
 }
-function closeLu(){ document.getElementById('levelup').classList.remove('on'); }
+function getGoldMult(){
+  let m=1;
+  if(db.p.boosts.gold&&db.p.boosts.gold>Date.now())m*=2;
+  const t=db.p.equippedTitle?TITLES.find(x=>x.id===db.p.equippedTitle):null;
+  if(t?.goldMult)m*=t.goldMult;
+  return m;
+}
 
+function addXP(baseXp,baseGold,cat){
+  const xp=Math.round(baseXp*getXPMult());
+  const gold=Math.round(baseGold*getGoldMult());
+  db.p.xp+=xp;db.p.totalXp+=xp;
+  db.p.gold+=gold;db.p.totalGold=(db.p.totalGold||0)+gold;
+
+  // shadow points
+  if(cat){db.shadowPoints[cat]=(db.shadowPoints[cat]||0)+1;}
+
+  // attr XP
+  const ak=CATS[cat]?.attr;
+  if(ak){
+    db.p.attrXp[ak]=(db.p.attrXp[ak]||0)+xp;
+    const thresh=60*(db.p.attrs[ak]-9);
+    if(thresh>0&&db.p.attrXp[ak]>=thresh){db.p.attrs[ak]++;db.p.attrXp[ak]=0;notify('[ ATTRIBUTE UP ] '+ak.toUpperCase()+' → '+db.p.attrs[ak]);}
+  }
+
+  // level up
+  while(db.p.xp>=db.p.xpNext){db.p.xp-=db.p.xpNext;db.p.level++;db.p.xpNext=xpForLv(db.p.level);showLevelUp(db.p.level);}
+
+  // check shadows
+  checkShadows();
+  save();updateHeader();
+}
+
+// ═══════════════════════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════════════════════
 function updateHeader(){
-  const rk = getRank(db.p.level);
-  document.getElementById('header-status').innerHTML = `
-    <div style="display:flex;gap:15px">
-      <div style="font-size:2.8rem">🗡️</div>
-      <div style="flex:1">
-        <div style="font-size:1.35rem;font-weight:900">REMY EGBERTS</div>
-        <div style="color:var(--purple)">${rk.title} Hunter • ${rk.r}-Rank</div>
-        <div>LV.${db.p.level} • ${Math.floor(db.p.xp/db.p.xpNext*100)}% XP</div>
-      </div>
-      <div style="text-align:right">
-        <div style="color:var(--gold);font-size:1.4rem">${db.p.gold} 🪙</div>
-        <div style="color:#0f0">${db.p.streak} 🔥</div>
-      </div>
-    </div>`;
+  const p=db.p,rk=getRank(p.level),pct=Math.round((p.xp/p.xpNext)*100);
+  document.getElementById('rankPip').textContent=rk.r+'-RANK';
+  document.getElementById('rankPip').className='rank-pip '+rk.cls;
+  document.getElementById('avatarEl').textContent=rk.avatar;
+  document.getElementById('hunterClass').textContent=rk.title;
+  const td=document.getElementById('hunterTitleDisp');
+  if(p.equippedTitle){const t=TITLES.find(x=>x.id===p.equippedTitle);td.textContent='【'+t.name+'】 '+t.bonus;td.style.display='block';}
+  else td.style.display='none';
+  document.getElementById('lvText').textContent='LV. '+p.level;
+  document.getElementById('xpFrac').textContent=p.xp+' / '+p.xpNext+' XP';
+  document.getElementById('xpFill').style.width=pct+'%';
+  document.getElementById('msXp').textContent=p.totalXp;
+  document.getElementById('msGold').textContent=p.gold;
+  document.getElementById('msStreak').textContent=p.streak||0;
+  document.getElementById('msDone').textContent=db.stats?.total||0;
+  ['str','int','vit','agi','sen','wis'].forEach(a=>{const el=document.getElementById('a'+a[0].toUpperCase()+a.slice(1));if(el)el.textContent=p.attrs[a]||10;});
+  const nrk=RANKS.find(r=>r.min>p.level);
+  if(nrk){const left=nrk.min-p.level,range=nrk.min-(getRank(p.level).min||1),prog=range>0?Math.round(((range-left)/range)*100):0;
+    document.getElementById('rankupText').textContent='Nog '+left+' levels voor '+nrk.r+'-Rank';
+    document.getElementById('rankRing').style.strokeDashoffset=100-prog;}
+  else document.getElementById('rankupText').textContent='Je hebt de hoogste rank bereikt!';
 }
 
-function checkLocation(id){
-  const task = db.tasks.find(t=>t.id===id);
-  if(!task) return;
-  notify(`📍 GPS activeert voor ${task.title}...`);
-  
-  navigator.geolocation.getCurrentPosition(()=>{
-    if(!task.done){
-      task.done = true;
-      task.doneCount = (task.doneCount||0)+1;
-      db.p.gold += task.gold || 40;
-      addXP(task.xp || 80);
-      notify(`【GATE CLEARED】 ${task.title}`);
-      if(Math.random() < 0.45) unlockShadow();
-      save();
-      render();
-    }
-  }, ()=>{ notify("GPS geweigerd of niet beschikbaar"); }, {enableHighAccuracy:true});
+// ═══════════════════════════════════════════════════════
+// LEVEL UP + PARTICLES
+// ═══════════════════════════════════════════════════════
+function showLevelUp(lv){
+  const rk=getRank(lv);
+  document.getElementById('luNum').textContent=lv;
+  document.getElementById('luRank').textContent=rk.title;
+  document.getElementById('luAttr').innerHTML='<div class="lu-attr-pill">STR +</div><div class="lu-attr-pill">All Stats ↑</div>';
+  document.getElementById('levelup').classList.add('on');
+  spawnParticles();
+  checkAch();
+}
+function closeLu(){document.getElementById('levelup').classList.remove('on');}
+
+function spawnParticles(){
+  const canvas=document.getElementById('particles');
+  const ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const cx=canvas.width/2,cy=canvas.height/2;
+  const colors=['#00c8ff','#7c3aff','#f5c842','#00ff88','#ff3355'];
+  const particles=[];
+  for(let i=0;i<80;i++){
+    const angle=Math.random()*Math.PI*2,speed=Math.random()*8+4;
+    particles.push({x:cx,y:cy,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:Math.random()*4+2,color:colors[Math.floor(Math.random()*colors.length)],life:1});
+  }
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive=false;
+    particles.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.15;p.life-=0.018;
+      if(p.life>0){alive=true;ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.life;ctx.fill();}
+    });
+    ctx.globalAlpha=1;
+    if(alive)requestAnimationFrame(draw);else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
 }
 
-function unlockShadow(){
-  const locked = db.shadows.filter(s=>!s.unlocked);
-  if(!locked.length) return;
-  const s = locked[Math.floor(Math.random()*locked.length)];
-  s.unlocked = true;
-  notify(`【SHADOW EXTRACTION SUCCESS】 ${s.name} toegevoegd aan je leger!`);
-  save();
-}
+// ═══════════════════════════════════════════════════════
+// NOTIFY
+// ═══════════════════════════════════════════════════════
+let _nt;
+function notify(msg){const el=document.getElementById('notif');el.textContent=msg;el.classList.add('on');clearTimeout(_nt);_nt=setTimeout(()=>el.classList.remove('on'),3200);}
 
-function buyItem(id){
-  const item = SHOP_ITEMS.find(i=>i.id===id);
-  if(!item || db.p.gold < item.cost) return notify("Niet genoeg Gold");
-  db.p.gold -= item.cost;
-  db.owned.push(id);
-  notify(`✅ Gekocht: ${item.name}`);
-  save();
-  render();
-}
+// ═══════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════
+let tab='quests',qtype='daily';
+document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{tab=t.dataset.tab;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));render();});});
+function switchType(type){qtype=type;document.getElementById('nb-daily').classList.toggle('active',type==='daily');document.getElementById('nb-weekly').classList.toggle('active',type==='weekly');if(tab==='quests')render();}
 
-function toggle(id){
-  const t = db.tasks.find(x=>x.id===id);
-  if(!t || t.done) return;
-  t.done = true;
-  t.doneCount = (t.doneCount||0)+1;
-  db.p.gold += t.gold || 20;
-  addXP(t.xp || 40);
-  notify(`Quest voltooid +${t.xp} XP`);
-  save();
-  render();
-}
-
+// ═══════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════
 function render(){
-  const main = document.getElementById('main');
-  let html = '';
+  const m=document.getElementById('main');
+  if(tab==='shadow'){renderShadow();return;}
+  if(tab==='titles'){renderTitles();return;}
+  if(tab==='shop'){renderShop();return;}
+  if(tab==='stats'){renderStats();return;}
+  if(tab==='achievements'){renderAch();return;}
+  renderQuests();
+}
 
-  if(currentTab === 'quests'){
-    const filtered = db.tasks.filter(t => t.type === currentType);
-    Object.keys(CATS).forEach(key => {
-      const cat = CATS[key];
-      const qs = filtered.filter(t=>t.cat===key);
-      if(!qs.length) return;
-      html += `<div style="color:${cat.col};margin:18px 0 8px;font-weight:700">${cat.icon} ${cat.label}</div>`;
-      qs.forEach(t => {
-        html += `
-          <div class="quest ${t.done?'done':''}">
-            <div class="q-check" onclick="toggle('${t.id}')">${t.done?'✓':''}</div>
-            <div style="flex:1">
-              <div style="font-size:1.05rem">${t.title}</div>
-              <div style="color:#888;font-size:0.8rem">+${t.xp} XP • +${t.gold||20} 🪙</div>
-            </div>
-            ${t.location ? `<button onclick="checkLocation('${t.id}')" style="padding:8px 16px;background:#00ffaa;color:black;border:none;border-radius:8px;font-weight:700">📍 CHECK-IN</button>` : ''}
-          </div>`;
-      });
-    });
-  } 
-  else if(currentTab === 'shadow'){
-    html = `<h2 style="margin:20px 0 15px">🌑 Shadow Army (${db.shadows.filter(s=>s.unlocked).length}/${db.shadows.length})</h2>`;
-    db.shadows.forEach(s => {
-      html += `
-        <div class="shadow-card">
-          <div style="font-size:3rem;margin-bottom:8px">${s.icon}</div>
-          <div style="font-size:1.1rem">${s.name}</div>
-          <div style="color:var(--gold)">Power: ${s.power}</div>
-          ${s.unlocked ? '<span style="color:#0f0">✓ Active</span>' : '<span style="color:#666">Locked</span>'}
-        </div>`;
-    });
-  } 
-  else if(currentTab === 'shop'){
-    html = `<h2 style="margin:20px 0 15px">🛒 System Shop</h2>`;
-    SHOP_ITEMS.forEach(item => {
-      html += `
-        <div class="shop-item">
-          <div style="font-size:1.1rem">${item.name}</div>
-          <div style="color:#888">${item.desc}</div>
-          <div style="color:var(--gold);margin:10px 0">${item.cost} Gold</div>
-          <button onclick="buyItem('${item.id}')" style="width:100%;padding:10px;background:var(--blue);color:white;border:none;border-radius:8px">KOPEN</button>
-        </div>`;
-    });
-  } 
-  else if(currentTab === 'stats'){
-    html = `<div style="text-align:center;padding:40px 20px">
-      <div style="font-size:4rem;font-weight:900;color:var(--gold)">${db.p.level}</div>
-      <div style="color:var(--blue)">LEVEL</div>
-      <div style="margin-top:30px">Total XP: ${db.p.totalXp}</div>
-      <div>Gold: ${db.p.gold}</div>
+function renderQuests(){
+  const tasks=db.tasks.filter(t=>t.type===qtype);
+  let html=`<div class="type-switch"><button class="type-btn ${qtype==='daily'?'active':''}" onclick="switchType('daily')">☀️ Daily</button><button class="type-btn ${qtype==='weekly'?'active':''}" onclick="switchType('weekly')">📅 Weekly</button></div>`;
+
+  // BOSS RAID (weekly tab)
+  if(qtype==='weekly'){
+    const dailyDone=db.tasks.filter(t=>t.type==='daily'&&t.done).length;
+    const dailyTotal=db.tasks.filter(t=>t.type==='daily').length;
+    const bossDefeated=!!db.p.bossDefeated;
+    const bossHp=Math.max(0,100-Math.round((dailyDone/dailyTotal)*100));
+    html+=`<div class="boss-raid">
+      <div class="boss-header"><span class="boss-badge">[ BOSS RAID ]</span><span class="boss-name">Shadow Monarch's Gate</span></div>
+      <div class="boss-hp-wrap">
+        <div class="boss-hp-bar"><div class="boss-hp-fill" style="width:${100-bossHp}%"></div></div>
+        <div class="boss-hp-txt"><span>Boss HP: ${bossHp}%</span><span>${dailyDone}/${dailyTotal} daily quests</span></div>
+      </div>
+      <div class="boss-reqs">Voltooi alle daily quests deze week om de Boss te verslaan. <span>Beloning: 500 XP + 300 Gold</span></div>
+      <button class="boss-btn" ${dailyDone<dailyTotal||bossDefeated?'disabled':''} onclick="defeatBoss()">
+        ${bossDefeated?'✓ BOSS VERSLAGEN':'⚔ RAID DE BOSS'}
+      </button>
     </div>`;
   }
-  main.innerHTML = html;
+
+  // EMERGENCY QUEST
+  if(db.emergency&&db.emergency.expiresAt>Date.now()&&!db.emergency.done){
+    const eq=db.emergency;const mins=Math.ceil((eq.expiresAt-Date.now())/60000);
+    html+=`<div class="emergency-quest">
+      <div class="eq-header"><span class="eq-badge">🚨 EMERGENCY QUEST</span><span class="eq-timer">${mins}m over</span></div>
+      <div class="eq-title">${eq.title}</div>
+      <div class="eq-rewards"><span class="eq-r" style="color:var(--blue)">+${eq.xp} XP</span><span class="eq-r" style="color:var(--gold)">+${eq.gold} 🪙</span></div>
+      <button class="eq-btn" onclick="completeEmergency()">⚡ QUEST VOLTOOIEN</button>
+    </div>`;
+  }
+
+  // QUESTS per cat
+  Object.keys(CATS).forEach(cat=>{
+    const ct=tasks.filter(t=>t.cat===cat);if(!ct.length)return;
+    const c=CATS[cat];
+    html+=`<div class="cat-div" style="--cc:${c.col}"><span class="cat-div-icon">${c.icon}</span><span class="cat-div-label">${c.label}</span><div class="cat-div-line"></div></div>`;
+    ct.forEach(t=>{
+      let extra='';
+      if(t.location&&!t.done)extra+=`<button class="q-loc-btn" onclick="checkLocation('${t.id}')">📍 Check-in</button>`;
+      if(t.photo&&!t.done)extra+=`<button class="q-photo-btn" onclick="openPhoto('${t.id}')">📸 Foto</button>`;
+      html+=`<div class="quest${t.done?' done':''}${t.locked?' locked':''}" style="--cc:${c.col}">
+        <div class="q-check" onclick="toggle('${t.id}')">${t.done?'✓':''}</div>
+        <div class="q-info">
+          <div class="q-title">${t.title}</div>
+          <div class="q-sub">${c.icon} ${c.label}${t.doneCount>0?' · '+t.doneCount+'x':''}</div>
+          ${extra}
+        </div>
+        <div class="q-rewards"><div class="q-xp">+${t.xp} XP</div><div class="q-gold">+${t.gold} 🪙</div></div>
+        ${t.custom?`<button class="q-del" onclick="delTask('${t.id}')">✕</button>`:''}
+      </div>`;
+    });
+    html+=`<div class="add-row"><input class="add-inp" type="text" placeholder="Eigen quest..." id="inp-${qtype}-${cat}" onkeydown="if(event.key==='Enter')addTask('${qtype}','${cat}')"><button class="add-btn" onclick="addTask('${qtype}','${cat}')">+</button></div>`;
+  });
+  document.getElementById('main').innerHTML=html;
 }
 
-function switchType(t){ currentType = t; render(); }
-function resetConfirm(){ if(confirm('Daily/Weekly quests resetten?')){ db.tasks.forEach(t=>t.done=false); save(); render(); }}
-function showSettings(){ if(confirm('Hele app resetten?')){ localStorage.clear(); location.reload(); }}
-
-// Tab klikken
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    currentTab = tab.dataset.tab;
-    render();
+function renderShadow(){
+  const total=db.shadows.length;
+  const influence=Math.min(50,total*5);
+  let html=`<div class="shadow-summary">
+    <div class="shadow-count">${total}</div>
+    <div class="shadow-label">[ SHADOW ARMY SIZE ]</div>
+    <div class="shadow-influence">Monarch Influence: +${influence}% XP bonus</div>
+  </div>
+  <div class="shadow-grid">`;
+  SHADOWS.forEach(s=>{
+    const owned=db.shadows.includes(s.id);
+    const pts=db.shadowPoints[s.cat]||0;
+    html+=`<div class="shadow-card ${owned?'active':''}">
+      <div class="sh-ico">${s.ico}</div>
+      <div class="sh-name">${s.name}</div>
+      <div class="sh-rank">${s.rank}${!owned?' · '+pts+'/'+s.threshold:' ✓'}</div>
+    </div>`;
   });
-});
+  html+=`</div><div class="shadow-unlock-txt">Shadows unlocken door quests te doen per categorie</div>`;
+  document.getElementById('main').innerHTML=html;
+}
 
-// Init
+function renderTitles(){
+  let html='<div class="title-grid">';
+  TITLES.forEach(t=>{
+    const owned=db.titles.includes(t.id)||!!db.ach[t.ach];
+    const equipped=db.p.equippedTitle===t.id;
+    html+=`<div class="title-card ${owned?'owned':''} ${equipped?'equipped':''}" onclick="${owned?'equipTitle(\''+t.id+'\')':''}">
+      <div class="tc-name">${t.name}</div>
+      <div class="tc-bonus">${t.bonus}</div>
+      <div class="tc-desc">${t.desc}</div>
+      ${equipped?'<div class="tc-eq">✓ EQUIPPED</div>':''}
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('main').innerHTML=html;
+}
+
+function renderShop(){
+  let html=`<div class="shop-gold"><div class="shop-gold-val">${db.p.gold} 🪙</div><div class="shop-gold-lbl">BESCHIKBARE GOLD</div></div><div class="shop-grid">`;
+  SHOP_ITEMS.forEach(item=>{
+    const can=db.p.gold>=item.price;
+    const owned=db.shop[item.id]&&db.shop[item.id]>Date.now();
+    html+=`<div class="shop-item ${can&&!owned?'affordable':''}" onclick="${can&&!owned?'buyItem(\''+item.id+'\')':''}">
+      <div class="si-ico">${item.ico}</div>
+      <div class="si-name">${item.name}</div>
+      <div class="si-desc">${item.desc}</div>
+      <div class="si-price ${can?'can':'cant'}">${item.price} 🪙</div>
+      ${owned?'<div class="si-owned">✓ ACTIEF</div>':''}
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('main').innerHTML=html;
+}
+
+function renderStats(){
+  const p=db.p;
+  document.getElementById('main').innerHTML=`<div class="stats-grid">
+    <div class="stat-card" style="--accent:var(--gold)"><div class="sc-val">${p.totalXp}</div><div class="sc-lbl">TOTAL XP</div></div>
+    <div class="stat-card" style="--accent:var(--gold)"><div class="sc-val">${p.totalGold||p.gold}</div><div class="sc-lbl">TOTAL GOLD</div></div>
+    <div class="stat-card" style="--accent:var(--blue)"><div class="sc-val">${p.level}</div><div class="sc-lbl">LEVEL</div></div>
+    <div class="stat-card" style="--accent:var(--red)"><div class="sc-val">${p.streak||0}</div><div class="sc-lbl">STREAK 🔥</div></div>
+    <div class="stat-card" style="--accent:var(--green)"><div class="sc-val">${db.stats?.total||0}</div><div class="sc-lbl">ALL-TIME DONE</div></div>
+    <div class="stat-card" style="--accent:var(--purple)"><div class="sc-val">${db.shadows.length}</div><div class="sc-lbl">SHADOWS 👥</div></div>
+    <div class="stat-card" style="--accent:var(--str)"><div class="sc-val">${p.attrs.str}</div><div class="sc-lbl">STR 💪</div></div>
+    <div class="stat-card" style="--accent:var(--int)"><div class="sc-val">${p.attrs.int}</div><div class="sc-lbl">INT 🧠</div></div>
+    <div class="stat-card" style="--accent:var(--vit)"><div class="sc-val">${p.attrs.vit}</div><div class="sc-lbl">VIT 🍎</div></div>
+    <div class="stat-card" style="--accent:var(--agi)"><div class="sc-val">${p.attrs.agi}</div><div class="sc-lbl">AGI ⚡</div></div>
+    <div class="stat-card" style="--accent:var(--sen)"><div class="sc-val">${p.attrs.sen}</div><div class="sc-lbl">SEN ❤️</div></div>
+    <div class="stat-card" style="--accent:var(--wis)"><div class="sc-val">${p.attrs.wis}</div><div class="sc-lbl">WIS 💤</div></div>
+  </div>`;}
+
+function renderAch(){
+  document.getElementById('main').innerHTML=`<div class="ach-grid">${ACHS.map(a=>`<div class="ach ${db.ach[a.id]?'unlocked':''}"><div class="ach-ico">${a.ico}</div><div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div></div>`).join('')}</div>`;}
+
+// ═══════════════════════════════════════════════════════
+// QUEST ACTIONS
+// ═══════════════════════════════════════════════════════
+function toggle(id){
+  const t=db.tasks.find(x=>x.id===id);if(!t)return;
+  if(!t.done){
+    t.done=true;t.doneCount=(t.doneCount||0)+1;
+    if(!db.stats)db.stats={total:0,sport:0,sleep:0,werk:0};
+    db.stats.total++;
+    if(t.cat==='sport')db.stats.sport++;
+    if(t.cat==='slaap')db.stats.sleep++;
+    if(t.cat==='werk')db.stats.werk++;
+    addXP(t.xp,t.gold,t.cat);
+    notify(`[ QUEST COMPLETE ] +${t.xp} XP  +${t.gold} 🪙`);
+    checkAch();
+  }else{
+    t.done=false;
+    db.p.xp=Math.max(0,db.p.xp-t.xp);db.p.totalXp=Math.max(0,db.p.totalXp-t.xp);
+    db.p.gold=Math.max(0,db.p.gold-t.gold);
+    save();updateHeader();
+  }
+  save();render();
+}
+
+function addTask(type,cat){
+  const inp=document.getElementById(`inp-${type}-${cat}`);
+  const title=inp?.value.trim();if(!title)return;
+  db.tasks.push({id:'c-'+Date.now(),cat,type,title,xp:25,gold:15,done:false,doneCount:0,custom:true});
+  if(!db.ach['cust1']){db.ach['cust1']=Date.now();notify('[ ACHIEVEMENT ] Eigen Baas vrijgespeeld!');}
+  save();inp.value='';render();
+}
+
+function delTask(id){db.tasks=db.tasks.filter(t=>t.id!==id);save();render();}
+
+// ═══════════════════════════════════════════════════════
+// LOCATION QUEST
+// ═══════════════════════════════════════════════════════
+function checkLocation(id){
+  notify('[ SYSTEM ] GPS wordt geladen...');
+  if(!navigator.geolocation){notify('[ ERROR ] GPS niet beschikbaar');return;}
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{notify(`[ GPS ] Locatie bevestigd: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+      setTimeout(()=>{toggle(id);},500);},
+    ()=>{notify('[ ERROR ] GPS toegang geweigerd — quest handmatig voltooien');},
+    {timeout:10000}
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// PHOTO PROOF
+// ═══════════════════════════════════════════════════════
+function openPhoto(id){
+  const t=db.tasks.find(x=>x.id===id);if(!t)return;
+  document.getElementById('modalTitle').textContent='📸 Foto Bewijs';
+  document.getElementById('modalContent').innerHTML=`
+    <p style="font-size:.82rem;color:var(--dim);margin-bottom:.75rem">Maak een foto als bewijs dat je de quest hebt voltooid.</p>
+    <div class="photo-preview" id="photoPreview">📷 Nog geen foto</div>
+    <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none" onchange="previewPhoto('${id}')">
+    <button onclick="document.getElementById('photoInput').click()" style="width:100%;padding:.55rem;background:rgba(200,119,255,.1);border:1px solid var(--sen);color:var(--sen);border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;margin-bottom:.5rem">📷 Open Camera</button>
+    <button id="photoConfirm" onclick="confirmPhoto('${id}')" disabled style="width:100%;padding:.55rem;background:rgba(0,200,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;opacity:.4">✓ Quest voltooien met foto</button>`;
+  openModal();
+}
+
+function previewPhoto(id){
+  const file=document.getElementById('photoInput').files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    document.getElementById('photoPreview').innerHTML=`<img src="${e.target.result}" alt="proof">`;
+    db.photos[id]=e.target.result;
+    const btn=document.getElementById('photoConfirm');btn.disabled=false;btn.style.opacity='1';
+  };
+  reader.readAsDataURL(file);
+}
+
+function confirmPhoto(id){
+  closeModal();
+  toggle(id);
+}
+
+// ═══════════════════════════════════════════════════════
+// EMERGENCY QUEST
+// ═══════════════════════════════════════════════════════
+function triggerEmergency(){
+  if(db.emergency&&db.emergency.expiresAt>Date.now()&&!db.emergency.done){notify('[ SYSTEM ] Emergency Quest is al actief!');return;}
+  const eq=EMERGENCY_QUESTS[Math.floor(Math.random()*EMERGENCY_QUESTS.length)];
+  db.emergency={...eq,expiresAt:Date.now()+eq.mins*60*1000,done:false};
+  save();
+  notify(`🚨 EMERGENCY QUEST: ${eq.title} — ${eq.mins} min!`);
+  if(tab==='quests')render();
+}
+
+function completeEmergency(){
+  if(!db.emergency||db.emergency.done)return;
+  db.emergency.done=true;
+  addXP(db.emergency.xp,db.emergency.gold,'sport');
+  notify(`[ EMERGENCY CLEAR ] +${db.emergency.xp} XP +${db.emergency.gold} 🪙`);
+  save();render();
+}
+
+// ═══════════════════════════════════════════════════════
+// BOSS RAID
+// ═══════════════════════════════════════════════════════
+function defeatBoss(){
+  const dailyDone=db.tasks.filter(t=>t.type==='daily'&&t.done).length;
+  const dailyTotal=db.tasks.filter(t=>t.type==='daily').length;
+  if(dailyDone<dailyTotal){notify('[ SYSTEM ] Eerst alle daily quests voltooien!');return;}
+  if(db.p.bossDefeated){notify('[ SYSTEM ] Boss al verslagen deze week!');return;}
+  db.p.bossDefeated=true;
+  addXP(500,300,'sport');
+  notify('[ RAID CLEAR ] Shadow Monarch\'s Gate verslagen! +500 XP +300 🪙');
+  spawnParticles();
+  save();render();
+}
+
+// ═══════════════════════════════════════════════════════
+// SHADOWS
+// ═══════════════════════════════════════════════════════
+function checkShadows(){
+  SHADOWS.forEach(s=>{
+    if(db.shadows.includes(s.id))return;
+    const pts=db.shadowPoints[s.cat]||0;
+    if(pts>=s.threshold){
+      db.shadows.push(s.id);
+      notify(`[ SHADOW EXTRACTED ] ${s.ico} ${s.name} heeft zich aangesloten!`);
+      if(!db.ach['shadow1']){db.ach['shadow1']=Date.now();}
+      if(db.shadows.length>=10&&!db.ach['shadow10']){db.ach['shadow10']=Date.now();}
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// TITLES
+// ═══════════════════════════════════════════════════════
+function equipTitle(id){
+  db.p.equippedTitle=db.p.equippedTitle===id?null:id;
+  save();updateHeader();renderTitles();
+  notify(db.p.equippedTitle?'[ TITLE EQUIPPED ] '+TITLES.find(x=>x.id===id).name:'[ TITLE REMOVED ]');
+}
+
+// ═══════════════════════════════════════════════════════
+// SHOP
+// ═══════════════════════════════════════════════════════
+function buyItem(id){
+  const item=SHOP_ITEMS.find(x=>x.id===id);if(!item||db.p.gold<item.price)return;
+  db.p.gold-=item.price;
+  const expires24h=Date.now()+24*60*60*1000;
+  if(item.type==='boost_xp'){db.p.boosts.xp=expires24h;notify('[ SHOP ] 2x XP Boost actief voor 24 uur!');}
+  if(item.type==='boost_gold'){db.p.boosts.gold=expires24h;notify('[ SHOP ] 2x Gold Boost actief voor 24 uur!');}
+  if(item.type==='streak_revive'){db.p.streak=Math.max(db.p.streak,1);notify('[ SHOP ] Streak hersteld!');}
+  if(item.type==='xp_grant'){db.p.xp+=500;db.p.totalXp+=500;while(db.p.xp>=db.p.xpNext){db.p.xp-=db.p.xpNext;db.p.level++;db.p.xpNext=xpForLv(db.p.level);showLevelUp(db.p.level);}notify('[ SHOP ] +500 XP ontvangen!');}
+  if(item.type==='secret_quests')notify('[ SHOP ] Geheime quests vrijgespeeld — zie quests tab!');
+  if(item.type==='shadow_shard'){if(SHADOWS.find(s=>!db.shadows.includes(s.id))){const next=SHADOWS.find(s=>!db.shadows.includes(s.id));db.shadows.push(next.id);notify('[ SHOP ] '+next.ico+' '+next.name+' geëxtraheerd!');}else notify('[ SHOP ] Alle shadows al verzameld!');}
+  db.shop[id]=expires24h;
+  save();updateHeader();renderShop();
+}
+
+// ═══════════════════════════════════════════════════════
+// WEATHER
+// ═══════════════════════════════════════════════════════
+async function fetchWeather(){
+  notify('[ SYSTEM ] Weer laden...');
+  if(!navigator.geolocation){showWeatherBanner('🌤','Weather Dungeon','GPS niet beschikbaar');return;}
+  navigator.geolocation.getCurrentPosition(async(pos)=>{
+    try{
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current_weather=true&hourly=precipitation_probability`);
+      const j=await r.json();
+      const wc=j.current_weather?.weathercode||0;
+      const rain=wc>=51;
+      const ico=wc>=71?'❄️':wc>=51?'🌧':wc>=2?'⛅':wc>=1?'🌤':'☀️';
+      const type=rain?'Shadow Realm (indoor)':'Field Dungeon (outdoor)';
+      const bonus=rain?'+20% INT/WIS':'+ 20% STR/AGI';
+      showWeatherBanner(ico,type,bonus);
+      notify(`[ WEATHER DUNGEON ] ${type} actief — ${bonus}`);
+    }catch{showWeatherBanner('🌤','Weather Dungeon','Weersdata niet beschikbaar');}
+  },()=>{showWeatherBanner('🌤','Weather Dungeon','GPS niet beschikbaar');});
+}
+
+function showWeatherBanner(ico,title,sub){
+  document.getElementById('wbIco').textContent=ico;
+  document.getElementById('wbTitle').textContent=title;
+  document.getElementById('wbSub').textContent=sub;
+  document.getElementById('weatherBanner').style.display='flex';
+}
+
+// ═══════════════════════════════════════════════════════
+// VOICE SYSTEM
+// ═══════════════════════════════════════════════════════
+function speakStatus(){
+  if(!window.speechSynthesis){notify('[ SYSTEM ] Voice niet beschikbaar');return;}
+  window.speechSynthesis.cancel();
+  const p=db.p,rk=getRank(p.level);
+  const txt=`System Status Report. Hunter Remy Egberts. Level ${p.level}. Rank ${rk.r}. ${rk.title}. Total XP: ${p.totalXp}. Streak: ${p.streak||0} dagen. Strength: ${p.attrs.str}. Intelligence: ${p.attrs.int}. Vitality: ${p.attrs.vit}. ${SYS_MSGS[Math.floor(Math.random()*SYS_MSGS.length)].replace('【SYSTEM】','')}`;
+  const utt=new SpeechSynthesisUtterance(txt);
+  utt.lang='nl-NL';utt.rate=0.9;utt.pitch=0.8;
+  const btn=document.getElementById('voiceBtn');
+  btn.classList.add('speaking');
+  utt.onend=()=>btn.classList.remove('speaking');
+  window.speechSynthesis.speak(utt);
+}
+
+// ═══════════════════════════════════════════════════════
+// ACHIEVEMENTS
+// ═══════════════════════════════════════════════════════
+function checkAch(){
+  const ul=(id,msg)=>{if(!db.ach[id]){db.ach[id]=Date.now();notify('[ ACHIEVEMENT ] '+msg);save();if(tab==='achievements')renderAch();}};
+  const d=db.tasks.filter(t=>t.type==='daily'),w=db.tasks.filter(t=>t.type==='weekly'),p=db.p,s=db.stats||{};
+  const allAttr30=Object.values(p.attrs).every(v=>v>=30);
+  if((s.total||0)>=1)          ul('first','Eerste Stap');
+  if(d.every(t=>t.done))       ul('allday','Dag Meester');
+  if(d.every(t=>t.done))       ul('perfect','Perfect Day');
+  if(w.every(t=>t.done))       ul('allweek','Week Meester');
+  if((p.streak||0)>=7)         ul('str7','Week Warrior');
+  if((p.streak||0)>=30)        ul('str30','Maand Warrior');
+  if((p.streak||0)>=90)        ul('str90','Shadow Monarch Candidate');
+  if(p.level>=10)               ul('lv10','Veteraan');
+  if(p.level>=11)               ul('rankC','System Recognizes You — C-Rank!');
+  if(p.level>=25)               ul('lv25','Elite Hunter');
+  if(p.level>=46)               ul('rankS','Awakened — Rank S!');
+  if(p.level>=50)               ul('lv50','S-Rank bereikt!');
+  if(p.level>=100)              ul('lv100','MONARCH');
+  if(p.totalXp>=1000)           ul('xp1k','XP Grinder');
+  if(p.totalXp>=5000)           ul('xp5k','XP Slayer');
+  if(p.totalXp>=10000)          ul('xp10k','Grinding Arc');
+  if(p.gold>=500)               ul('g500','Rijk Worden');
+  if((p.totalGold||0)>=2000)    ul('g2k','Gold Hoarder');
+  if((s.sport||0)>=10)          ul('sp10','Gym Rat');
+  if((s.sport||0)>=50)          ul('sp50','The Necromancer');
+  if((s.sleep||0)>=7)           ul('sl7','Slaap King');
+  if(db.shadows.length>=1)      ul('shadow1','Shadow Extraction');
+  if(db.shadows.length>=10)     ul('shadow10','Army Builder');
+  if(allAttr30)                 ul('allattr','Double Awakening — alle attributes op 30+!');
+  // unlock titles
+  TITLES.forEach(t=>{if(db.ach[t.ach]&&!db.titles.includes(t.id))db.titles.push(t.id);});
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════
+function openModal(){document.getElementById('modalOverlay').classList.add('on');}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('on');}
+document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('modalOverlay'))closeModal();});
+
+// ═══════════════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════════════
+function resetConfirm(){if(!confirm(`Reset alle ${qtype==='daily'?'dagelijkse':'wekelijkse'} quests?`))return;db.tasks.filter(t=>t.type===qtype).forEach(t=>t.done=false);save();render();}
+function showSettings(){if(!confirm('ALLE data resetten? (niet te herstellen)'))return;localStorage.removeItem(STORE);db=fresh();save();updateHeader();render();notify('[ SYSTEM ] Nieuw avontuur begint...');}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+checkResets();
 updateHeader();
 render();
-notify('【SYSTEM】 Welkom terug, Hunter. Word sterker.');
-setTimeout(()=>{ notify('【SYSTEM】 Er is een nieuwe Gate geopend in jouw stad...'); }, 2500);
+checkAch();
+// Random system message bij openen
+setTimeout(()=>{if(Math.random()>.5)notify(SYS_MSGS[Math.floor(Math.random()*SYS_MSGS.length)]);},1500);
 </script>
 </body>
 </html>
