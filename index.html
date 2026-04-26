@@ -3,45 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hunter System</title>
+<title>Hunter System • Solo Leveling</title>
 <meta name="theme-color" content="#07071a">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:#07071a; --s1:#0e0e24; --s2:#14142e; --s3:#1c1c3a; --border:#28285a;
-  --blue:#00c8ff; --blue2:#006aff; --purple:#7c3aff; --gold:#f5c842;
-  --green:#00ff88; --red:#ff3355; --text:#dde4ff; --dim:#5555aa;
-  --str:#ff6b35; --int:#4fc3f7; --vit:#ff4d6d; --agi:#69ff47; --sen:#c77dff; --wis:#90e0ef;
+  --blue:#00c8ff; --purple:#7c3aff; --gold:#f5c842; --green:#00ff88;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;padding-bottom:80px}
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse 70% 35% at 50% 0%,rgba(0,106,255,.12) 0%,transparent 60%),
-             radial-gradient(ellipse 50% 25% at 90% 90%,rgba(124,58,255,.08) 0%,transparent 50%)}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:85px}
+body::before{content:'';position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(ellipse 70% 35% at 50% 0%,rgba(0,106,255,.15) 0%,transparent 60%),
+             radial-gradient(ellipse 60% 30% at 90% 90%,rgba(124,58,255,.1) 0%,transparent 70%)}
 
-.notif{position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(135deg,rgba(0,200,255,.12),rgba(124,58,255,.12));border-bottom:1px solid rgba(0,200,255,.4);padding:.65rem 1rem;text-align:center;font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--blue);letter-spacing:.12em;transform:translateY(-100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.notif{position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(135deg,rgba(0,200,255,.15),rgba(124,58,255,.15));border-bottom:1px solid var(--blue);padding:12px;text-align:center;font-family:'Share Tech Mono',monospace;color:var(--blue);transform:translateY(-100%);transition:.4s}
 .notif.on{transform:translateY(0)}
 
-header{position:relative;z-index:10;background:rgba(7,7,26,.97);border-bottom:1px solid var(--border);padding:1rem 1rem 0;backdrop-filter:blur(20px)}
-.tabs{display:flex;border-top:1px solid var(--border);margin:0 -1rem}
-.tab{flex:1;padding:.55rem .3rem;background:none;border:none;color:var(--dim);font-size:.72rem;font-weight:600;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid transparent}
+header{background:rgba(7,7,26,.98);border-bottom:1px solid var(--border);padding:1rem;backdrop-filter:blur(20px)}
+.tabs{display:flex;margin:0 -1rem;border-top:1px solid var(--border)}
+.tab{flex:1;padding:12px;background:none;border:none;color:var(--dim);font-weight:700;font-size:0.8rem;cursor:pointer;border-bottom:3px solid transparent}
 .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
 
-main{position:relative;z-index:1;padding:1rem}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(7,7,26,.97);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);z-index:50;backdrop-filter:blur(20px)}
-.nav-btn{padding:.6rem .2rem;background:none;border:none;color:var(--dim);cursor:pointer;font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:.15rem}
+.quest{display:flex;gap:12px;align-items:center;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.quest.done{background:rgba(0,255,136,.08);border-color:#00ff88}
+.q-check{width:38px;height:38px;border:3px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer}
+.quest.done .q-check{background:#00ff88;color:#000}
+
+.shadow-card, .shop-item{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.levelup{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column}
+.levelup.on{display:flex}
+.lu-num{font-family:'Orbitron',monospace;font-size:6.5rem;font-weight:900;color:var(--gold);text-shadow:0 0 60px var(--gold)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(7,7,26,.98);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);z-index:100}
+.nav-btn{padding:10px 4px;color:var(--dim);font-size:0.65rem;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px}
 .nav-btn.active{color:var(--blue)}
-
-.quest, .shop-item, .shadow-card {background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.75rem;margin-bottom:.5rem;transition:all .2s}
-.quest:hover, .shop-item:hover, .shadow-card:hover {background:var(--s2);border-color:var(--blue)}
-.quest.done {background:rgba(0,255,136,.05);border-color:rgba(0,255,136,.3)}
-.q-check {width:32px;height:32px;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer}
-.quest.done .q-check {background:var(--green);color:#000;border-color:var(--green)}
-
-.attr-val {transition:all .4s}
-.levelup {position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;opacity:0;pointer-events:none}
-.levelup.on {opacity:1;pointer-events:all}
-.lu-num {font-family:'Orbitron',monospace;font-size:7rem;font-weight:900;color:var(--gold);text-shadow:0 0 80px var(--gold)}
 </style>
 </head>
 <body>
@@ -49,10 +44,10 @@ main{position:relative;z-index:1;padding:1rem}
 <div class="notif" id="notif"></div>
 
 <header>
-  <div id="status-panel"></div>
+  <div id="header-status"></div>
   <div class="tabs">
     <button class="tab active" data-tab="quests">⚔ Quests</button>
-    <button class="tab" data-tab="shadow">🌑 Shadow Army</button>
+    <button class="tab" data-tab="shadow">🌑 Army</button>
     <button class="tab" data-tab="shop">🛒 Shop</button>
     <button class="tab" data-tab="stats">📊 Stats</button>
   </div>
@@ -61,233 +56,165 @@ main{position:relative;z-index:1;padding:1rem}
 <main id="main"></main>
 
 <div class="bottom-nav">
-  <button class="nav-btn active" onclick="switchType('daily')"><span>☀️</span>Daily</button>
-  <button class="nav-btn" onclick="switchType('weekly')"><span>📅</span>Weekly</button>
-  <button class="nav-btn" onclick="resetConfirm()"><span>🔄</span>Reset</button>
-  <button class="nav-btn" onclick="showSettings()"><span>⚙️</span>Reset All</button>
+  <button class="nav-btn active" onclick="switchType('daily')">☀️ Daily</button>
+  <button class="nav-btn" onclick="switchType('weekly')">📅 Weekly</button>
+  <button class="nav-btn" onclick="resetConfirm()">🔄 Reset</button>
+  <button class="nav-btn" onclick="showSettings()">⚙️ Reset All</button>
 </div>
 
 <div class="levelup" id="levelup" onclick="closeLu()">
   <div>
-    <div style="font-family:'Share Tech Mono',monospace;color:var(--blue);letter-spacing:3px;margin-bottom:10px">【 LEVEL UP 】</div>
-    <div class="lu-num" id="luNum">2</div>
-    <div id="luRank" style="color:var(--gold);font-size:1.3rem;margin-top:10px"></div>
+    <div style="color:var(--blue);font-family:'Share Tech Mono';letter-spacing:4px">【 SYSTEM ALERT 】</div>
+    <div class="lu-num" id="luNum">42</div>
+    <div id="luRank" style="color:var(--gold);font-size:1.4rem;margin-top:10px"></div>
+    <div style="margin-top:30px;color:#666;font-size:0.9rem">Tik om door te gaan</div>
   </div>
 </div>
 
 <script>
-// ====================== DATA ======================
-const STORE = 'hunter-v4';
-const RANKS = [
-  {r:'E',min:1,cls:'rE',title:'Rookie Hunter'},
-  {r:'D',min:6,cls:'rD',title:'Iron Hunter'},
-  {r:'C',min:11,cls:'rC',title:'Silver Hunter'},
-  {r:'B',min:21,cls:'rB',title:'Gold Hunter'},
-  {r:'A',min:31,cls:'rA',title:'Platinum Hunter'},
-  {r:'S',min:46,cls:'rS',title:'Shadow Hunter'},
-  {r:'SS',min:61,cls:'rSS',title:'Monarch'}
-];
+// ==================== DATA ====================
+const STORE = 'hunter-v5';
 
 const CATS = {
-  sport:     {icon:'💪',label:'SPORT',     attr:'str',col:'#ff6b35'},
-  werk:      {icon:'💼',label:'WERK',      attr:'int',col:'#4fc3f7'},
-  voeding:   {icon:'🍎',label:'VOEDING',   attr:'vit',col:'#ff4d6d'},
-  huishouden:{icon:'⚡',label:'HUIS',      attr:'agi',col:'#69ff47'},
-  gezin:     {icon:'❤️',label:'GEZIN',     attr:'sen',col:'#c77dff'},
-  slaap:     {icon:'💤',label:'SLAAP',     attr:'wis',col:'#90e0ef'},
-  locatie:   {icon:'📍',label:'DUNGEON',   attr:'agi',col:'#00ffaa'}
+  sport: {icon:'🏋️',label:'SPORT',attr:'str',col:'#ff6b35'},
+  werk: {icon:'💼',label:'WERK',attr:'int',col:'#4fc3f7'},
+  voeding: {icon:'🍎',label:'VOEDING',attr:'vit',col:'#ff4d6d'},
+  slaap: {icon:'💤',label:'SLAAP',attr:'wis',col:'#90e0ef'},
+  locatie: {icon:'📍',label:'DUNGEON',attr:'agi',col:'#00ffaa'}
 };
 
-let DTASKS = [
-  // bestaande quests...
-  {id:'d-sp1',cat:'sport',type:'daily',title:'Training gedaan',xp:50,gold:30},
-  {id:'d-sp2',cat:'sport',type:'daily',title:'8000 stappen',xp:30,gold:15},
-  {id:'d-vd1',cat:'voeding',type:'daily',title:'Gezond ontbijt',xp:20,gold:10},
-  {id:'d-wk1',cat:'werk',type:'daily',title:'Werkdag afgerond',xp:35,gold:20},
-  // ... (je oude quests blijven staan, ik heb ze hier kort gehouden)
-
-  // Nieuwe Location Quests
-  {id:'loc1',cat:'locatie',type:'daily',title:'Clear Sportschool Gate',xp:70,gold:40,location:{name:"Sportschool",radius:200}},
-  {id:'loc2',cat:'locatie',type:'daily',title:'Mana Fountain (koffie/thee)',xp:45,gold:25,location:{name:"Koffieplek",radius:100}},
-  {id:'loc3',cat:'locatie',type:'weekly',title:'Forest Gate (min 5km)',xp:150,gold:80,location:{name:"Park/Bos",radius:300}},
-  {id:'loc4',cat:'locatie',type:'daily',title:'Hidden Boss @ Werk',xp:60,gold:35,location:{name:"Werk",radius:150}},
+let tasksBase = [
+  // Daily
+  {id:'d1',cat:'sport',type:'daily',title:'Push Day gedaan',xp:60,gold:35},
+  {id:'d2',cat:'sport',type:'daily',title:'Pull Day gedaan',xp:60,gold:35},
+  {id:'d3',cat:'sport',type:'daily',title:'Leg Day gedaan',xp:70,gold:40},
+  {id:'d4',cat:'voeding',type:'daily',title:'Eiwitdoel gehaald',xp:30,gold:20},
+  {id:'d5',cat:'slaap',type:'daily',title:'Voor 23:00 in bed',xp:35,gold:25},
+  
+  // Location Dungeons
+  {id:'loc1',cat:'locatie',type:'daily',title:'Sportschool Gate Clear',xp:80,gold:45,location:true},
+  {id:'loc2',cat:'locatie',type:'daily',title:'Mana Fountain (koffie/wandeling)',xp:50,gold:30,location:true},
+  {id:'loc3',cat:'locatie',type:'weekly',title:'Forest Gate (5km+ wandelen)',xp:180,gold:90,location:true},
+  
+  // Weekly
+  {id:'w1',cat:'sport',type:'weekly',title:'4x Training (Push/Pull/Leg)',xp:200,gold:120},
+  {id:'w2',cat:'sport',type:'weekly',title:'PR verbroken (Persoonlijk Record)',xp:150,gold:80}
 ];
 
-const ACHS = [ /* je oude achievements */ ];
-
 const SHADOW_ARMY = [
-  {id:'igris',name:'Igris the Red',icon:'🗡️',power:20,unlocked:false},
-  {id:'beru',name:'Beru',icon:'🐺',power:25,unlocked:false},
-  {id:'tank',name:'Iron Tank',icon:'🛡️',power:15,unlocked:false},
-  {id:'kaisel',name:'Kaisel',icon:'🐎',power:18,unlocked:false},
-  {id:'blood',name:'Blood Red Commander',icon:'🩸',power:30,unlocked:false}
+  {id:'igris', name:'Igris the Red', icon:'🗡️', power:25, unlocked:false},
+  {id:'beru', name:'Beru', icon:'🐺', power:30, unlocked:false},
+  {id:'tank', name:'Iron Tank', icon:'🛡️', power:18, unlocked:false},
+  {id:'kaisel', name:'Kaisel', icon:'🐎', power:22, unlocked:false},
+  {id:'blood', name:'Blood Red Commander', icon:'🩸', power:35, unlocked:false}
 ];
 
 const SHOP_ITEMS = [
-  {id:'title1',name:'Title: The One Who Overcame',cost:300,effect:'xpMultiplier',value:1.2},
-  {id:'boost1',name:'XP Boost (24u)',cost:150,effect:'tempBoost',value:1.5},
-  {id:'shadowSlot',name:'Extra Shadow Slot',cost:500,effect:'shadow',value:1},
+  {id:'title1', name:'Title: Shadow Monarch Candidate', cost:450, desc:'+15% XP permanent'},
+  {id:'boost1', name:'24u XP Boost (x1.6)', cost:180, desc:'Tijdelijke boost'},
+  {id:'title2', name:'Title: The One Who Overcame', cost:650, desc:'+20% Gold'},
 ];
 
-// ====================== STATE ======================
-let db = JSON.parse(localStorage.getItem(STORE)) || {p:{level:1,xp:0,xpNext:100,totalXp:0,gold:0,streak:0,attrs:{str:10,int:10,vit:10,agi:10,sen:10,wis:10}},tasks:DTASKS.map(t=>({...t,done:false,doneCount:0})),ach:{},shadows:SHADOW_ARMY,shopOwned:[]};
+let db = JSON.parse(localStorage.getItem(STORE)) || {
+  p: {level:1, xp:0, xpNext:100, totalXp:0, gold:120, streak:0, attrs:{str:12,int:10,vit:11,agi:13,sen:10,wis:12}},
+  tasks: tasksBase.map(t=>({...t, done:false, doneCount:0})),
+  shadows: SHADOW_ARMY,
+  owned: []
+};
+
 let currentType = 'daily';
 let currentTab = 'quests';
 
-// ====================== CORE FUNCTIONS ======================
-function save(){localStorage.setItem(STORE,JSON.stringify(db));}
-function getRank(lv){let r=RANKS[0];for(let rk of RANKS)if(lv>=rk.min)r=rk;return r;}
-function xpForLv(lv){return lv*100;}
+// ==================== FUNCTIONS ====================
+function save(){ localStorage.setItem(STORE, JSON.stringify(db)); }
 
 function notify(msg){
-  const el = document.getElementById('notif');
-  el.textContent = msg;
-  el.classList.add('on');
-  setTimeout(()=>el.classList.remove('on'),3500);
+  const n = document.getElementById('notif');
+  n.textContent = msg;
+  n.classList.add('on');
+  setTimeout(()=>n.classList.remove('on'), 3800);
 }
 
-function showLevelUp(lv){
-  const rk = getRank(lv);
-  document.getElementById('luNum').textContent = lv;
-  document.getElementById('luRank').textContent = rk.title;
-  document.getElementById('levelup').classList.add('on');
+function getRank(lv){
+  const ranks = [{r:'E',min:1,title:'Rookie'},{r:'D',min:6,title:'Iron'},{r:'C',min:11,title:'Silver'},{r:'B',min:21,title:'Gold'},{r:'A',min:31,title:'Platinum'},{r:'S',min:46,title:'Shadow'},{r:'SS',min:61,title:'Monarch'}];
+  for(let r of ranks) if(lv >= r.min) return r;
+  return ranks[0];
 }
-function closeLu(){document.getElementById('levelup').classList.remove('on');}
 
-function addXP(amount,cat){
-  db.p.xp += amount; db.p.totalXp += amount;
-  // attribute growth
-  if(cat && CATS[cat]){
-    const a = CATS[cat].attr;
-    db.p.attrs[a] = (db.p.attrs[a]||10) + 0.1;
-  }
+function addXP(amount){
+  db.p.xp += amount;
+  db.p.totalXp += amount;
   while(db.p.xp >= db.p.xpNext){
     db.p.xp -= db.p.xpNext;
     db.p.level++;
-    db.p.xpNext = xpForLv(db.p.level);
-    showLevelUp(db.p.level);
+    db.p.xpNext = db.p.level * 110;
+    showLevelUp();
   }
-  save(); updateHeader();
+  save();
+  updateHeader();
 }
+
+function showLevelUp(){
+  const rk = getRank(db.p.level);
+  document.getElementById('luNum').textContent = db.p.level;
+  document.getElementById('luRank').textContent = rk.title + " Hunter";
+  document.getElementById('levelup').classList.add('on');
+}
+function closeLu(){ document.getElementById('levelup').classList.remove('on'); }
 
 function updateHeader(){
-  // ... (je oude header update logica, kort gehouden voor ruimte)
-  const html = `
-    <div style="display:flex;gap:15px;align-items:start">
-      <div style="width:70px;height:70px;border:3px solid var(--purple);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:2.5rem">🗡️</div>
-      <div>
-        <div style="font-family:'Share Tech Mono';font-size:0.7rem;color:#666">HUNTER STATUS</div>
-        <div style="font-size:1.3rem;font-weight:900" id="hunterName">REMY EGBERTS</div>
-        <div style="color:var(--purple)">${getRank(db.p.level).title}</div>
-        <div>LV.${db.p.level} • ${db.p.xp}/${db.p.xpNext} XP</div>
+  const rk = getRank(db.p.level);
+  document.getElementById('header-status').innerHTML = `
+    <div style="display:flex;gap:15px">
+      <div style="font-size:2.8rem">🗡️</div>
+      <div style="flex:1">
+        <div style="font-size:1.35rem;font-weight:900">REMY EGBERTS</div>
+        <div style="color:var(--purple)">${rk.title} Hunter • ${rk.r}-Rank</div>
+        <div>LV.${db.p.level} • ${Math.floor(db.p.xp/db.p.xpNext*100)}% XP</div>
       </div>
-    </div>
-    <div style="margin-top:15px;display:flex;gap:10px">
-      <div style="background:var(--s2);padding:8px 12px;border-radius:8px;flex:1;text-align:center">
-        <div style="color:var(--gold)">${db.p.gold}</div><div style="font-size:0.7rem">GOLD</div>
-      </div>
-      <div style="background:var(--s2);padding:8px 12px;border-radius:8px;flex:1;text-align:center">
-        <div style="color:#0f0">${db.p.streak||0}</div><div style="font-size:0.7rem">STREAK</div>
+      <div style="text-align:right">
+        <div style="color:var(--gold);font-size:1.4rem">${db.p.gold} 🪙</div>
+        <div style="color:#0f0">${db.p.streak} 🔥</div>
       </div>
     </div>`;
-  document.getElementById('status-panel').innerHTML = html;
 }
 
-// ====================== LOCATION GPS ======================
-function checkLocation(questId){
-  const quest = db.tasks.find(t=>t.id===questId);
-  if(!quest?.location) return notify("Geen locatie data");
-
-  notify(`📍 GPS check voor ${quest.title}...`);
-
-  navigator.geolocation.getCurrentPosition(() => {
-    // Succes simulatie (in echte versie afstand berekenen)
-    if(!quest.done){
-      quest.done = true;
-      quest.doneCount = (quest.doneCount||0)+1;
-      db.p.gold += quest.gold;
-      addXP(quest.xp, quest.cat);
-      notify(`【GATE CLEARED】 ${quest.title}`);
-      if(Math.random()<0.4) unlockRandomShadow();
-      save(); render();
+function checkLocation(id){
+  const task = db.tasks.find(t=>t.id===id);
+  if(!task) return;
+  notify(`📍 GPS activeert voor ${task.title}...`);
+  
+  navigator.geolocation.getCurrentPosition(()=>{
+    if(!task.done){
+      task.done = true;
+      task.doneCount = (task.doneCount||0)+1;
+      db.p.gold += task.gold || 40;
+      addXP(task.xp || 80);
+      notify(`【GATE CLEARED】 ${task.title}`);
+      if(Math.random() < 0.45) unlockShadow();
+      save();
+      render();
     }
-  }, () => notify("GPS toegang geweigerd"), {enableHighAccuracy:true});
+  }, ()=>{ notify("GPS geweigerd of niet beschikbaar"); }, {enableHighAccuracy:true});
 }
 
-// ====================== SHADOW ARMY ======================
-function unlockRandomShadow(){
+function unlockShadow(){
   const locked = db.shadows.filter(s=>!s.unlocked);
   if(!locked.length) return;
-  const shadow = locked[Math.floor(Math.random()*locked.length)];
-  shadow.unlocked = true;
-  notify(`【SHADOW EXTRACTION】 ${shadow.name} is nu van jou!`);
+  const s = locked[Math.floor(Math.random()*locked.length)];
+  s.unlocked = true;
+  notify(`【SHADOW EXTRACTION SUCCESS】 ${s.name} toegevoegd aan je leger!`);
   save();
 }
 
-// ====================== SHOP ======================
-function buyItem(itemId){
-  const item = SHOP_ITEMS.find(i=>i.id===itemId);
+function buyItem(id){
+  const item = SHOP_ITEMS.find(i=>i.id===id);
   if(!item || db.p.gold < item.cost) return notify("Niet genoeg Gold");
   db.p.gold -= item.cost;
-  db.shopOwned.push(item.id);
-  notify(`Gekocht: ${item.name}`);
-  save(); render();
-}
-
-// ====================== RENDER ======================
-function render(){
-  const main = document.getElementById('main');
-  let html = '';
-
-  if(currentTab === 'quests'){
-    const tasks = db.tasks.filter(t=>t.type===currentType);
-    Object.keys(CATS).forEach(catKey => {
-      const cat = CATS[catKey];
-      const filtered = tasks.filter(t=>t.cat===catKey);
-      if(!filtered.length) return;
-      html += `<div style="margin:15px 0 5px;color:${cat.col};font-size:0.8rem">${cat.icon} ${cat.label}</div>`;
-      filtered.forEach(t=>{
-        html += `<div class="quest ${t.done?'done':''}">
-          <div style="display:flex;gap:12px">
-            <div class="q-check" onclick="toggle('${t.id}')">${t.done?'✓':''}</div>
-            <div style="flex:1">
-              <div>${t.title}</div>
-              <div style="font-size:0.75rem;color:#888">+${t.xp} XP • +${t.gold} 🪙</div>
-            </div>
-            ${t.location ? `<button onclick="checkLocation('${t.id}')" style="background:#00ffaa;color:#000;padding:6px 12px;border-radius:6px">📍 CHECK</button>` : ''}
-          </div>
-        </div>`;
-      });
-    });
-  }
-
-  else if(currentTab === 'shadow'){
-    html = '<h2 style="margin:15px 0">🌑 Shadow Army</h2>';
-    db.shadows.forEach(s=>{
-      html += `<div class="shadow-card" style="opacity:${s.unlocked?1:0.4}">
-        <div style="font-size:2.5rem">${s.icon}</div>
-        <div>${s.name}</div>
-        <div style="color:var(--gold)">Power: ${s.power}</div>
-      </div>`;
-    });
-  }
-
-  else if(currentTab === 'shop'){
-    html = '<h2 style="margin:15px 0">🛒 Shop</h2>';
-    SHOP_ITEMS.forEach(item=>{
-      html += `<div class="shop-item">
-        <div>${item.name}</div>
-        <div style="color:var(--gold)">${item.cost} Gold</div>
-        <button onclick="buyItem('${item.id}')" style="margin-top:8px">KOPEN</button>
-      </div>`;
-    });
-  }
-
-  else if(currentTab === 'stats'){
-    html = `<div style="text-align:center;font-size:2rem;margin:30px 0">LV. ${db.p.level}</div>`;
-  }
-
-  main.innerHTML = html;
+  db.owned.push(id);
+  notify(`✅ Gekocht: ${item.name}`);
+  save();
+  render();
 }
 
 function toggle(id){
@@ -295,20 +222,80 @@ function toggle(id){
   if(!t || t.done) return;
   t.done = true;
   t.doneCount = (t.doneCount||0)+1;
-  db.p.gold += t.gold;
-  addXP(t.xp, t.cat);
-  notify(`✅ Quest voltooid!`);
-  save(); render();
+  db.p.gold += t.gold || 20;
+  addXP(t.xp || 40);
+  notify(`Quest voltooid +${t.xp} XP`);
+  save();
+  render();
 }
 
-function switchType(type){ currentType = type; render(); }
-function resetConfirm(){ if(confirm('Reset quests?')){ db.tasks.forEach(t=>t.done=false); save(); render(); } }
-function showSettings(){ if(confirm('Alles resetten?')){ localStorage.clear(); location.reload(); } }
+function render(){
+  const main = document.getElementById('main');
+  let html = '';
 
-// Tab switching
-document.querySelectorAll('.tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(currentTab === 'quests'){
+    const filtered = db.tasks.filter(t => t.type === currentType);
+    Object.keys(CATS).forEach(key => {
+      const cat = CATS[key];
+      const qs = filtered.filter(t=>t.cat===key);
+      if(!qs.length) return;
+      html += `<div style="color:${cat.col};margin:18px 0 8px;font-weight:700">${cat.icon} ${cat.label}</div>`;
+      qs.forEach(t => {
+        html += `
+          <div class="quest ${t.done?'done':''}">
+            <div class="q-check" onclick="toggle('${t.id}')">${t.done?'✓':''}</div>
+            <div style="flex:1">
+              <div style="font-size:1.05rem">${t.title}</div>
+              <div style="color:#888;font-size:0.8rem">+${t.xp} XP • +${t.gold||20} 🪙</div>
+            </div>
+            ${t.location ? `<button onclick="checkLocation('${t.id}')" style="padding:8px 16px;background:#00ffaa;color:black;border:none;border-radius:8px;font-weight:700">📍 CHECK-IN</button>` : ''}
+          </div>`;
+      });
+    });
+  } 
+  else if(currentTab === 'shadow'){
+    html = `<h2 style="margin:20px 0 15px">🌑 Shadow Army (${db.shadows.filter(s=>s.unlocked).length}/${db.shadows.length})</h2>`;
+    db.shadows.forEach(s => {
+      html += `
+        <div class="shadow-card">
+          <div style="font-size:3rem;margin-bottom:8px">${s.icon}</div>
+          <div style="font-size:1.1rem">${s.name}</div>
+          <div style="color:var(--gold)">Power: ${s.power}</div>
+          ${s.unlocked ? '<span style="color:#0f0">✓ Active</span>' : '<span style="color:#666">Locked</span>'}
+        </div>`;
+    });
+  } 
+  else if(currentTab === 'shop'){
+    html = `<h2 style="margin:20px 0 15px">🛒 System Shop</h2>`;
+    SHOP_ITEMS.forEach(item => {
+      html += `
+        <div class="shop-item">
+          <div style="font-size:1.1rem">${item.name}</div>
+          <div style="color:#888">${item.desc}</div>
+          <div style="color:var(--gold);margin:10px 0">${item.cost} Gold</div>
+          <button onclick="buyItem('${item.id}')" style="width:100%;padding:10px;background:var(--blue);color:white;border:none;border-radius:8px">KOPEN</button>
+        </div>`;
+    });
+  } 
+  else if(currentTab === 'stats'){
+    html = `<div style="text-align:center;padding:40px 20px">
+      <div style="font-size:4rem;font-weight:900;color:var(--gold)">${db.p.level}</div>
+      <div style="color:var(--blue)">LEVEL</div>
+      <div style="margin-top:30px">Total XP: ${db.p.totalXp}</div>
+      <div>Gold: ${db.p.gold}</div>
+    </div>`;
+  }
+  main.innerHTML = html;
+}
+
+function switchType(t){ currentType = t; render(); }
+function resetConfirm(){ if(confirm('Daily/Weekly quests resetten?')){ db.tasks.forEach(t=>t.done=false); save(); render(); }}
+function showSettings(){ if(confirm('Hele app resetten?')){ localStorage.clear(); location.reload(); }}
+
+// Tab klikken
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     currentTab = tab.dataset.tab;
     render();
@@ -318,7 +305,8 @@ document.querySelectorAll('.tab').forEach(tab=>{
 // Init
 updateHeader();
 render();
-notify('【SYSTEM】 Welkom terug, Hunter. Groei of sterf.');
+notify('【SYSTEM】 Welkom terug, Hunter. Word sterker.');
+setTimeout(()=>{ notify('【SYSTEM】 Er is een nieuwe Gate geopend in jouw stad...'); }, 2500);
 </script>
 </body>
 </html>
