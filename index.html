@@ -258,6 +258,142 @@ main{position:relative;z-index:1;padding:1rem}
 .voice-btn:hover{background:rgba(124,58,255,.4)}
 .voice-btn.speaking{animation:speakPulse 1s infinite}
 @keyframes speakPulse{0%,100%{box-shadow:0 0 15px rgba(124,58,255,.3)}50%{box-shadow:0 0 30px rgba(124,58,255,.7)}}
+
+/* === MANA + ENERGY BARS === */
+.bars-row{display:flex;gap:.5rem;margin-bottom:.65rem}
+.bar-mini{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:.4rem .55rem;cursor:pointer;transition:all .2s}
+.bar-mini:hover{border-color:var(--blue)}
+.bar-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;font-size:.62rem;color:var(--dim);letter-spacing:.06em;font-family:'Share Tech Mono',monospace}
+.bar-head b{font-family:'Orbitron',monospace;font-size:.7rem}
+.bar-track{height:4px;background:var(--s3);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .5s cubic-bezier(.34,1.56,.64,1)}
+.mana .bar-head b{color:#4fc3f7}
+.mana .bar-fill{background:linear-gradient(90deg,#0066aa,#4fc3f7);box-shadow:0 0 6px #4fc3f7}
+.energy .bar-head b{color:#ffaa00}
+.energy .bar-fill{background:linear-gradient(90deg,#aa6600,#ffaa00);box-shadow:0 0 6px #ffaa00}
+
+/* === DUNGEON === */
+.dungeon-pick{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem;margin-bottom:1rem}
+.diff-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.85rem .5rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.diff-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.diff-card.normal::before{background:var(--green)}
+.diff-card.hard::before{background:var(--gold)}
+.diff-card.nightmare::before{background:var(--red)}
+.diff-card:hover{transform:translateY(-2px)}
+.diff-card.normal:hover{border-color:var(--green)}
+.diff-card.hard:hover{border-color:var(--gold);box-shadow:0 0 15px rgba(245,200,66,.2)}
+.diff-card.nightmare:hover{border-color:var(--red);box-shadow:0 0 18px rgba(255,51,85,.3)}
+.dc-name{font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;margin-bottom:.3rem}
+.dc-name.n{color:var(--green)}.dc-name.h{color:var(--gold)}.dc-name.nm{color:var(--red)}
+.dc-mult{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim)}
+
+.dungeon-active{background:linear-gradient(135deg,rgba(124,58,255,.1),rgba(0,0,0,.5));border:1px solid var(--purple);border-radius:12px;padding:1rem;margin-bottom:1rem}
+.da-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
+.da-name{font-family:'Orbitron',monospace;font-size:.85rem;color:var(--purple)}
+.da-timer{font-family:'Share Tech Mono',monospace;font-size:.95rem;color:var(--gold);font-weight:700}
+.exercise-row{display:grid;grid-template-columns:1fr auto auto auto auto;gap:.4rem;align-items:center;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:.5rem;margin-bottom:.4rem;font-size:.78rem}
+.ex-name{font-weight:600}
+.ex-input{width:50px;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:.25rem;text-align:center;font-size:.72rem;font-family:'Share Tech Mono',monospace}
+.ex-input:focus{outline:none;border-color:var(--blue)}
+.ex-add{margin-bottom:.6rem;display:flex;gap:.4rem}
+.ex-del{background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;padding:0 .3rem;opacity:.5}
+.ex-del:hover{opacity:1}
+.dungeon-finish{width:100%;padding:.75rem;background:linear-gradient(135deg,rgba(124,58,255,.3),rgba(0,200,255,.2));border:1px solid var(--purple);color:var(--text);border-radius:10px;font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700;cursor:pointer;letter-spacing:.08em;transition:all .2s;text-transform:uppercase}
+.dungeon-finish:hover{box-shadow:0 0 20px rgba(124,58,255,.5)}
+
+/* === PR TRACKER === */
+.pr-list{display:flex;flex-direction:column;gap:.6rem}
+.pr-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.85rem;display:flex;align-items:center;gap:.75rem}
+.pr-ico{font-size:1.6rem;flex-shrink:0}
+.pr-info{flex:1;min-width:0}
+.pr-name{font-size:.88rem;font-weight:700}
+.pr-cur{font-family:'Orbitron',monospace;font-size:.95rem;color:var(--gold);margin-top:.1rem}
+.pr-prev{font-size:.62rem;color:var(--dim);margin-top:.1rem}
+.pr-update{padding:.4rem .75rem;background:rgba(245,200,66,.1);border:1px solid var(--gold);color:var(--gold);border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase}
+
+.boss-kill{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:910;display:flex;align-items:center;justify-content:center;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .4s;cursor:pointer}
+.boss-kill.on{opacity:1;pointer-events:all}
+.bk-label{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--red);letter-spacing:.3em;margin-bottom:1rem;animation:blink 1s infinite}
+.bk-title{font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:900;color:var(--red);text-shadow:0 0 40px var(--red),0 0 80px rgba(255,51,85,.5);text-align:center;line-height:1.1}
+.bk-pr{font-family:'Orbitron',monospace;font-size:1.5rem;color:var(--gold);margin-top:1rem;text-shadow:0 0 30px var(--gold)}
+.bk-prev{font-size:.85rem;color:var(--dim);margin-top:.4rem}
+.bk-tap{margin-top:2rem;font-size:.7rem;color:var(--dim);letter-spacing:.2em;animation:blink 1s infinite}
+
+/* === STAT ALLOC === */
+.alloc-banner{background:linear-gradient(135deg,rgba(245,200,66,.15),rgba(245,200,66,.05));border:1px solid var(--gold);border-radius:10px;padding:.7rem .85rem;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem}
+.alloc-pts{font-family:'Orbitron',monospace;font-size:1.5rem;font-weight:900;color:var(--gold)}
+.alloc-txt{flex:1;font-size:.78rem}
+.alloc-grid{display:grid;grid-template-columns:1fr;gap:.5rem;margin-bottom:1rem}
+.alloc-row{display:grid;grid-template-columns:1fr auto auto auto;gap:.5rem;align-items:center;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:.6rem .8rem}
+.al-info{display:flex;gap:.5rem;align-items:center}
+.al-ico{font-size:1.2rem}
+.al-name{font-size:.82rem;font-weight:700}
+.al-val{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;min-width:30px;text-align:center}
+.al-btn{width:30px;height:30px;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.al-btn:hover{border-color:var(--blue);color:var(--blue)}
+.al-btn:disabled{opacity:.3;cursor:default}
+
+/* === WEIGHT TRACKER === */
+.weight-summary{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem;text-align:center}
+.ws-cur{font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:900;color:var(--vit);line-height:1}
+.ws-lbl{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);letter-spacing:.15em;margin-top:.3rem}
+.ws-goal{font-size:.78rem;color:var(--text);margin-top:.5rem}
+.ws-diff{font-family:'Orbitron',monospace;font-size:.95rem;font-weight:700;margin-top:.3rem}
+.ws-diff.down{color:var(--green)}
+.ws-diff.up{color:var(--red)}
+
+.weight-graph{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem}
+.wg-canvas{width:100%;height:160px;display:block}
+
+.weight-input-row{display:flex;gap:.5rem;margin-bottom:1rem}
+.weight-input-row input{flex:1;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:.55rem .75rem;font-size:.85rem;outline:none;font-family:'Share Tech Mono',monospace}
+.weight-input-row input:focus{border-color:var(--vit)}
+.wg-btn{padding:.55rem 1rem;background:rgba(255,77,109,.1);border:1px solid var(--vit);color:var(--vit);border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.wg-btn:hover{background:rgba(255,77,109,.2)}
+
+.weight-history{display:flex;flex-direction:column;gap:.4rem}
+.wh-item{display:flex;justify-content:space-between;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;font-size:.82rem;align-items:center}
+.wh-date{color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.7rem}
+.wh-w{font-family:'Orbitron',monospace;font-weight:700;color:var(--vit)}
+.wh-thumb{width:36px;height:36px;border-radius:5px;object-fit:cover;border:1px solid var(--border)}
+
+/* === CALENDAR === */
+.cal-month{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.cal-title{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--blue)}
+.cal-nav{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.3rem .7rem;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:.85rem}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.3rem;margin-bottom:1rem}
+.cal-dow{text-align:center;font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim);padding:.3rem 0;letter-spacing:.1em}
+.cal-day{aspect-ratio:1;background:var(--s2);border:1px solid var(--border);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.75rem;color:var(--dim);position:relative;cursor:pointer;transition:all .15s}
+.cal-day.empty{background:transparent;border:none;cursor:default}
+.cal-day.today{border-color:var(--blue);color:var(--blue);box-shadow:0 0 8px rgba(0,200,255,.3)}
+.cal-day.full{background:rgba(0,255,136,.15);border-color:var(--green);color:var(--green)}
+.cal-day.partial{background:rgba(245,200,66,.1);border-color:var(--gold);color:var(--gold)}
+.cal-day.miss{background:rgba(255,51,85,.08);border-color:var(--red);color:var(--red)}
+.cal-day:hover:not(.empty){transform:scale(1.05)}
+.cal-dot{width:4px;height:4px;border-radius:50%;background:currentColor;margin-top:.15rem}
+
+/* === AI QUEST === */
+.ai-quest-card{background:linear-gradient(135deg,rgba(124,58,255,.15),rgba(0,200,255,.08));border:1px solid var(--purple);border-radius:12px;padding:.85rem;margin-bottom:1rem;position:relative;overflow:hidden}
+.ai-quest-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,var(--purple),var(--blue),var(--gold));animation:aiGlow 3s linear infinite}
+@keyframes aiGlow{0%,100%{opacity:.5}50%{opacity:1}}
+.aiq-label{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--purple);letter-spacing:.15em;margin-bottom:.3rem}
+.aiq-title{font-size:.92rem;font-weight:700;margin-bottom:.4rem}
+.aiq-desc{font-size:.7rem;color:var(--dim);margin-bottom:.5rem;line-height:1.4}
+.aiq-rewards{display:flex;gap:.75rem;margin-bottom:.5rem}
+.aiq-r{font-family:'Share Tech Mono',monospace;font-size:.7rem}
+.aiq-actions{display:flex;gap:.4rem}
+.aiq-btn{flex:1;padding:.45rem;border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.aiq-btn.complete{background:rgba(0,255,136,.1);border:1px solid var(--green);color:var(--green)}
+.aiq-btn.skip{background:var(--s2);border:1px solid var(--border);color:var(--dim)}
+.aiq-btn.gen{background:rgba(124,58,255,.1);border:1px solid var(--purple);color:var(--purple);width:100%}
+
+/* === DEBUFF DISPLAY === */
+.debuff-banner{background:linear-gradient(135deg,rgba(255,51,85,.15),rgba(0,0,0,.5));border:1px solid var(--red);border-radius:8px;padding:.5rem .75rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem;animation:debuffPulse 2s infinite}
+@keyframes debuffPulse{0%,100%{border-color:var(--red);box-shadow:0 0 10px rgba(255,51,85,.2)}50%{border-color:#ff6688;box-shadow:0 0 20px rgba(255,51,85,.4)}}
+.db-ico{font-size:1.2rem}
+.db-info{flex:1;font-size:.72rem}
+.db-info b{color:var(--red);font-family:'Share Tech Mono',monospace;letter-spacing:.1em}
+.db-info span{display:block;color:var(--dim);font-size:.62rem}
 </style>
 </head>
 <body>
@@ -288,6 +424,20 @@ main{position:relative;z-index:1;padding:1rem}
     <div class="mini-stat"><div class="ms-val" id="msGold">0</div><div class="ms-lbl">GOLD 🪙</div></div>
     <div class="mini-stat"><div class="ms-val" id="msStreak">0</div><div class="ms-lbl">STREAK 🔥</div></div>
     <div class="mini-stat"><div class="ms-val" id="msDone">0</div><div class="ms-lbl">GEDAAN</div></div>
+  </div>
+  <div class="bars-row">
+    <div class="bar-mini mana" onclick="addWater()">
+      <div class="bar-head"><span>💧 MANA</span><b id="manaTxt">0/2000ml</b></div>
+      <div class="bar-track"><div class="bar-fill" id="manaFill" style="width:0%"></div></div>
+    </div>
+    <div class="bar-mini energy">
+      <div class="bar-head"><span>⚡ ENERGY</span><b id="energyTxt">100/100</b></div>
+      <div class="bar-track"><div class="bar-fill" id="energyFill" style="width:100%"></div></div>
+    </div>
+  </div>
+  <div id="debuffBanner" style="display:none" class="debuff-banner">
+    <div class="db-ico">💀</div>
+    <div class="db-info"><b>DEBUFF ACTIEF</b><span>XP -50% — voltooi quests om op te heffen</span></div>
   </div>
   <div class="attrs">
     <div class="attrs-label">[ ATTRIBUTES ]</div>
@@ -323,6 +473,10 @@ main{position:relative;z-index:1;padding:1rem}
 </div>
 <div class="tabs">
   <button class="tab active" data-tab="quests">⚔ Quests</button>
+  <button class="tab" data-tab="dungeon">🏋 Dungeon</button>
+  <button class="tab" data-tab="prs">📈 PRs</button>
+  <button class="tab" data-tab="weight">⚖ Weight</button>
+  <button class="tab" data-tab="calendar">📅 Calendar</button>
   <button class="tab" data-tab="shadow">👥 Army</button>
   <button class="tab" data-tab="titles">🏷 Titles</button>
   <button class="tab" data-tab="shop">🏪 Shop</button>
@@ -339,9 +493,9 @@ main{position:relative;z-index:1;padding:1rem}
   <button class="nav-btn active" id="nb-daily" onclick="switchType('daily')"><span class="ico">☀️</span>Daily</button>
   <button class="nav-btn" id="nb-weekly" onclick="switchType('weekly')"><span class="ico">📅</span>Weekly</button>
   <button class="nav-btn" onclick="triggerEmergency()"><span class="ico">🚨</span>Event</button>
+  <button class="nav-btn" onclick="generateAIQuest()"><span class="ico">🤖</span>AI</button>
   <button class="nav-btn" onclick="resetConfirm()"><span class="ico">🔄</span>Reset</button>
-  <button class="nav-btn" onclick="fetchWeather()"><span class="ico">🌤</span>Weer</button>
-  <button class="nav-btn" onclick="showSettings()"><span class="ico">⚙️</span>Reset All</button>
+  <button class="nav-btn" onclick="showSettings()"><span class="ico">⚙️</span>Settings</button>
 </div>
 
 <!-- LEVEL UP -->
@@ -512,6 +666,51 @@ const SYS_MSGS=[
   '【SYSTEM】 You are the strongest within this domain.',
 ];
 
+// ═══════════════════════════════════════════════════════
+// WORKOUT SCHEMAS (Remy's eigen schema's)
+// ═══════════════════════════════════════════════════════
+const WORKOUT_SCHEMAS={
+  push:{
+    name:'Push Day',
+    exercises:[
+      {name:'Bench Press (mid-ROM 90°)',    sets:2, reps:7,  weight:100},
+      {name:'Incline Barbell Bench 30-35°', sets:2, reps:9,  weight:60},
+      {name:'Lateral Raises',               sets:2, reps:13, weight:7},
+      {name:'Cable Cross (stand 16)',        sets:2, reps:13, weight:11},
+      {name:'Tricep Pushdown (Straight)',   sets:2, reps:12, weight:23},
+      {name:'Face Pulls (preventie)',        sets:3, reps:15, weight:11},
+    ]
+  },
+  pull:{
+    name:'Pull Day',
+    exercises:[
+      {name:'Barbell Row',                  sets:2, reps:10, weight:80},
+      {name:'Lat Pulley Staand (stang)',    sets:2, reps:13, weight:26},
+      {name:'EZ Curl',                      sets:2, reps:10, weight:40},
+      {name:'Incline Cable Curl',           sets:2, reps:11, weight:10},
+      {name:'Face Pulls',                   sets:3, reps:17, weight:11},
+    ]
+  },
+  legs:{
+    name:'Leg Day',
+    exercises:[
+      {name:'Back Squat',                   sets:2, reps:12, weight:97},
+      {name:'RDL',                          sets:2, reps:8,  weight:120},
+      {name:'Leg Press',                    sets:2, reps:15, weight:205},
+      {name:'Leg Extension',               sets:2, reps:15, weight:55},
+    ]
+  },
+};
+
+// Default PRs based on his schemas
+const DEFAULT_PRS={
+  bench:   {value:110, date:Date.now(), prev:0},
+  squat:   {value:110, date:Date.now(), prev:0},
+  deadlift:{value:140, date:Date.now(), prev:0},
+  ohp:     {value:0,   date:Date.now(), prev:0},
+  rows:    {value:90,  date:Date.now(), prev:0},
+  pullups: {value:0,   date:Date.now(), prev:0},
+};
 const EMERGENCY_QUESTS=[
   {title:'20 push-ups NU',      xp:60, gold:40, mins:30},
   {title:'Drink 500ml water',   xp:30, gold:20, mins:15},
@@ -522,6 +721,35 @@ const EMERGENCY_QUESTS=[
   {title:'Stuur een lief bericht', xp:35, gold:20, mins:10},
 ];
 
+const AI_QUEST_POOL=[
+  {title:'Schaduw Sprint',desc:'Loop 5 minuten in een tempo dat je niet aankunt',xp:60,gold:30,cat:'sport'},
+  {title:'Mana Replenishment',desc:'Drink 1L water in de komende 30 min',xp:30,gold:15,cat:'voeding'},
+  {title:'Inner Focus',desc:'10 minuten geen telefoon — alleen jij en je gedachten',xp:50,gold:25,cat:'slaap'},
+  {title:'Iron Discipline',desc:'Doe 50 push-ups verspreid over de dag',xp:70,gold:40,cat:'sport'},
+  {title:'Knowledge Acquisition',desc:'Lees 10 pagina\'s of luister 20 min naar iets leerzaams',xp:55,gold:30,cat:'werk'},
+  {title:'Bond Reinforcement',desc:'Stuur iemand een bericht waar je aan denkt',xp:40,gold:20,cat:'gezin'},
+  {title:'Domain Cleanse',desc:'Ruim één plek volledig op die je al weken negeert',xp:65,gold:35,cat:'huishouden'},
+  {title:'Recovery Ritual',desc:'10 minuten stretchen of mobility',xp:45,gold:25,cat:'sport'},
+  {title:'Hidden Gate',desc:'Doe iets vandaag waar je normaal voor zou wegrennen',xp:100,gold:60,cat:'sport'},
+  {title:'Macro Mastery',desc:'Track al je voeding vandaag exact',xp:50,gold:30,cat:'voeding'},
+  {title:'Silent Hunter',desc:'30 minuten geen social media',xp:35,gold:20,cat:'slaap'},
+  {title:'Strength Awakening',desc:'Doe één set tot failure van een oefening',xp:80,gold:45,cat:'sport'},
+  {title:'Family Boss Battle',desc:'Quality time zonder afleiding minimaal 30 min',xp:70,gold:40,cat:'gezin'},
+  {title:'Cold Realm Challenge',desc:'Eindig je douche met 30 sec koud water',xp:60,gold:35,cat:'sport'},
+  {title:'Code Cleanup',desc:'Werk 60 min gefocust aan een project zonder pauze',xp:90,gold:50,cat:'werk'},
+];
+
+const PR_EXERCISES=[
+  {id:'bench',     name:'Bench Press',      ico:'🏋️'},
+  {id:'squat',     name:'Squat',            ico:'🦵'},
+  {id:'deadlift',  name:'Deadlift',         ico:'💀'},
+  {id:'ohp',       name:'Overhead Press',   ico:'☝️'},
+  {id:'rows',      name:'Barbell Rows',     ico:'🔱'},
+  {id:'pullups',   name:'Pull-ups (max)',   ico:'🆙'},
+];
+
+const EXERCISE_TEMPLATES=['Bench Press','Squat','Deadlift','Overhead Press','Barbell Rows','Pull-ups','Push-ups','Lat Pulldown','Bicep Curls','Tricep Dips','Leg Press','Lunges','Plank','Russian Twists'];
+
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
@@ -529,11 +757,16 @@ function fresh(){
   return{
     p:{level:1,xp:0,xpNext:100,totalXp:0,gold:0,totalGold:0,streak:0,lastLogin:null,lastDaily:null,lastWeekly:null,
        attrs:{str:10,int:10,vit:10,agi:10,sen:10,wis:10},attrXp:{str:0,int:0,vit:0,agi:0,sen:0,wis:0},
-       equippedTitle:null,boosts:{xp:null,gold:null}},
+       equippedTitle:null,boosts:{xp:null,gold:null},statPoints:0,debuffActive:false,
+       mana:0,manaMax:2000,energy:100,energyMax:100,lastManaReset:null,
+       weight:113,goalWeight:100,startWeight:113},
     tasks:JSON.parse(JSON.stringify(DTASKS)).map(t=>({...t,done:false,doneCount:0,custom:false})),
     ach:{},stats:{total:0,sport:0,sleep:0,werk:0},
     titles:[],shop:{},shadows:[],shadowPoints:{},
     emergency:null,photos:{},
+    weightHistory:[],prs:{},dungeon:null,dungeonHistory:[],
+    aiQuest:null,aiQuestDate:null,calendarHistory:{},
+    calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),
   };
 }
 
@@ -549,6 +782,15 @@ if(!db.shop)db.shop={};
 if(!db.photos)db.photos={};
 if(!db.p.boosts)db.p.boosts={xp:null,gold:null};
 if(!db.p.totalGold)db.p.totalGold=db.p.gold||0;
+if(db.p.statPoints===undefined)db.p.statPoints=0;
+if(db.p.mana===undefined){db.p.mana=0;db.p.manaMax=2000;}
+if(db.p.energy===undefined){db.p.energy=100;db.p.energyMax=100;}
+if(!db.prs||Object.keys(db.prs).length===0)db.prs=JSON.parse(JSON.stringify(DEFAULT_PRS));
+if(!db.p.weight){db.p.weight=113;db.p.startWeight=113;db.p.goalWeight=100;}
+if(!db.weightHistory||db.weightHistory.length===0)db.weightHistory=[{w:113,date:Date.now()}];
+if(!db.dungeonHistory)db.dungeonHistory=[];
+if(!db.calendarHistory)db.calendarHistory={};
+if(db.calMonth===undefined){db.calMonth=new Date().getMonth();db.calYear=new Date().getFullYear();}
 
 function save(){localStorage.setItem(STORE,JSON.stringify(db));}
 
@@ -560,7 +802,18 @@ function weekStart(){const d=new Date(),day=d.getDay(),diff=d.getDate()-day+(day
 function checkResets(){
   const today=new Date().toDateString(),wk=weekStart();
   const yest=new Date();yest.setDate(yest.getDate()-1);
-  if(db.p.lastDaily!==today){db.tasks.filter(t=>t.type==='daily').forEach(t=>t.done=false);db.p.lastDaily=today;}
+  if(db.p.lastDaily!==today){
+    db.tasks.filter(t=>t.type==='daily').forEach(t=>t.done=false);
+    // log calendar before reset
+    if(db.p.lastDaily){
+      const all=db.tasks.filter(t=>t.type==='daily');
+      const done=all.filter(t=>t.done).length;
+      db.calendarHistory[db.p.lastDaily]={done:done,total:all.length};
+    }
+    db.p.lastDaily=today;
+    db.p.mana=0; // reset water
+    db.p.energy=Math.min(db.p.energyMax,db.p.energy+30); // restore energy
+  }
   if(db.p.lastWeekly!==wk){db.tasks.filter(t=>t.type==='weekly').forEach(t=>t.done=false);db.p.lastWeekly=wk;}
   if(!db.p.lastLogin){db.p.streak=1;}
   else if(db.p.lastLogin===yest.toDateString()){db.p.streak=(db.p.streak||0)+1;}
@@ -583,6 +836,9 @@ function getXPMult(){
   if(db.p.boosts.xp&&db.p.boosts.xp>Date.now())m*=2;
   const t=db.p.equippedTitle?TITLES.find(x=>x.id===db.p.equippedTitle):null;
   if(t?.mult)m*=t.mult;
+  if(db.p.debuffActive)m*=0.5;
+  // Shadow army bonus
+  m*=1+(db.shadows.length*0.05);
   return m;
 }
 function getGoldMult(){
@@ -611,7 +867,7 @@ function addXP(baseXp,baseGold,cat){
   }
 
   // level up
-  while(db.p.xp>=db.p.xpNext){db.p.xp-=db.p.xpNext;db.p.level++;db.p.xpNext=xpForLv(db.p.level);showLevelUp(db.p.level);}
+  while(db.p.xp>=db.p.xpNext){db.p.xp-=db.p.xpNext;db.p.level++;db.p.xpNext=xpForLv(db.p.level);db.p.statPoints=(db.p.statPoints||0)+5;showLevelUp(db.p.level);}
 
   // check shadows
   checkShadows();
@@ -637,6 +893,14 @@ function updateHeader(){
   document.getElementById('msGold').textContent=p.gold;
   document.getElementById('msStreak').textContent=p.streak||0;
   document.getElementById('msDone').textContent=db.stats?.total||0;
+  // Mana + Energy
+  const manaP=Math.round((p.mana/p.manaMax)*100);
+  document.getElementById('manaTxt').textContent=p.mana+'/'+p.manaMax+'ml';
+  document.getElementById('manaFill').style.width=manaP+'%';
+  document.getElementById('energyTxt').textContent=p.energy+'/'+p.energyMax;
+  document.getElementById('energyFill').style.width=Math.round((p.energy/p.energyMax)*100)+'%';
+  // Debuff banner
+  document.getElementById('debuffBanner').style.display=p.debuffActive?'flex':'none';
   ['str','int','vit','agi','sen','wis'].forEach(a=>{const el=document.getElementById('a'+a[0].toUpperCase()+a.slice(1));if(el)el.textContent=p.attrs[a]||10;});
   const nrk=RANKS.find(r=>r.min>p.level);
   if(nrk){const left=nrk.min-p.level,range=nrk.min-(getRank(p.level).min||1),prog=range>0?Math.round(((range-left)/range)*100):0;
@@ -701,6 +965,10 @@ function switchType(type){qtype=type;document.getElementById('nb-daily').classLi
 // ═══════════════════════════════════════════════════════
 function render(){
   const m=document.getElementById('main');
+  if(tab==='dungeon'){renderDungeon();return;}
+  if(tab==='prs'){renderPRs();return;}
+  if(tab==='weight'){renderWeight();return;}
+  if(tab==='calendar'){renderCalendar();return;}
   if(tab==='shadow'){renderShadow();return;}
   if(tab==='titles'){renderTitles();return;}
   if(tab==='shop'){renderShop();return;}
@@ -712,6 +980,23 @@ function render(){
 function renderQuests(){
   const tasks=db.tasks.filter(t=>t.type===qtype);
   let html=`<div class="type-switch"><button class="type-btn ${qtype==='daily'?'active':''}" onclick="switchType('daily')">☀️ Daily</button><button class="type-btn ${qtype==='weekly'?'active':''}" onclick="switchType('weekly')">📅 Weekly</button></div>`;
+
+  // AI QUEST (only on daily tab)
+  if(qtype==='daily'&&db.aiQuest&&!db.aiQuest.done){
+    const q=db.aiQuest;
+    html+=`<div class="ai-quest-card">
+      <div class="aiq-label">[ 🤖 SYSTEM-GENERATED QUEST ]</div>
+      <div class="aiq-title">${q.title}</div>
+      <div class="aiq-desc">${q.desc}</div>
+      <div class="aiq-rewards"><span class="aiq-r" style="color:var(--blue)">+${q.xp} XP</span><span class="aiq-r" style="color:var(--gold)">+${q.gold} 🪙</span></div>
+      <div class="aiq-actions">
+        <button class="aiq-btn complete" onclick="completeAIQuest()">✓ Done</button>
+        <button class="aiq-btn skip" onclick="skipAIQuest()">↻ Skip</button>
+      </div>
+    </div>`;
+  } else if(qtype==='daily'&&!db.aiQuest){
+    html+=`<button class="aiq-btn gen" onclick="generateAIQuest()">🤖 Genereer AI Quest voor vandaag</button>`;
+  }
 
   // BOSS RAID (weekly tab)
   if(qtype==='weekly'){
@@ -825,7 +1110,24 @@ function renderShop(){
 
 function renderStats(){
   const p=db.p;
-  document.getElementById('main').innerHTML=`<div class="stats-grid">
+  let html='';
+  if(p.statPoints>0){
+    html+=`<div class="alloc-banner">
+      <div class="alloc-pts">${p.statPoints}</div>
+      <div class="alloc-txt"><b style="color:var(--gold)">Stat Points beschikbaar</b><br><span style="font-size:.7rem;color:var(--dim)">Verdeel ze over je attributes</span></div>
+    </div>
+    <div class="alloc-grid">`;
+    [['str','💪','STR',var2('--str')],['int','🧠','INT',var2('--int')],['vit','🍎','VIT',var2('--vit')],['agi','⚡','AGI',var2('--agi')],['sen','❤️','SEN',var2('--sen')],['wis','💤','WIS',var2('--wis')]].forEach(([key,ic,nm,col])=>{
+      html+=`<div class="alloc-row">
+        <div class="al-info"><span class="al-ico">${ic}</span><span class="al-name" style="color:${col}">${nm}</span></div>
+        <button class="al-btn" onclick="allocStat('${key}',-1)">−</button>
+        <div class="al-val" style="color:${col}">${p.attrs[key]}</div>
+        <button class="al-btn" onclick="allocStat('${key}',1)" ${p.statPoints<=0?'disabled':''}>+</button>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  html+=`<div class="stats-grid">
     <div class="stat-card" style="--accent:var(--gold)"><div class="sc-val">${p.totalXp}</div><div class="sc-lbl">TOTAL XP</div></div>
     <div class="stat-card" style="--accent:var(--gold)"><div class="sc-val">${p.totalGold||p.gold}</div><div class="sc-lbl">TOTAL GOLD</div></div>
     <div class="stat-card" style="--accent:var(--blue)"><div class="sc-val">${p.level}</div><div class="sc-lbl">LEVEL</div></div>
@@ -838,7 +1140,19 @@ function renderStats(){
     <div class="stat-card" style="--accent:var(--agi)"><div class="sc-val">${p.attrs.agi}</div><div class="sc-lbl">AGI ⚡</div></div>
     <div class="stat-card" style="--accent:var(--sen)"><div class="sc-val">${p.attrs.sen}</div><div class="sc-lbl">SEN ❤️</div></div>
     <div class="stat-card" style="--accent:var(--wis)"><div class="sc-val">${p.attrs.wis}</div><div class="sc-lbl">WIS 💤</div></div>
-  </div>`;}
+    <div class="stat-card" style="--accent:var(--blue)"><div class="sc-val">${db.dungeonHistory.length}</div><div class="sc-lbl">DUNGEONS ⚔</div></div>
+    <div class="stat-card" style="--accent:var(--vit)"><div class="sc-val">${db.weightHistory.length}</div><div class="sc-lbl">WEIGHT LOGS</div></div>
+  </div>`;
+  document.getElementById('main').innerHTML=html;}
+
+function var2(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function allocStat(attr,d){
+  if(d>0&&db.p.statPoints<=0)return;
+  if(d<0&&db.p.attrs[attr]<=10)return;
+  db.p.attrs[attr]+=d;
+  db.p.statPoints-=d;
+  save();updateHeader();renderStats();
+}
 
 function renderAch(){
   document.getElementById('main').innerHTML=`<div class="ach-grid">${ACHS.map(a=>`<div class="ach ${db.ach[a.id]?'unlocked':''}"><div class="ach-ico">${a.ico}</div><div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div></div>`).join('')}</div>`;}
@@ -858,6 +1172,7 @@ function toggle(id){
     addXP(t.xp,t.gold,t.cat);
     notify(`[ QUEST COMPLETE ] +${t.xp} XP  +${t.gold} 🪙`);
     checkAch();
+    checkAllDailyDone();
   }else{
     t.done=false;
     db.p.xp=Math.max(0,db.p.xp-t.xp);db.p.totalXp=Math.max(0,db.p.totalXp-t.xp);
@@ -1092,13 +1407,408 @@ function resetConfirm(){if(!confirm(`Reset alle ${qtype==='daily'?'dagelijkse':'
 function showSettings(){if(!confirm('ALLE data resetten? (niet te herstellen)'))return;localStorage.removeItem(STORE);db=fresh();save();updateHeader();render();notify('[ SYSTEM ] Nieuw avontuur begint...');}
 
 // ═══════════════════════════════════════════════════════
+// MANA / WATER
+// ═══════════════════════════════════════════════════════
+function addWater(){
+  db.p.mana=Math.min(db.p.manaMax,db.p.mana+250);
+  if(db.p.mana>=db.p.manaMax){
+    addXP(20,10,'voeding');
+    notify('💧 [ MANA FULL ] Hydration goal bereikt!');
+  } else notify('💧 +250ml — '+db.p.mana+'/'+db.p.manaMax);
+  save();updateHeader();
+}
+
+// ═══════════════════════════════════════════════════════
+// AI QUEST
+// ═══════════════════════════════════════════════════════
+function loadSchema(type){
+  const schema=WORKOUT_SCHEMAS[type];
+  if(!schema)return;
+  const diff=prompt(`Laad ${schema.name} — kies moeilijkheid:\n1 = Normal (1x XP)\n2 = Hard (1.5x XP)\n3 = Nightmare (2.5x XP)\n\nVoer 1, 2 of 3 in:`);
+  const diffMap={'1':'normal','2':'hard','3':'nightmare'};
+  const d=diffMap[diff]||'normal';
+  db.dungeon={diff:d,startedAt:Date.now(),exercises:JSON.parse(JSON.stringify(schema.exercises))};
+  save();render();
+  notify(`⚔ ${schema.name} (${d.toUpperCase()}) gestart!`);
+}
+
+// ═══════════════════════════════════════════════════════
+// SMART AI QUEST GENERATOR (no API needed)
+// ═══════════════════════════════════════════════════════
+function generateAIQuest(){
+  const today=new Date().toDateString();
+  if(db.aiQuestDate===today&&db.aiQuest&&!db.aiQuest.done){
+    notify('[ SYSTEM ] AI Quest is al actief vandaag');return;
+  }
+  // Smart generation based on stats + workout data
+  const p=db.p;
+  const lv=p.level;
+  const pools=[
+    // Sport quests op basis van zijn schema's
+    {title:'Bench Press Challenge',desc:`Doe vandaag 3 sets bench press. Target: ${Math.round(db.prs.bench?.value*0.8)||80}kg × 10 reps.`,xp:70+lv,gold:40,cat:'sport'},
+    {title:'Squat Grind',desc:`3 sets back squat op ${Math.round(db.prs.squat?.value*0.75)||80}kg. Focus op depth.`,xp:75+lv,gold:42,cat:'sport'},
+    {title:'Deadlift Dungeon',desc:`2 sets RDL op ${Math.round(db.prs.deadlift?.value*0.7)||80}kg. Slow eccentric.`,xp:80+lv,gold:45,cat:'sport'},
+    {title:'Face Pull Protocol',desc:'4 sets face pulls preventief. Schouder is priority. 15-20 reps licht.',xp:40,gold:20,cat:'sport'},
+    // Weight loss focus
+    {title:'Calorie Warrior',desc:`Jij: 113kg, doel: 100kg. Vandaag 300 kcal deficit halen. Log alles.`,xp:60,gold:35,cat:'voeding'},
+    {title:'Protein Target',desc:'Haal vandaag 180g eiwit. Per 30g = +5 XP bonus.',xp:55,gold:30,cat:'voeding'},
+    {title:'Water Monarch',desc:'Drink vandaag 3L water. Mana volledig vullen.',xp:50,gold:25,cat:'voeding'},
+    // AI pool random
+    ...AI_QUEST_POOL,
+  ];
+  const alreadyUsed=db.aiQuest?.title;
+  const filtered=pools.filter(q=>q.title!==alreadyUsed);
+  const pick={...filtered[Math.floor(Math.random()*filtered.length)],done:false};
+  db.aiQuest=pick;db.aiQuestDate=today;
+  save();
+  notify('🤖 [ SYSTEM ] Quest gegenereerd: '+pick.title);
+  if(tab==='quests')render();
+}
+function completeAIQuest(){
+  if(!db.aiQuest||db.aiQuest.done)return;
+  db.aiQuest.done=true;
+  addXP(db.aiQuest.xp,db.aiQuest.gold,db.aiQuest.cat);
+  notify(`[ AI QUEST CLEAR ] +${db.aiQuest.xp} XP +${db.aiQuest.gold} 🪙`);
+  save();render();
+}
+function skipAIQuest(){
+  db.aiQuest=null;db.aiQuestDate=null;
+  save();render();
+  notify('[ SYSTEM ] AI Quest geannuleerd');
+}
+
+// ═══════════════════════════════════════════════════════
+// DUNGEON (WORKOUT)
+// ═══════════════════════════════════════════════════════
+function renderDungeon(){
+  let html='';
+  if(!db.dungeon){
+    html=`<h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--blue);margin-bottom:.75rem;letter-spacing:.1em">[ KIES JE DUNGEON ]</h3>
+    <div class="dungeon-pick">
+      <div class="diff-card normal" onclick="startDungeon('normal')">
+        <div class="dc-name n">NORMAL</div>
+        <div class="dc-mult">1.0× XP</div>
+      </div>
+      <div class="diff-card hard" onclick="startDungeon('hard')">
+        <div class="dc-name h">HARD</div>
+        <div class="dc-mult">1.5× XP</div>
+      </div>
+      <div class="diff-card nightmare" onclick="startDungeon('nightmare')">
+        <div class="dc-name nm">NIGHTMARE</div>
+        <div class="dc-mult">2.5× XP</div>
+      </div>
+    </div>
+    <h3 style="font-family:'Orbitron',monospace;font-size:.78rem;color:var(--dim);margin:.75rem 0 .5rem;letter-spacing:.1em">[ LAAD SCHEMA ]</h3>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <button class="type-btn" onclick="loadSchema('push')" style="flex:1">💪 Push</button>
+      <button class="type-btn" onclick="loadSchema('pull')" style="flex:1">🔱 Pull</button>
+      <button class="type-btn" onclick="loadSchema('legs')" style="flex:1">🦵 Legs</button>
+    </div>
+    <h3 style="font-family:'Orbitron',monospace;font-size:.78rem;color:var(--dim);margin:1rem 0 .5rem;letter-spacing:.1em">[ DUNGEON HISTORY ]</h3>`;
+    if(db.dungeonHistory.length===0){
+      html+=`<div style="text-align:center;color:var(--dim);padding:2rem .5rem;font-size:.85rem">Nog geen dungeons gerund</div>`;
+    } else {
+      html+='<div style="display:flex;flex-direction:column;gap:.4rem">';
+      db.dungeonHistory.slice(-10).reverse().forEach(d=>{
+        html+=`<div style="background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;display:flex;justify-content:space-between;font-size:.78rem">
+          <div><b style="color:var(--purple)">${d.diff.toUpperCase()}</b> · ${d.exercises.length} oefeningen · ${Math.round(d.duration/60)}min</div>
+          <div style="color:var(--gold);font-family:'Share Tech Mono',monospace">+${d.xp} XP</div>
+        </div>`;
+      });
+      html+='</div>';
+    }
+  } else {
+    const d=db.dungeon;
+    const dur=Math.floor((Date.now()-d.startedAt)/1000);
+    const m=Math.floor(dur/60),s=dur%60;
+    html=`<div class="dungeon-active">
+      <div class="da-header">
+        <div class="da-name">${d.diff.toUpperCase()} DUNGEON</div>
+        <div class="da-timer" id="dunTimer">${m}:${String(s).padStart(2,'0')}</div>
+      </div>`;
+    d.exercises.forEach((ex,i)=>{
+      html+=`<div class="exercise-row">
+        <div class="ex-name">${ex.name}</div>
+        <input type="number" class="ex-input" value="${ex.sets}" onchange="updateEx(${i},'sets',this.value)" placeholder="sets">
+        <input type="number" class="ex-input" value="${ex.reps}" onchange="updateEx(${i},'reps',this.value)" placeholder="reps">
+        <input type="number" class="ex-input" value="${ex.weight}" onchange="updateEx(${i},'weight',this.value)" placeholder="kg">
+        <button class="ex-del" onclick="delEx(${i})">✕</button>
+      </div>`;
+    });
+    html+=`<div class="ex-add"><input class="add-inp" id="exNameInp" placeholder="Oefening (bijv. Bench Press)" list="exList">
+      <datalist id="exList">${EXERCISE_TEMPLATES.map(e=>`<option value="${e}">`).join('')}</datalist>
+      <button class="add-btn" onclick="addEx()">+</button></div>
+      <button class="dungeon-finish" onclick="finishDungeon()">⚔ DUNGEON CLEAR</button>
+      <button class="dungeon-finish" style="background:var(--s2);border-color:var(--border);color:var(--dim);margin-top:.4rem" onclick="abortDungeon()">Afbreken</button>
+    </div>`;
+    setTimeout(()=>{const el=document.getElementById('dunTimer');if(el&&db.dungeon){const dur=Math.floor((Date.now()-db.dungeon.startedAt)/1000);el.textContent=Math.floor(dur/60)+':'+String(dur%60).padStart(2,'0');if(tab==='dungeon')setTimeout(()=>render(),1000);}},1000);
+  }
+  document.getElementById('main').innerHTML=html;
+}
+function startDungeon(diff){
+  db.dungeon={diff,startedAt:Date.now(),exercises:[]};
+  save();render();
+  notify(`⚔ ${diff.toUpperCase()} Dungeon gestart!`);
+}
+function addEx(){
+  const inp=document.getElementById('exNameInp');
+  const name=inp?.value.trim();if(!name)return;
+  db.dungeon.exercises.push({name,sets:3,reps:10,weight:0});
+  save();inp.value='';render();
+}
+function updateEx(i,field,val){if(!db.dungeon)return;db.dungeon.exercises[i][field]=parseInt(val)||0;save();}
+function delEx(i){db.dungeon.exercises.splice(i,1);save();render();}
+function abortDungeon(){if(confirm('Dungeon afbreken? Geen XP.')){db.dungeon=null;save();render();}}
+function finishDungeon(){
+  const d=db.dungeon;if(!d||d.exercises.length===0){notify('[ ERROR ] Voeg eerst oefeningen toe');return;}
+  const duration=Math.floor((Date.now()-d.startedAt)/1000);
+  const totalReps=d.exercises.reduce((a,e)=>a+(e.sets*e.reps),0);
+  const totalVol=d.exercises.reduce((a,e)=>a+(e.sets*e.reps*e.weight),0);
+  const mult=d.diff==='nightmare'?2.5:d.diff==='hard'?1.5:1;
+  const baseXp=Math.round((totalReps*2+totalVol/10)*mult);
+  const baseGold=Math.round(baseXp*0.6);
+  d.xp=baseXp;d.gold=baseGold;d.duration=duration;d.totalReps=totalReps;d.totalVol=totalVol;
+  db.dungeonHistory.push(d);
+  // Energy cost
+  db.p.energy=Math.max(0,db.p.energy-(d.diff==='nightmare'?40:d.diff==='hard'?25:15));
+  addXP(baseXp,baseGold,'sport');
+  db.dungeon=null;save();
+  notify(`⚔ DUNGEON CLEAR! +${baseXp} XP +${baseGold} 🪙 · ${totalReps} reps · ${totalVol}kg vol`);
+  spawnParticles();
+  render();
+}
+
+// ═══════════════════════════════════════════════════════
+// PR TRACKER
+// ═══════════════════════════════════════════════════════
+function renderPRs(){
+  let html=`<h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--gold);margin-bottom:.75rem;letter-spacing:.1em">[ PERSONAL RECORDS ]</h3><div class="pr-list">`;
+  PR_EXERCISES.forEach(ex=>{
+    const cur=db.prs[ex.id];
+    html+=`<div class="pr-card">
+      <div class="pr-ico">${ex.ico}</div>
+      <div class="pr-info">
+        <div class="pr-name">${ex.name}</div>
+        <div class="pr-cur">${cur?cur.value+(ex.id==='pullups'?' reps':' kg'):'Geen PR'}</div>
+        ${cur?`<div class="pr-prev">Sinds ${new Date(cur.date).toLocaleDateString('nl')}</div>`:''}
+      </div>
+      <button class="pr-update" onclick="updatePR('${ex.id}','${ex.name}')">+ Update</button>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('main').innerHTML=html;
+}
+function updatePR(id,name){
+  const val=parseFloat(prompt(`Nieuw record voor ${name} (kg of reps):`));
+  if(!val||val<=0)return;
+  const cur=db.prs[id];
+  if(cur&&val<=cur.value){notify('[ SYSTEM ] Geen nieuw record. Huidige: '+cur.value);return;}
+  const prev=cur?cur.value:0;
+  db.prs[id]={value:val,date:Date.now(),prev:prev};
+  // Big XP reward for PR
+  const pr_xp=Math.round((val-prev)*5+50);
+  const pr_gold=Math.round(pr_xp*0.5);
+  addXP(pr_xp,pr_gold,'sport');
+  save();
+  showBossKill(name,val,prev);
+}
+function showBossKill(name,val,prev){
+  if(!document.getElementById('bossKill')){
+    const div=document.createElement('div');div.id='bossKill';div.className='boss-kill';div.onclick=()=>div.classList.remove('on');
+    div.innerHTML=`<div><div class="bk-label">[ BOSS DEFEATED ]</div><div class="bk-title" id="bkTitle"></div><div class="bk-pr" id="bkPr"></div><div class="bk-prev" id="bkPrev"></div><div class="bk-tap">— tik om door te gaan —</div></div>`;
+    document.body.appendChild(div);
+  }
+  document.getElementById('bkTitle').textContent='NEW PR\n'+name;
+  document.getElementById('bkPr').textContent=val+(name.includes('Pull')?' REPS':' KG');
+  document.getElementById('bkPrev').textContent=prev?'Vorige: '+prev:'Eerste record!';
+  document.getElementById('bossKill').classList.add('on');
+  spawnParticles();
+}
+
+// ═══════════════════════════════════════════════════════
+// WEIGHT TRACKER
+// ═══════════════════════════════════════════════════════
+function renderWeight(){
+  const p=db.p;
+  const cur=p.weight||(db.weightHistory.length?db.weightHistory[db.weightHistory.length-1].w:null);
+  const start=p.startWeight||(db.weightHistory.length?db.weightHistory[0].w:null);
+  const diff=cur&&start?(cur-start).toFixed(1):0;
+  const diffCls=diff<0?'down':diff>0?'up':'';
+  let html=`<div class="weight-summary">
+    <div class="ws-cur">${cur||'-'} <span style="font-size:1rem;color:var(--dim)">kg</span></div>
+    <div class="ws-lbl">[ HUIDIG GEWICHT ]</div>
+    ${p.goalWeight?`<div class="ws-goal">Doel: ${p.goalWeight} kg</div>`:''}
+    ${start?`<div class="ws-diff ${diffCls}">${diff>0?'+':''}${diff} kg sinds start</div>`:''}
+  </div>
+  <div class="weight-graph"><canvas class="wg-canvas" id="wgCanvas"></canvas></div>
+  <div class="weight-input-row">
+    <input type="number" step="0.1" id="weightInp" placeholder="Gewicht (kg)">
+    <button class="wg-btn" onclick="logWeight()">+ LOG</button>
+  </div>
+  <div style="margin-bottom:1rem"><button class="wg-btn" onclick="setGoalWeight()" style="width:100%">🎯 Stel doelgewicht in</button></div>`;
+  if(db.weightHistory.length){
+    html+='<h3 style="font-family:\'Orbitron\',monospace;font-size:.78rem;color:var(--dim);margin-bottom:.5rem;letter-spacing:.1em">[ HISTORY ]</h3><div class="weight-history">';
+    db.weightHistory.slice().reverse().forEach((e,i)=>{
+      const prev=db.weightHistory[db.weightHistory.length-2-i];
+      const d=prev?(e.w-prev.w).toFixed(1):0;
+      const cls=d<0?'var(--green)':d>0?'var(--red)':'var(--dim)';
+      html+=`<div class="wh-item">
+        <div><div class="wh-w">${e.w} kg</div><div class="wh-date">${new Date(e.date).toLocaleDateString('nl')}</div></div>
+        ${prev?`<div style="color:${cls};font-family:'Share Tech Mono',monospace;font-size:.72rem">${d>0?'+':''}${d} kg</div>`:''}
+        ${e.photo?`<img class="wh-thumb" src="${e.photo}" alt="">`:''}
+      </div>`;
+    });
+    html+='</div>';
+  }
+  document.getElementById('main').innerHTML=html;
+  setTimeout(drawWeightGraph,50);
+}
+function drawWeightGraph(){
+  const c=document.getElementById('wgCanvas');if(!c)return;
+  const ctx=c.getContext('2d');
+  c.width=c.offsetWidth;c.height=160;
+  if(db.weightHistory.length<2){ctx.fillStyle='#5555aa';ctx.font='12px Rajdhani';ctx.textAlign='center';ctx.fillText('Log minimaal 2 keer voor grafiek',c.width/2,c.height/2);return;}
+  const data=db.weightHistory.map(e=>e.w);
+  const min=Math.min(...data)-1,max=Math.max(...data)+1;
+  const range=max-min;
+  ctx.strokeStyle='#28285a';ctx.lineWidth=1;
+  for(let i=0;i<5;i++){const y=(c.height-20)*i/4+10;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(c.width,y);ctx.stroke();}
+  // line
+  ctx.strokeStyle='#ff4d6d';ctx.lineWidth=2;ctx.beginPath();
+  data.forEach((w,i)=>{const x=i*(c.width/(data.length-1));const y=c.height-10-((w-min)/range)*(c.height-20);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.stroke();
+  // dots
+  ctx.fillStyle='#ff4d6d';
+  data.forEach((w,i)=>{const x=i*(c.width/(data.length-1));const y=c.height-10-((w-min)/range)*(c.height-20);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();});
+}
+function logWeight(){
+  const v=parseFloat(document.getElementById('weightInp').value);
+  if(!v||v<30||v>300){notify('[ ERROR ] Ongeldig gewicht');return;}
+  if(!db.p.startWeight)db.p.startWeight=v;
+  db.weightHistory.push({w:v,date:Date.now()});
+  db.p.weight=v;
+  // VIT bonus als afgevallen
+  const prev=db.weightHistory.length>1?db.weightHistory[db.weightHistory.length-2].w:null;
+  if(prev&&v<prev){
+    const lost=(prev-v).toFixed(1);
+    db.p.attrs.vit++;
+    notify(`⚖ -${lost}kg! VIT +1 → ${db.p.attrs.vit}`);
+  }
+  addXP(40,25,'voeding');
+  save();render();
+}
+function setGoalWeight(){
+  const v=parseFloat(prompt('Doelgewicht (kg):'));
+  if(v&&v>30&&v<300){db.p.goalWeight=v;save();render();notify('[ SYSTEM ] Doel ingesteld: '+v+' kg');}
+}
+
+// ═══════════════════════════════════════════════════════
+// CALENDAR
+// ═══════════════════════════════════════════════════════
+function renderCalendar(){
+  const month=db.calMonth,year=db.calYear;
+  const monthNames=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  const firstDay=new Date(year,month,1).getDay();
+  const offset=firstDay===0?6:firstDay-1;
+  const lastDate=new Date(year,month+1,0).getDate();
+  const today=new Date();
+  let html=`<div class="cal-month">
+    <button class="cal-nav" onclick="navCal(-1)">‹</button>
+    <div class="cal-title">${monthNames[month]} ${year}</div>
+    <button class="cal-nav" onclick="navCal(1)">›</button>
+  </div>
+  <div class="cal-grid">`;
+  ['M','D','W','D','V','Z','Z'].forEach(d=>html+=`<div class="cal-dow">${d}</div>`);
+  for(let i=0;i<offset;i++)html+='<div class="cal-day empty"></div>';
+  for(let d=1;d<=lastDate;d++){
+    const dateObj=new Date(year,month,d);
+    const dateStr=dateObj.toDateString();
+    const hist=db.calendarHistory[dateStr];
+    let cls='';
+    if(hist){
+      const pct=hist.done/hist.total;
+      if(pct>=1)cls='full';
+      else if(pct>=0.5)cls='partial';
+      else cls='miss';
+    }
+    if(dateObj.toDateString()===today.toDateString())cls+=' today';
+    html+=`<div class="cal-day ${cls}" onclick="showDayDetail('${dateStr}')">${d}${hist?`<div class="cal-dot"></div>`:''}</div>`;
+  }
+  html+=`</div>
+  <div style="margin-top:1rem;font-size:.7rem;color:var(--dim);text-align:center">
+    <span style="color:var(--green)">■</span> Volledig &nbsp; <span style="color:var(--gold)">■</span> Gedeeltelijk &nbsp; <span style="color:var(--red)">■</span> Gemist
+  </div>`;
+  document.getElementById('main').innerHTML=html;
+}
+function navCal(d){
+  db.calMonth+=d;
+  if(db.calMonth>11){db.calMonth=0;db.calYear++;}
+  if(db.calMonth<0){db.calMonth=11;db.calYear--;}
+  save();renderCalendar();
+}
+function showDayDetail(dateStr){
+  const hist=db.calendarHistory[dateStr];
+  if(!hist){notify('[ SYSTEM ] Geen data voor deze dag');return;}
+  notify(`📅 ${new Date(dateStr).toLocaleDateString('nl')} — ${hist.done}/${hist.total} quests`);
+}
+// !! Zet deze token NIET in een publieke GitHub repo !!
+// ═══════════════════════════════════════════════════════
+const HA_URL   = 'https://ha.ha-remy.uk';
+const HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI3OTM2M2M5MzczYzM0YWZlODIwMDI0MDExYWVhMDcyZCIsImlhdCI6MTc3NzMxNDc0NiwiZXhwIjoyMDkyNjc0NzQ2fQ.gGrbYHw_w7i19F6PmGKh-LTv6OvKAdRWmZbYbS1OFtI';
+
+async function haSet(entity, state) {
+  const service = state ? 'turn_on' : 'turn_off';
+  try {
+    await fetch(`${HA_URL}/api/services/input_boolean/${service}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HA_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ entity_id: entity }),
+    });
+  } catch(e) { console.warn('HA niet bereikbaar:', e); }
+}
+
+async function haGet(entity) {
+  try {
+    const r = await fetch(`${HA_URL}/api/states/${entity}`, {
+      headers: { 'Authorization': `Bearer ${HA_TOKEN}` }
+    });
+    const j = await r.json();
+    return j.state === 'on';
+  } catch(e) { return false; }
+}
+
+async function checkHADebuff() {
+  const penalty = await haGet('input_boolean.hunter_penalty_actief');
+  const debuff  = await haGet('input_boolean.hunter_debuff_actief');
+  if(penalty || debuff) {
+    db.p.debuffActive = true;
+    notify('【SYSTEM】 ⚠️ DEBUFF ACTIEF — XP -50% vandaag');
+    save(); updateHeader();
+  } else {
+    db.p.debuffActive = false; save();
+  }
+}
+
+function checkAllDailyDone() {
+  const daily   = db.tasks.filter(t => t.type === 'daily');
+  const allDone = daily.length > 0 && daily.every(t => t.done);
+  if(allDone) {
+    haSet('input_boolean.hunter_daily_gedaan', true);
+    notify('【SYSTEM】 ✅ Alle daily quests gedaan — HA gesynchroniseerd');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 checkResets();
 updateHeader();
 render();
 checkAch();
-// Random system message bij openen
+checkHADebuff();
 setTimeout(()=>{if(Math.random()>.5)notify(SYS_MSGS[Math.floor(Math.random()*SYS_MSGS.length)]);},1500);
 </script>
 </body>
