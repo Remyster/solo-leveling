@@ -786,6 +786,12 @@ main{position:relative;z-index:1;padding:.9rem}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:rgba(74,158,255,.2);border-radius:2px}
 
+/* TOOLTIP */
+.tip-btn{background:none;border:1px solid rgba(74,158,255,.3);color:var(--blue);width:16px;height:16px;border-radius:50%;font-size:.6rem;cursor:pointer;font-family:'Share Tech Mono',monospace;display:inline-flex;align-items:center;justify-content:center;margin-left:.3rem;vertical-align:middle;flex-shrink:0}
+.tip-btn:hover{background:rgba(74,158,255,.15)}
+.tip-box{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(10,14,26,.98);border:1px solid rgba(74,158,255,.4);padding:.65rem .85rem;width:85vw;max-width:320px;font-size:.75rem;color:var(--text);z-index:500;line-height:1.6;font-family:'Rajdhani',sans-serif;box-shadow:0 4px 30px rgba(0,0,0,.7);display:none}
+.tip-box.show{display:block}
+
 /* QUEST TIMER + COUNTER */
 .quest-header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;gap:.5rem}
 .quest-counter{font-family:'Share Tech Mono',monospace;font-size:.72rem;color:var(--blue);background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2);padding:.3rem .6rem;white-space:nowrap}
@@ -870,7 +876,7 @@ main{position:relative;z-index:1;padding:.9rem}
     <div class="status-info">
       <div class="hunter-label">[ HUNTER STATUS ]</div>
       <div class="hunter-name">REMY EGBERTS</div>
-      <div class="hunter-class" id="hunterClass">Rookie Hunter</div>
+      <div class="hunter-class" id="hunterClass">Rookie Hunter <button class="tip-btn" onclick="showTip('rank')">?</button></div>
       <div class="hunter-title-disp" id="hunterTitleDisp" style="display:none"></div>
       <div class="lv-row">
         <div class="lv-text" id="lvText">LV. 1</div>
@@ -888,11 +894,11 @@ main{position:relative;z-index:1;padding:.9rem}
   </div>
   <div class="bars-row">
     <div class="bar-mini mana" onclick="addWater()">
-      <div class="bar-head"><span>💧 MANA</span><b id="manaTxt">0/2000ml</b></div>
+      <div class="bar-head"><span>💧 MANA <button class="tip-btn" onclick="showTip('mana')">?</button></span><b id="manaTxt">0/2000ml</b></div>
       <div class="bar-track"><div class="bar-fill" id="manaFill" style="width:0%"></div></div>
     </div>
     <div class="bar-mini energy">
-      <div class="bar-head"><span>⚡ ENERGY</span><b id="energyTxt">100/100</b></div>
+      <div class="bar-head"><span>⚡ ENERGY <button class="tip-btn" onclick="showTip('energy')">?</button></span><b id="energyTxt">100/100</b></div>
       <div class="bar-track"><div class="bar-fill" id="energyFill" style="width:100%"></div></div>
     </div>
   </div>
@@ -901,7 +907,7 @@ main{position:relative;z-index:1;padding:.9rem}
     <div class="db-info"><b>DEBUFF ACTIEF</b><span>XP -50% — voltooi quests om op te heffen</span></div>
   </div>
   <div class="attrs">
-    <div class="attrs-label">[ ATTRIBUTES ]</div>
+    <div class="attrs-label">[ ATTRIBUTES ] <button class="tip-btn" onclick="showTip('stats')">?</button></div>
     <div class="attrs-grid">
       <div class="attr a-str"><div class="attr-ico">💪</div><div class="attr-val" id="aStr">10</div><div class="attr-lbl">STR</div></div>
       <div class="attr a-int"><div class="attr-ico">🧠</div><div class="attr-val" id="aInt">10</div><div class="attr-lbl">INT</div></div>
@@ -958,6 +964,8 @@ main{position:relative;z-index:1;padding:.9rem}
   <button class="nav-btn" onclick="resetConfirm()"><span class="ico">🔄</span>Reset</button>
   <button class="nav-btn" onclick="showSettings()"><span class="ico">⚙️</span>Settings</button>
 </div>
+
+<div class="tip-box" id="tipBox"></div>
 
 <!-- LEVEL UP -->
 <div class="levelup" id="levelup" onclick="closeLu()">
@@ -1036,7 +1044,7 @@ main{position:relative;z-index:1;padding:.9rem}
     <div class="settings-section">
       <h3>GEVAARLIJKE ZONE</h3>
       <div class="settings-row">
-        <button class="settings-btn danger" onclick="resetAllData()" style="width:100%">⚠️ RESET ALLE DATA</button>
+        <button class="settings-btn danger" onclick="resetAllData()" style="width:100%">⚠️ VOLLEDIGE DATA RESET (level, XP, gold, alles weg)</button>
       </div>
     </div>
     <div style="margin-top:1rem">
@@ -1131,16 +1139,21 @@ const DTASKS=[
 ];
 
 const SHADOWS=[
-  {id:'sh1', ico:'⚔️', name:'Iron Knight',    rank:'Common', threshold:5,  cat:'sport'},
-  {id:'sh2', ico:'🏹', name:'Shadow Archer',  rank:'Common', threshold:10, cat:'sport'},
-  {id:'sh3', ico:'🧙', name:'Mage of Will',   rank:'Rare',   threshold:5,  cat:'werk'},
-  {id:'sh4', ico:'🛡️', name:'Guardian',       rank:'Rare',   threshold:5,  cat:'huishouden'},
-  {id:'sh5', ico:'🌿', name:'Life Bringer',   rank:'Rare',   threshold:5,  cat:'voeding'},
-  {id:'sh6', ico:'❤️', name:'Bond Keeper',    rank:'Rare',   threshold:5,  cat:'gezin'},
-  {id:'sh7', ico:'🌙', name:'Dream Walker',   rank:'Rare',   threshold:5,  cat:'slaap'},
-  {id:'sh8', ico:'🔥', name:'Berserker',      rank:'Epic',   threshold:20, cat:'sport'},
-  {id:'sh9', ico:'💀', name:'Death Knight',   rank:'Epic',   threshold:30, cat:'sport'},
-  {id:'sh10',ico:'👑', name:'Igris the Red',  rank:'Legend', threshold:50, cat:'sport'},
+  // Knight Grade (laagste) — unlock via sport
+  {id:'tank',    ico:'🐻', name:'Tank',         grade:'Knight',       lore:'Alpha Ice Bear. Raw power, absorbs hits.',   threshold:5,  cat:'sport'},
+  {id:'iron',    ico:'🛡️', name:'Iron',          grade:'Elite Knight', lore:'Fallen A-rank hunter Kim Chul. Tank of the army.', threshold:10, cat:'sport'},
+  // General Grade — werk & huishouden
+  {id:'tusk',    ico:'🗡️', name:'Tusk',          grade:'General',      lore:'High Orc leader Kargalgan. Commands legions.', threshold:8,  cat:'huishouden'},
+  {id:'greed',   ico:'💰', name:'Greed',         grade:'General',      lore:'S-rank hunter Hwang Dongsoo. Ruthless fighter.', threshold:10, cat:'werk'},
+  // Special Grade — andere categorieën
+  {id:'kaisel',  ico:'🐉', name:'Kaisel',        grade:'Knight',       lore:'Wyvern of Demon King Baran. Air superiority.', threshold:8,  cat:'slaap'},
+  {id:'jima',    ico:'🐍', name:'Jima',          grade:'General',      lore:'Naga dungeon boss. Colossal strength.', threshold:8,  cat:'voeding'},
+  {id:'antqueen',ico:'🐜', name:'Ant Queen',     grade:'Knight',       lore:'Jeju Island. Mother of the ant army.', threshold:10, cat:'gezin'},
+  // Marshal Grade — zware sport grind
+  {id:'igris',   ico:'⚔️', name:'Igris',         grade:'Marshal',      lore:'Blood-Red Commander. First and most loyal shadow.', threshold:25, cat:'sport'},
+  {id:'beru',    ico:'🦅', name:'Beru',          grade:'Marshal',      lore:'The Ant King. Only shadow who can speak. Gluttony skill.', threshold:40, cat:'sport'},
+  // Grand Marshal — eindbaas
+  {id:'bellion', ico:'👑', name:'Bellion',       grade:'Grand Marshal',lore:'Ashborn\'s right hand. Strongest shadow. Extends his sword across the battlefield.', threshold:60, cat:'sport'},
 ];
 
 const TITLES=[
@@ -1473,8 +1486,9 @@ function showLevelUp(lv){
   const rk=getRank(lv);
   document.getElementById('luNum').textContent=lv;
   document.getElementById('luRank').textContent=rk.title;
-  document.getElementById('luAttr').innerHTML='<div class="lu-attr-pill">STR +</div><div class="lu-attr-pill">All Stats ↑</div>';
+  document.getElementById('luAttr').innerHTML='<div class="lu-attr-pill">+5 STAT POINTS</div><div class="lu-attr-pill">ALL STATS ↑</div>';
   document.getElementById('levelup').classList.add('on');
+  playSound('level_up');
   spawnParticles();
   checkAch();
 }
@@ -1635,22 +1649,49 @@ function renderQuests(){
 function renderShadow(){
   const total=db.shadows.length;
   const influence=Math.min(50,total*5);
-  let html=`<div class="shadow-summary">
-    <div class="shadow-count">${total}</div>
-    <div class="shadow-label">[ SHADOW ARMY SIZE ]</div>
-    <div class="shadow-influence">Monarch Influence: +${influence}% XP bonus</div>
-  </div>
-  <div class="shadow-grid">`;
-  SHADOWS.forEach(s=>{
-    const owned=db.shadows.includes(s.id);
-    const pts=db.shadowPoints[s.cat]||0;
-    html+=`<div class="shadow-card ${owned?'active':''}">
-      <div class="sh-ico">${s.ico}</div>
-      <div class="sh-name">${s.name}</div>
-      <div class="sh-rank">${s.rank}${!owned?' · '+pts+'/'+s.threshold:' ✓'}</div>
-    </div>`;
+  const gradeColors={'Knight':'#8899aa','Elite Knight':'#4fc3f7','General':'#66bb6a','Marshal':'#ab47bc','Grand Marshal':'#ff4455'};
+
+  let html=`
+  <div class="shadow-summary">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--dim);letter-spacing:.2em;margin-bottom:.5rem">[ SHADOW ARMY ]</div>
+    <div style="font-family:'Orbitron',monospace;font-size:3rem;font-weight:900;color:#9966ff;text-shadow:0 0 30px rgba(136,85,255,.6);line-height:1">${total}</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--dim);letter-spacing:.15em;margin-top:.3rem">SHADOWS EXTRACTED</div>
+    <div style="font-size:.78rem;color:var(--text);margin-top:.6rem;font-weight:600">Monarch Influence: <span style="color:#9966ff">+${influence}% XP bonus</span></div>
+    ${total>0?`<div style="font-family:'Share Tech Mono',monospace;font-size:.68rem;color:var(--green);margin-top:.3rem;letter-spacing:.1em">[ ARISE ]</div>`:''}
+  </div>`;
+
+  // Grade sections
+  const grades=['Knight','Elite Knight','General','Marshal','Grand Marshal'];
+  grades.forEach(grade=>{
+    const inGrade=SHADOWS.filter(s=>s.grade===grade);
+    const col=gradeColors[grade]||'#8899aa';
+    html+=`<div style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:${col};letter-spacing:.15em;margin:.9rem 0 .4rem;padding-bottom:.3rem;border-bottom:1px solid ${col}22">[ ${grade.toUpperCase()} GRADE ]</div>`;
+    html+='<div style="display:flex;flex-direction:column;gap:.4rem">';
+    inGrade.forEach(s=>{
+      const owned=db.shadows.includes(s.id);
+      const pts=db.shadowPoints[s.cat]||0;
+      const pct=Math.min(100,Math.round((pts/s.threshold)*100));
+      html+=`
+      <div style="background:${owned?'rgba(136,85,255,.08)':'rgba(15,21,32,.9)'};border:1px solid ${owned?col+'66':'rgba(74,158,255,.12)'};padding:.75rem;display:flex;align-items:center;gap:.75rem;transition:all .2s;${!owned?'opacity:.45;filter:grayscale(.8)':''}">
+        <div style="font-size:2rem;flex-shrink:0;${owned?'':'filter:grayscale(1)'}">${s.ico}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700;color:${owned?col:'var(--dim)'}">${s.name}</div>
+          <div style="font-size:.62rem;color:var(--dim);margin-top:.12rem;font-family:'Share Tech Mono',monospace;letter-spacing:.04em">${s.lore}</div>
+          ${!owned?`
+          <div style="margin-top:.4rem">
+            <div style="height:3px;background:rgba(74,158,255,.1);overflow:hidden;margin-bottom:.15rem">
+              <div style="height:100%;background:${col};width:${pct}%;transition:width .5s;box-shadow:0 0 6px ${col}"></div>
+            </div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim)">${pts}/${s.threshold} ${CATS[s.cat]?.label||s.cat} quests</div>
+          </div>
+          `:`<div style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:${col};margin-top:.2rem;letter-spacing:.08em">✓ EXTRACTED — SERVING</div>`}
+        </div>
+        ${owned?`<div style="font-size:1.3rem;color:${col};text-shadow:0 0 10px ${col}">⚡</div>`:''}
+      </div>`;
+    });
+    html+='</div>';
   });
-  html+=`</div><div class="shadow-unlock-txt">Shadows unlocken door quests te doen per categorie</div>`;
+
   document.getElementById('main').innerHTML=html;
 }
 
@@ -1741,21 +1782,37 @@ function renderAch(){
 // ═══════════════════════════════════════════════════════
 function toggle(id){
   const t=db.tasks.find(x=>x.id===id);if(!t)return;
+  const today=new Date().toDateString();
+
   if(!t.done){
-    t.done=true;t.doneCount=(t.doneCount||0)+1;
-    if(!db.stats)db.stats={total:0,sport:0,sleep:0,werk:0};
-    db.stats.total++;
-    if(t.cat==='sport')db.stats.sport++;
-    if(t.cat==='slaap')db.stats.sleep++;
-    if(t.cat==='werk')db.stats.werk++;
-    addXP(t.xp,t.gold,t.cat);
-    notify(`[ QUEST COMPLETE ] +${t.xp} XP  +${t.gold} 🪙`);
+    t.done=true;
+    // Check if already rewarded today (exploit fix)
+    const alreadyRewarded=(t.rewardedDate===today);
+    if(!alreadyRewarded){
+      t.doneCount=(t.doneCount||0)+1;
+      t.rewardedDate=today;
+      if(!db.stats)db.stats={total:0,sport:0,sleep:0,werk:0};
+      db.stats.total++;
+      if(t.cat==='sport')db.stats.sport++;
+      if(t.cat==='slaap')db.stats.sleep++;
+      if(t.cat==='werk')db.stats.werk++;
+      addXP(t.xp,t.gold,t.cat);
+      notify(`[ QUEST COMPLETE ] +${t.xp} XP  +${t.gold} 🪙`);
+      playSound('quest_complete');
+    } else {
+      notify('[ SYSTEM ] Quest afgevinkt — reward al ontvangen vandaag');
+    }
     checkAch();
     checkAllDailyDone();
   }else{
     t.done=false;
-    db.p.xp=Math.max(0,db.p.xp-t.xp);db.p.totalXp=Math.max(0,db.p.totalXp-t.xp);
-    db.p.gold=Math.max(0,db.p.gold-t.gold);
+    // Only remove XP if rewarded today (prevent negative exploit)
+    if(t.rewardedDate===today){
+      db.p.xp=Math.max(0,db.p.xp-t.xp);
+      db.p.totalXp=Math.max(0,db.p.totalXp-t.xp);
+      db.p.gold=Math.max(0,db.p.gold-t.gold);
+      t.rewardedDate=null;
+    }
     save();updateHeader();
   }
   save();render();
@@ -1924,17 +1981,240 @@ function showWeatherBanner(ico,title,sub){
 // ═══════════════════════════════════════════════════════
 // VOICE SYSTEM
 // ═══════════════════════════════════════════════════════
-function speakStatus(){
-  if(!window.speechSynthesis){notify('[ SYSTEM ] Voice niet beschikbaar');return;}
+// ═══════════════════════════════════════════════════════
+// AUDIO SYSTEM (Web Audio API — geen externe files nodig)
+// ═══════════════════════════════════════════════════════
+const WORKER_URL = 'https://hunter-ai.remyegberts.workers.dev';
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playSound(type) {
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const master = ctx.createGain();
+    master.gain.value = 0.4;
+    master.connect(ctx.destination);
+
+    if (type === 'quest_complete') {
+      // Electronische ping + chord — Solo Leveling vibe
+      [523, 659, 784].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(master);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + i * 0.1 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.4);
+        osc.start(ctx.currentTime + i * 0.1);
+        osc.stop(ctx.currentTime + i * 0.1 + 0.5);
+      });
+    } else if (type === 'level_up') {
+      // Epische ascenderende fanfare
+      const freqs = [261, 329, 392, 523, 659, 784, 1046];
+      freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(master);
+        osc.frequency.value = freq;
+        osc.type = i < 4 ? 'sawtooth' : 'sine';
+        gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.08);
+        gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + i * 0.08 + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.5);
+        osc.start(ctx.currentTime + i * 0.08);
+        osc.stop(ctx.currentTime + i * 0.08 + 0.6);
+      });
+    } else if (type === 'penalty') {
+      // Laag dreigend alarm
+      [110, 82, 73].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(master);
+        osc.frequency.value = freq;
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.25 + 0.2);
+        osc.start(ctx.currentTime + i * 0.25);
+        osc.stop(ctx.currentTime + i * 0.25 + 0.25);
+      });
+    } else if (type === 'notify') {
+      // Korte system ping
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(master);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+    } else if (type === 'dungeon_clear') {
+      // Victorie fanfare
+      const melody = [392, 392, 523, 392, 523, 659];
+      melody.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(master);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.15);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + i * 0.15 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3);
+        osc.start(ctx.currentTime + i * 0.15);
+        osc.stop(ctx.currentTime + i * 0.15 + 0.35);
+      });
+    } else if (type === 'pr') {
+      // Boss kill sound — heavy impact
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      const gain2 = ctx.createGain();
+      osc1.connect(gain1); gain1.connect(master);
+      osc2.connect(gain2); gain2.connect(master);
+      osc1.frequency.setValueAtTime(200, ctx.currentTime);
+      osc1.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.5);
+      osc1.type = 'sawtooth';
+      gain1.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.7);
+      osc2.frequency.value = 880;
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.1);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc2.start(ctx.currentTime + 0.1); osc2.stop(ctx.currentTime + 0.6);
+    }
+  } catch(e) { console.warn('Audio error:', e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// VOICE SYSTEM (fixed — werkt op Android)
+// ═══════════════════════════════════════════════════════
+function speakStatus() {
+  if (!window.speechSynthesis) { notify('[ SYSTEM ] Voice niet beschikbaar'); return; }
   window.speechSynthesis.cancel();
-  const p=db.p,rk=getRank(p.level);
-  const txt=`System Status Report. Hunter Remy Egberts. Level ${p.level}. Rank ${rk.r}. ${rk.title}. Total XP: ${p.totalXp}. Streak: ${p.streak||0} dagen. Strength: ${p.attrs.str}. Intelligence: ${p.attrs.int}. Vitality: ${p.attrs.vit}. ${SYS_MSGS[Math.floor(Math.random()*SYS_MSGS.length)].replace('【SYSTEM】','')}`;
-  const utt=new SpeechSynthesisUtterance(txt);
-  utt.lang='nl-NL';utt.rate=0.9;utt.pitch=0.8;
-  const btn=document.getElementById('voiceBtn');
-  btn.classList.add('speaking');
-  utt.onend=()=>btn.classList.remove('speaking');
-  window.speechSynthesis.speak(utt);
+
+  const p = db.p, rk = getRank(p.level);
+  const txt = `Status rapport. Hunter Remy Egberts. Level ${p.level}. Rank ${rk.r}. ${rk.title}. Totale XP: ${p.totalXp}. Streak: ${p.streak || 0} dagen. Kracht ${p.attrs.str}. Intelligentie ${p.attrs.int}. Vitaliteit ${p.attrs.vit}.`;
+
+  const utt = new SpeechSynthesisUtterance(txt);
+  // Probeer nl-NL, val terug op standaard stem
+  const voices = window.speechSynthesis.getVoices();
+  const nlVoice = voices.find(v => v.lang.startsWith('nl'));
+  if (nlVoice) utt.voice = nlVoice;
+  utt.lang = 'nl-NL';
+  utt.rate = 0.85;
+  utt.pitch = 0.7;
+
+  const btn = document.getElementById('voiceBtn');
+  if (btn) btn.classList.add('speaking');
+  utt.onend = () => { if (btn) btn.classList.remove('speaking'); };
+  utt.onerror = () => { if (btn) btn.classList.remove('speaking'); };
+
+  // Android fix: wacht op voices
+  if (!voices.length) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      const v2 = window.speechSynthesis.getVoices();
+      const nl2 = v2.find(v => v.lang.startsWith('nl'));
+      if (nl2) utt.voice = nl2;
+      window.speechSynthesis.speak(utt);
+    };
+  } else {
+    window.speechSynthesis.speak(utt);
+  }
+  playSound('notify');
+}
+
+// ═══════════════════════════════════════════════════════
+// REAL AI QUEST GENERATOR (via Cloudflare Worker → Claude)
+// ═══════════════════════════════════════════════════════
+async function generateAIQuest() {
+  const today = new Date().toDateString();
+  if (db.aiQuestDate === today && db.aiQuest && !db.aiQuest.done) {
+    notify('[ SYSTEM ] AI Quest al actief vandaag'); return;
+  }
+
+  notify('🤖 [ SYSTEM ] Quest wordt gegenereerd...');
+
+  const p = db.p;
+  const rk = getRank(p.level);
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'quest',
+        playerData: {
+          level: p.level,
+          rank: rk.r,
+          str: p.attrs.str, int: p.attrs.int, vit: p.attrs.vit, agi: p.attrs.agi,
+          streak: p.streak || 0,
+          weight: p.weight || 113,
+          goalWeight: p.goalWeight || 100,
+          benchPR: db.prs?.bench?.value || 0,
+          squatPR: db.prs?.squat?.value || 0,
+          deadliftPR: db.prs?.deadlift?.value || 0,
+        }
+      })
+    });
+
+    const data = await res.json();
+    const text = data.result || '';
+
+    // Parse JSON uit Claude response
+    const match = text.match(/\{[^}]+\}/);
+    if (match) {
+      const quest = JSON.parse(match[0]);
+      db.aiQuest = { ...quest, done: false, aiGenerated: true };
+      db.aiQuestDate = today;
+      save();
+      notify('🤖 [ AI QUEST ] ' + quest.title);
+      playSound('notify');
+      if (tab === 'quests') render();
+    } else {
+      throw new Error('Parse failed');
+    }
+  } catch(e) {
+    // Fallback naar lokale pool
+    console.warn('AI quest fallback:', e);
+    const pool = AI_QUEST_POOL;
+    const pick = { ...pool[Math.floor(Math.random() * pool.length)], done: false };
+    db.aiQuest = pick;
+    db.aiQuestDate = today;
+    save();
+    notify('🤖 [ QUEST ] ' + pick.title);
+    if (tab === 'quests') render();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// AI NARRATIVE (na quest complete)
+// ═══════════════════════════════════════════════════════
+async function getAINarrative(questTitle) {
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'narrative',
+        playerData: {
+          questTitle,
+          level: db.p.level,
+          rank: getRank(db.p.level).r,
+        }
+      })
+    });
+    const data = await res.json();
+    if (data.result) notify(data.result);
+  } catch(e) {
+    // Geen melding bij fout, gewoon stil
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2003,51 +2283,64 @@ function addWater(){
 function loadSchema(type){
   const schema=WORKOUT_SCHEMAS[type];
   if(!schema)return;
-  const diff=prompt(`Laad ${schema.name} — kies moeilijkheid:\n1 = Normal (1x XP)\n2 = Hard (1.5x XP)\n3 = Nightmare (2.5x XP)\n\nVoer 1, 2 of 3 in:`);
-  const diffMap={'1':'normal','2':'hard','3':'nightmare'};
-  const d=diffMap[diff]||'normal';
-  db.dungeon={diff:d,startedAt:Date.now(),exercises:JSON.parse(JSON.stringify(schema.exercises))};
+  const rk=getRank(db.p.level);
+  // Rank-based difficulty unlock: E/D=Normal, B/A=Hard, S/SS=Nightmare
+  const canHard=['B','A','S','SS'].includes(rk.r);
+  const canNightmare=['S','SS'].includes(rk.r);
+
+  // Store pending schema, show in-app picker
+  db._pendingSchema=type;
+  save();
+
+  // Replace dungeon content with in-app picker
+  document.getElementById('main').innerHTML=`
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.72rem;color:var(--blue);letter-spacing:.15em;margin-bottom:.9rem">[ LAAD ${schema.name.toUpperCase()} ]</div>
+    <div style="font-size:.8rem;color:var(--dim);margin-bottom:.9rem;font-family:'Share Tech Mono',monospace">Kies moeilijkheid — jouw rank: <span style="color:${rk.r==='E'?'#8899aa':rk.r==='D'?'var(--green)':rk.r==='C'?'var(--blue)':rk.r==='B'?'#bb77ff':rk.r==='A'?'var(--gold)':'var(--red)'}">${rk.r}-RANK</span></div>
+    <div class="dungeon-pick">
+      <div class="diff-card normal" onclick="startSchemaWithDiff('normal')">
+        <div class="dc-name n">NORMAL</div>
+        <div class="dc-mult" style="margin:.3rem 0;font-size:.68rem">1.0× XP</div>
+        <div style="font-size:.6rem;color:var(--green);font-family:'Share Tech Mono',monospace">✓ UNLOCKED</div>
+      </div>
+      <div class="diff-card hard ${!canHard?'':''}">
+        ${canHard
+          ? `<div onclick="startSchemaWithDiff('hard')" style="text-align:center;cursor:pointer"><div class="dc-name h">HARD</div><div class="dc-mult" style="margin:.3rem 0;font-size:.68rem">1.5× XP</div><div style="font-size:.6rem;color:var(--gold);font-family:'Share Tech Mono',monospace">✓ UNLOCKED</div></div>`
+          : `<div style="opacity:.4;text-align:center"><div class="dc-name h" style="color:var(--dim)">HARD</div><div class="dc-mult" style="margin:.3rem 0;font-size:.68rem">1.5× XP</div><div style="font-size:.6rem;color:var(--dim);font-family:'Share Tech Mono',monospace">🔒 B-RANK</div></div>`
+        }
+      </div>
+      <div class="diff-card nightmare">
+        ${canNightmare
+          ? `<div onclick="startSchemaWithDiff('nightmare')" style="text-align:center;cursor:pointer"><div class="dc-name nm">NIGHTMARE</div><div class="dc-mult" style="margin:.3rem 0;font-size:.68rem">2.5× XP</div><div style="font-size:.6rem;color:var(--red);font-family:'Share Tech Mono',monospace">✓ UNLOCKED</div></div>`
+          : `<div style="opacity:.4;text-align:center"><div class="dc-name nm" style="color:var(--dim)">NIGHTMARE</div><div class="dc-mult" style="margin:.3rem 0;font-size:.68rem">2.5× XP</div><div style="font-size:.6rem;color:var(--dim);font-family:'Share Tech Mono',monospace">🔒 S-RANK</div></div>`
+        }
+      </div>
+    </div>
+    <div class="warning-txt">Hoe hoger je rank, hoe zwaardere dungeons je kunt betreden</div>
+    <button onclick="tab='dungeon';render()" style="margin-top:.75rem;width:100%;padding:.55rem;background:rgba(19,29,48,.8);border:1px solid rgba(74,158,255,.2);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.72rem;cursor:pointer;letter-spacing:.08em;text-transform:uppercase">← TERUG</button>
+  `;
+}
+
+function startSchemaWithDiff(diff){
+  const type=db._pendingSchema;
+  const schema=WORKOUT_SCHEMAS[type];
+  if(!schema)return;
+  db.dungeon={diff,startedAt:Date.now(),exercises:JSON.parse(JSON.stringify(schema.exercises))};
+  db._pendingSchema=null;
   save();render();
-  notify(`⚔ ${schema.name} (${d.toUpperCase()}) gestart!`);
+  notify(`⚔ ${schema.name} — ${diff.toUpperCase()} gestart!`);
 }
 
 // ═══════════════════════════════════════════════════════
-// SMART AI QUEST GENERATOR (no API needed)
+// AI QUEST COMPLETE + SKIP
 // ═══════════════════════════════════════════════════════
-function generateAIQuest(){
-  const today=new Date().toDateString();
-  if(db.aiQuestDate===today&&db.aiQuest&&!db.aiQuest.done){
-    notify('[ SYSTEM ] AI Quest is al actief vandaag');return;
-  }
-  // Smart generation based on stats + workout data
-  const p=db.p;
-  const lv=p.level;
-  const pools=[
-    // Sport quests op basis van zijn schema's
-    {title:'Bench Press Challenge',desc:`Doe vandaag 3 sets bench press. Target: ${Math.round(db.prs.bench?.value*0.8)||80}kg × 10 reps.`,xp:70+lv,gold:40,cat:'sport'},
-    {title:'Squat Grind',desc:`3 sets back squat op ${Math.round(db.prs.squat?.value*0.75)||80}kg. Focus op depth.`,xp:75+lv,gold:42,cat:'sport'},
-    {title:'Deadlift Dungeon',desc:`2 sets RDL op ${Math.round(db.prs.deadlift?.value*0.7)||80}kg. Slow eccentric.`,xp:80+lv,gold:45,cat:'sport'},
-    {title:'Face Pull Protocol',desc:'4 sets face pulls preventief. Schouder is priority. 15-20 reps licht.',xp:40,gold:20,cat:'sport'},
-    // Weight loss focus
-    {title:'Calorie Warrior',desc:`Jij: 113kg, doel: 100kg. Vandaag 300 kcal deficit halen. Log alles.`,xp:60,gold:35,cat:'voeding'},
-    {title:'Protein Target',desc:'Haal vandaag 180g eiwit. Per 30g = +5 XP bonus.',xp:55,gold:30,cat:'voeding'},
-    {title:'Water Monarch',desc:'Drink vandaag 3L water. Mana volledig vullen.',xp:50,gold:25,cat:'voeding'},
-    // AI pool random
-    ...AI_QUEST_POOL,
-  ];
-  const alreadyUsed=db.aiQuest?.title;
-  const filtered=pools.filter(q=>q.title!==alreadyUsed);
-  const pick={...filtered[Math.floor(Math.random()*filtered.length)],done:false};
-  db.aiQuest=pick;db.aiQuestDate=today;
-  save();
-  notify('🤖 [ SYSTEM ] Quest gegenereerd: '+pick.title);
-  if(tab==='quests')render();
-}
 function completeAIQuest(){
   if(!db.aiQuest||db.aiQuest.done)return;
   db.aiQuest.done=true;
   addXP(db.aiQuest.xp,db.aiQuest.gold,db.aiQuest.cat);
+  playSound('quest_complete');
   notify(`[ AI QUEST CLEAR ] +${db.aiQuest.xp} XP +${db.aiQuest.gold} 🪙`);
+  // Haal epische narrative op
+  getAINarrative(db.aiQuest.title);
   save();render();
 }
 function skipAIQuest(){
@@ -2062,28 +2355,34 @@ function skipAIQuest(){
 function renderDungeon(){
   let html='';
   if(!db.dungeon){
-    html=`<h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--blue);margin-bottom:.75rem;letter-spacing:.1em">[ KIES JE DUNGEON ]</h3>
+    const rk=getRank(db.p.level);
+    const canHard=['B','A','S','SS'].includes(rk.r);
+    const canNightmare=['S','SS'].includes(rk.r);
+    html=`<div class="section-hdr">KIES JE DUNGEON</div>
     <div class="dungeon-pick">
-      <div class="diff-card normal" onclick="startDungeon('normal')">
+      <div class="diff-card normal" onclick="startDungeon('normal')" style="cursor:pointer">
         <div class="dc-name n">NORMAL</div>
         <div class="dc-mult">1.0× XP</div>
+        <div style="font-size:.6rem;color:var(--green);font-family:'Share Tech Mono',monospace;margin-top:.3rem">E-RANK+</div>
       </div>
-      <div class="diff-card hard" onclick="startDungeon('hard')">
-        <div class="dc-name h">HARD</div>
+      <div class="diff-card hard" onclick="${canHard?"startDungeon('hard')":'void(0)'}" style="cursor:${canHard?'pointer':'default'}">
+        <div class="dc-name h" style="${!canHard?'color:var(--dim)':''}">HARD</div>
         <div class="dc-mult">1.5× XP</div>
+        <div style="font-size:.6rem;font-family:'Share Tech Mono',monospace;margin-top:.3rem;color:${canHard?'var(--gold)':'var(--dim)'}">${canHard?'✓ UNLOCKED':'🔒 B-RANK'}</div>
       </div>
-      <div class="diff-card nightmare" onclick="startDungeon('nightmare')">
-        <div class="dc-name nm">NIGHTMARE</div>
+      <div class="diff-card nightmare" onclick="${canNightmare?"startDungeon('nightmare')":'void(0)'}" style="cursor:${canNightmare?'pointer':'default'}">
+        <div class="dc-name nm" style="${!canNightmare?'color:var(--dim)':''}">NIGHTMARE</div>
         <div class="dc-mult">2.5× XP</div>
+        <div style="font-size:.6rem;font-family:'Share Tech Mono',monospace;margin-top:.3rem;color:${canNightmare?'var(--red)':'var(--dim)'}">${canNightmare?'✓ UNLOCKED':'🔒 S-RANK'}</div>
       </div>
     </div>
-    <h3 style="font-family:'Orbitron',monospace;font-size:.78rem;color:var(--dim);margin:.75rem 0 .5rem;letter-spacing:.1em">[ LAAD SCHEMA ]</h3>
+    <div class="section-hdr" style="margin-top:.75rem">LAAD SCHEMA</div>
     <div style="display:flex;gap:.5rem;margin-bottom:1rem">
       <button class="type-btn" onclick="loadSchema('push')" style="flex:1">💪 Push</button>
       <button class="type-btn" onclick="loadSchema('pull')" style="flex:1">🔱 Pull</button>
       <button class="type-btn" onclick="loadSchema('legs')" style="flex:1">🦵 Legs</button>
     </div>
-    <h3 style="font-family:'Orbitron',monospace;font-size:.78rem;color:var(--dim);margin:1rem 0 .5rem;letter-spacing:.1em">[ DUNGEON HISTORY ]</h3>`;
+    <div class="section-hdr" style="margin-top:.75rem">DUNGEON HISTORY</div>`;
     if(db.dungeonHistory.length===0){
       html+=`<div style="text-align:center;color:var(--dim);padding:2rem .5rem;font-size:.85rem">Nog geen dungeons gerund</div>`;
     } else {
@@ -2210,6 +2509,7 @@ function showBossKill(name,val,prev){
   document.getElementById('bkPr').textContent=val+(name.includes('Pull')?' REPS':' KG');
   document.getElementById('bkPrev').textContent=prev?'Vorige: '+prev:'Eerste record!';
   document.getElementById('bossKill').classList.add('on');
+  playSound('pr');
   spawnParticles();
 }
 
@@ -2449,6 +2749,7 @@ function showRewardScreen(dungeon){
     ${loot.map(l=>`<div class="rs-loot-item"><span>${l.ico}</span><div><div style="font-weight:700">${l.name}</div><div style="font-size:.68rem;color:var(--dim)">${l.desc}</div></div></div>`).join('')}
   `;
   document.getElementById('rewardScreen').classList.add('on');
+  playSound('dungeon_clear');
   spawnParticles();
 }
 function closeReward(){document.getElementById('rewardScreen').classList.remove('on');}
@@ -2461,6 +2762,7 @@ function showPenaltyScreen(){
   document.getElementById('psLogItems').innerHTML=log.length
     ?log.slice(0,10).map(p=>`<div class="ps-log-item"><span style="color:var(--dim)">${p.date}</span><span style="color:var(--red)">${p.reason}</span></div>`).join('')
     :'<div style="color:var(--dim);font-size:.7rem">Geen penalties</div>';
+  playSound('penalty');
   document.getElementById('penaltyScreen').classList.add('on');
 }
 function closePenalty(){document.getElementById('penaltyScreen').classList.remove('on');}
@@ -2567,6 +2869,34 @@ window.logWeight=function(){
     addXP(40,25,'voeding');save();render();
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// TOOLTIPS
+// ═══════════════════════════════════════════════════════
+const TIPS={
+  rank:`🎖 RANK SYSTEEM\n\nE-Rank: Beginner (level 1)\nD-Rank: Iron Hunter (level 6)\nC-Rank: Silver Hunter (level 11)\nB-Rank: Gold Hunter (level 21)\nA-Rank: Platinum Hunter (level 31)\nS-Rank: Shadow Hunter (level 46)\nSS-Rank: Monarch (level 61)\n\nHoe hoger je rank, hoe meer dungeon moeilijkheden je kunt spelen.`,
+  dungeon:`⚔ DUNGEON SYSTEEM\n\nNormal: altijd beschikbaar (1× XP)\nHard: unlock op B-Rank (1.5× XP)\nNightmare: unlock op S-Rank (2.5× XP)\n\nLaad je eigen schema (Push/Pull/Legs) of voeg losse oefeningen toe. Reward screen na afloop met loot!`,
+  stats:`📊 ATTRIBUTES\n\nSTR 💪 — Sport quests\nINT 🧠 — Werk quests\nVIT 🍎 — Voeding quests\nAGI ⚡ — Huishouden quests\nSEN ❤️ — Gezin quests\nWIS 💤 — Slaap quests\n\nStat points verdelen: krijg je bij level up (5 per level). Naar Stats tabblad.`,
+  xp:`💫 XP SYSTEEM\n\nElke quest geeft XP + Gold. XP bonus als:\n• Boost actief (shop)\n• Title equipped\n• Shadow Army groter is\n• Debuff NIET actief\n\nDebuff actief (-50% XP) als je quests mist voor middernacht.`,
+  mana:`💧 MANA = WATER\n\nTik op de mana balk om 250ml toe te voegen. Doel: 2000ml per dag (8 keer tikken).\n\nMana reset elke ochtend automatisch.`,
+  energy:`⚡ ENERGY\n\nDaalt bij elke dungeon clear:\nNormal: -15\nHard: -25\nNightmare: -40\n\nHerstelt met +30 per dag als je slaap quests doet.`,
+  shadow:`👥 SHADOW ARMY\n\nEcht uit Solo Leveling. Unlock shadows door quests te doen per categorie:\n• Sport quests → Iron, Igris, Beru, Bellion\n• Werk quests → Greed, Tusk\n• Slaap quests → Kaisel\n• etc.\n\nElke shadow geeft +5% XP bonus.`,
+};
+
+function showTip(key){
+  const el=document.getElementById('tipBox');
+  if(!el)return;
+  if(el.dataset.key===key&&el.classList.contains('show')){el.classList.remove('show');return;}
+  el.textContent=TIPS[key]||'';
+  el.dataset.key=key;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),6000);
+}
+document.addEventListener('click',e=>{
+  const tb=document.getElementById('tipBox');
+  if(tb&&!e.target.classList.contains('tip-btn'))tb.classList.remove('show');
+});
 
 // ═══════════════════════════════════════════════════════
 // INIT
