@@ -1395,21 +1395,30 @@ const EMERGENCY_QUESTS=[
 ];
 
 const AI_QUEST_POOL=[
-  {title:'Schaduw Sprint',desc:'Loop 5 minuten in een tempo dat je niet aankunt',xp:60,gold:30,cat:'sport'},
-  {title:'Mana Replenishment',desc:'Drink 1L water in de komende 30 min',xp:30,gold:15,cat:'voeding'},
-  {title:'Inner Focus',desc:'10 minuten geen telefoon — alleen jij en je gedachten',xp:50,gold:25,cat:'slaap'},
-  {title:'Iron Discipline',desc:'Doe 50 push-ups verspreid over de dag',xp:70,gold:40,cat:'sport'},
-  {title:'Knowledge Acquisition',desc:'Lees 10 pagina\'s of luister 20 min naar iets leerzaams',xp:55,gold:30,cat:'werk'},
-  {title:'Bond Reinforcement',desc:'Stuur iemand een bericht waar je aan denkt',xp:40,gold:20,cat:'gezin'},
-  {title:'Domain Cleanse',desc:'Ruim één plek volledig op die je al weken negeert',xp:65,gold:35,cat:'huishouden'},
-  {title:'Recovery Ritual',desc:'10 minuten stretchen of mobility',xp:45,gold:25,cat:'sport'},
-  {title:'Hidden Gate',desc:'Doe iets vandaag waar je normaal voor zou wegrennen',xp:100,gold:60,cat:'sport'},
-  {title:'Macro Mastery',desc:'Track al je voeding vandaag exact',xp:50,gold:30,cat:'voeding'},
-  {title:'Silent Hunter',desc:'30 minuten geen social media',xp:35,gold:20,cat:'slaap'},
-  {title:'Strength Awakening',desc:'Doe één set tot failure van een oefening',xp:80,gold:45,cat:'sport'},
-  {title:'Family Boss Battle',desc:'Quality time zonder afleiding minimaal 30 min',xp:70,gold:40,cat:'gezin'},
-  {title:'Cold Realm Challenge',desc:'Eindig je douche met 30 sec koud water',xp:60,gold:35,cat:'sport'},
-  {title:'Code Cleanup',desc:'Werk 60 min gefocust aan een project zonder pauze',xp:90,gold:50,cat:'werk'},
+  // VOEDING
+  {title:'Macro Mastery',    desc:'Track al je voeding vandaag exact — calorieën én eiwitten.',       xp:50, gold:30, cat:'voeding'},
+  {title:'Clean Fuel',       desc:'Eet vandaag geen ultrabewerkt voedsel. Geen pakjes, geen chips.',   xp:55, gold:32, cat:'voeding'},
+  {title:'Protein Protocol', desc:'Haal vandaag minimaal 160g eiwit. Bereken het en check.',           xp:50, gold:28, cat:'voeding'},
+  {title:'Water Monarch',    desc:'Drink 2.5L water vandaag. Tel elke 500ml als winst.',               xp:35, gold:18, cat:'voeding'},
+  // SLAAP
+  {title:'Recovery Mode',    desc:'Voor 22:30 telefoon weg. Geef je hersenen rust voor middernacht.',  xp:45, gold:25, cat:'slaap'},
+  {title:'Silent Hours',     desc:'10 minuten volledig zonder scherm voor het slapen.',                xp:40, gold:22, cat:'slaap'},
+  {title:'Inner Focus',      desc:'5 minuten rustig ademen voor het slapen. Gewoon zitten.',           xp:35, gold:18, cat:'slaap'},
+  // GEZIN
+  {title:'Bond Reinforcement',desc:'Quality time zonder telefoon met Olivia of Zoë. Minimaal 20 min.', xp:60, gold:35, cat:'gezin'},
+  {title:'Family Quest',     desc:'Doe iets kleins maar bewust voor iemand thuis vandaag.',            xp:50, gold:28, cat:'gezin'},
+  {title:'Monarch at Home',  desc:'Avondroutine volledig doorlopen — kinderen naar bed, huis op orde.',xp:55, gold:32, cat:'gezin'},
+  // HUISHOUDEN
+  {title:'Domain Cleanse',   desc:'Ruim één plek op die je al weken negeert. Klein is ook goed.',     xp:40, gold:22, cat:'huishouden'},
+  {title:'Shadow Sweep',     desc:'15 minuten opruimen zonder stoppen. Zet een timer.',                xp:35, gold:18, cat:'huishouden'},
+  {title:'Territory Control',desc:'Doe een klusje dat je al uitstelde. Klein of groot.',              xp:45, gold:25, cat:'huishouden'},
+  // WERK
+  {title:'Deep Work Block',  desc:'90 minuten gefocust werken. Geen social media, geen afleiding.',   xp:75, gold:45, cat:'werk'},
+  {title:'Task Elimination', desc:'Pak vandaag één taak aan die al te lang blijft liggen.',           xp:60, gold:35, cat:'werk'},
+  {title:'Knowledge Hunt',   desc:'Leer vandaag iets nieuws — 20 minuten gericht lezen of luisteren.',xp:50, gold:28, cat:'werk'},
+  // SPECIAL
+  {title:'Hidden Gate',      desc:'Doe vandaag iets waar je normaal voor wegloopt. Één ding.',         xp:100,gold:60, cat:'slaap'},
+  {title:'Iron Will',        desc:'Iets wat je moeilijk vindt — doe het toch. Kies zelf wat.',        xp:80, gold:48, cat:'werk'},
 ];
 
 const PR_EXERCISES=[
@@ -2319,33 +2328,66 @@ function playSound(type) {
 // ═══════════════════════════════════════════════════════
 // VOICE SYSTEM (fixed — werkt op Android)
 // ═══════════════════════════════════════════════════════
-function speakStatus() {
-  if (!window.speechSynthesis) { notify('[ SYSTEM ] Voice niet beschikbaar'); return; }
-  window.speechSynthesis.cancel();
+// ═══════════════════════════════════════════════════════
+// SYSTEM MESSAGE POPUP (ipv stem — veel cooler)
+// ═══════════════════════════════════════════════════════
+const SYSTEM_MSGS = [
+  {title:'STATUS CONFIRMED',   body:'Je level stijgt. De schaduwen worden sterker. Blijf grinden, Monarch.'},
+  {title:'ARISE',              body:'De donkere energie stroomt door je heen. Jij bent niet gestopt. De rest wel.'},
+  {title:'SYSTEM NOTICE',      body:`Level ${0} hunter. Elke dag die je volhoudt brengt je dichter bij de top.`},
+  {title:'HUNTER ASSESSMENT',  body:'Jij bent degene die opstaat als anderen blijven liggen. Dat maakt je gevaarlijk.'},
+  {title:'SHADOW MONARCH',     body:'Je army groeit in stilte. Ze wachten op je bevel. Geef het niet te vroeg.'},
+  {title:'PENALTY WARNING',    body:'De duisternis houdt je in de gaten. Mis je quests niet, Hunter.'},
+  {title:'GATE DETECTED',      body:'Een gate is geopend in de buurt. Jij bent de enige die het kan sluiten.'},
+  {title:'SYSTEM MESSAGE',     body:'Kracht zonder discipline is slechts geweld. Jij bouwt aan iets groters.'},
+  {title:'RANK ANALYSIS',      body:'Je groeit sneller dan verwacht. Het System heeft je opgemerkt.'},
+  {title:'STRENGTH NOTED',     body:`${0} dagen streak. Iedere dag is een overwinning op je vroegere zelf.`},
+];
+
+function showSystemMsg() {
+  // Verwijder bestaande popup als die er is
+  const existing = document.getElementById('sysMsgPopup');
+  if(existing){ existing.remove(); return; }
 
   const p = db.p, rk = getRank(p.level);
   const msgs = [
-    `Je bent Level ${p.level}. Rank ${rk.r}. ${rk.title}. Blijf grinden.`,
-    `${p.streak||0} dagen streak. Je bent sterker geworden.`,
-    `${Object.values(db.dailySelection||{}).filter(q=>q.done).length} van de ${Object.values(db.dailySelection||{}).length} quests vandaag voltooid.`,
-    `De Shadow Army telt ${db.shadows.length} soldaten. Je groeit.`,
+    {title:'STATUS CONFIRMED',   body:`Level ${p.level} · Rank ${rk.r} · ${rk.title}. Je XP: ${p.totalXp.toLocaleString()}.`},
+    {title:'ARISE',              body:'De donkere energie stroomt. Jij bent niet gestopt. De rest wel.'},
+    {title:'SHADOW MONARCH',     body:`Je army telt ${db.shadows.length} schaduwen. Ze wachten op je bevel.`},
+    {title:'HUNTER ASSESSMENT',  body:'Jij staat op als anderen blijven liggen. Dat maakt je gevaarlijk.'},
+    {title:'SYSTEM NOTICE',      body:`${p.streak||0} dagen streak. Elke dag een overwinning op je vroegere zelf.`},
+    {title:'GATE DETECTED',      body:'Een gate is geopend. Jij bent de enige die het kan sluiten.'},
+    {title:'STRENGTH NOTED',     body:`Bench ${db.prs?.bench?.value||0}kg · Squat ${db.prs?.squat?.value||0}kg · Deadlift ${db.prs?.deadlift?.value||0}kg.`},
+    {title:'SYSTEM MESSAGE',     body:'Kracht zonder discipline is slechts geweld. Jij bouwt aan iets groters.'},
   ];
-  const txt = msgs[Math.floor(Math.random()*msgs.length)];
+  const msg = msgs[Math.floor(Math.random() * msgs.length)];
 
-  const say = (voices) => {
-    const utt = new SpeechSynthesisUtterance(txt);
-    const nl = voices.find(v=>v.lang.startsWith('nl'));
-    if(nl)utt.voice=nl;
-    utt.lang='nl-NL'; utt.rate=0.85; utt.pitch=0.7;
-    utt.onerror=()=>{};
-    window.speechSynthesis.speak(utt);
-  };
-
-  const voices = window.speechSynthesis.getVoices();
-  if(voices.length) say(voices);
-  else { window.speechSynthesis.onvoiceschanged=()=>say(window.speechSynthesis.getVoices()); }
+  const el = document.createElement('div');
+  el.id = 'sysMsgPopup';
+  el.style.cssText = `
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:850;width:88%;max-width:320px;
+    background:linear-gradient(160deg,rgba(5,14,31,.99),rgba(2,8,20,.99));
+    border:1px solid var(--blue);
+    padding:1.2rem 1.1rem;
+    box-shadow:0 0 40px rgba(45,127,255,.15),0 0 80px rgba(45,127,255,.06);
+    animation:popIn .3s cubic-bezier(.34,1.56,.64,1) forwards;
+    cursor:pointer;
+  `;
+  el.innerHTML = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--blue);letter-spacing:.25em;margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:1px solid rgba(45,127,255,.2)">[ ${msg.title} ]</div>
+    <div style="font-size:.88rem;color:var(--white);line-height:1.55;font-family:'Rajdhani',sans-serif;font-weight:600;margin-bottom:.8rem">${msg.body}</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.15em;text-align:center">— tik om te sluiten —</div>
+  `;
+  el.onclick = () => el.remove();
+  document.body.appendChild(el);
+  // Auto close na 6 sec
+  setTimeout(() => el?.remove(), 6000);
   playSound('notify');
 }
+
+// Legacy - avatar klik
+function speakStatus(){ showSystemMsg(); }
 
 // ═══════════════════════════════════════════════════════
 // REAL AI QUEST GENERATOR (via Cloudflare Worker → Claude)
@@ -2361,6 +2403,13 @@ async function generateAIQuest() {
   const p = db.p;
   const rk = getRank(p.level);
 
+  // Kies random categorie NIET sport (sport heeft al een aparte quest)
+  const cats = ['voeding','huishouden','gezin','slaap','werk'];
+  // Sluit werk uit in weekend
+  const day = new Date().getDay();
+  const availCats = (day===0||day===6) ? cats.filter(c=>c!=='werk') : cats;
+  const randomCat = availCats[Math.floor(Math.random() * availCats.length)];
+
   try {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
@@ -2370,13 +2419,10 @@ async function generateAIQuest() {
         playerData: {
           level: p.level,
           rank: rk.r,
-          str: p.attrs.str, int: p.attrs.int, vit: p.attrs.vit, agi: p.attrs.agi,
           streak: p.streak || 0,
           weight: p.weight || 113,
           goalWeight: p.goalWeight || 100,
-          benchPR: db.prs?.bench?.value || 0,
-          squatPR: db.prs?.squat?.value || 0,
-          deadliftPR: db.prs?.deadlift?.value || 0,
+          category: randomCat,
         }
       })
     });
@@ -2398,14 +2444,13 @@ async function generateAIQuest() {
       throw new Error('Parse failed');
     }
   } catch(e) {
-    // Fallback naar lokale pool
-    console.warn('AI quest fallback:', e);
-    const pool = AI_QUEST_POOL;
-    const pick = { ...pool[Math.floor(Math.random() * pool.length)], done: false };
+    // Fallback naar lokale pool — kies uit gekozen categorie
+    const catPool = AI_QUEST_POOL.filter(q => q.cat === randomCat);
+    const pick = { ...(catPool.length ? catPool : AI_QUEST_POOL)[Math.floor(Math.random() * (catPool.length || AI_QUEST_POOL.length))], done: false };
     db.aiQuest = pick;
     db.aiQuestDate = today;
     save();
-    notify('🤖 [ QUEST ] ' + pick.title);
+    notify('[ AI QUEST ] ' + pick.title);
     if (tab === 'quests') render();
   }
 }
