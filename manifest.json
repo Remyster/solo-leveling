@@ -1,7 +1,7 @@
 {
-  "name": "WerkHub — PWN & Stekkerslim",
+  "name": "WerkHub — PWN",
   "short_name": "WerkHub",
-  "description": "Dump-inbox, projecttaken en stressmoment voor PWN en Stekkerslim",
+  "description": "Dump-inbox, projecttaken, werkagenda en stressmoment voor PWN",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f7fa",

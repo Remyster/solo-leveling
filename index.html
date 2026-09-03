@@ -96,10 +96,6 @@
   .checklist input[type=checkbox]{width:20px; height:20px; accent-color:var(--blue);}
   .checklist label.done span{text-decoration:line-through; color:var(--sub);}
 
-  .proj-toggle{display:flex; gap:8px; margin-bottom:14px;}
-  .proj-toggle button{flex:1; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px; color:var(--sub); font-size:14px; font-weight:700; box-shadow:var(--shadow);}
-  .proj-toggle button.sel{background:var(--blue-light); color:var(--blue-dark); border-color:var(--blue);}
-
   .statuscol h3{font-size:12px; color:var(--sub); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px; font-weight:700;}
 </style>
 </head>
@@ -118,6 +114,14 @@
       <div class="row"><span class="ico">✅</span><div><div class="lbl">Actieve taak</div><div class="val" id="wActief">–</div></div></div>
       <div class="row"><span class="ico">🔥</span><div><div class="lbl">Urgente dump</div><div class="val" id="wUrgent">–</div></div></div>
     </div>
+
+    <h2>📅 Werkagenda</h2>
+    <div class="card" id="agendaCard" style="padding:0; overflow:hidden;">
+      <iframe id="agendaFrame" style="width:100%; height:340px; border:0; display:block;"
+        src="https://calendar.google.com/calendar/embed?src=b0s4m442j2i2sstcs1iuoga8ps%40group.calendar.google.com&ctz=Europe%2FAmsterdam&mode=AGENDA&showTitle=0&showPrint=0&showCalendars=0&showTz=0"
+        loading="lazy"></iframe>
+    </div>
+    <p style="color:var(--sub); font-size:12px; margin-top:-8px">Toont je agenda alleen goed als je in deze browser bent ingelogd op je Google-account.</p>
 
     <h2>🌗 Dagafsluiting</h2>
     <div class="card">
@@ -149,12 +153,8 @@
     <div id="dumpList"></div>
   </section>
 
-  <!-- ===== TAB: PWN/STEKKERSLIM ===== -->
+  <!-- ===== TAB: PWN ===== -->
   <section id="tab-projecten" class="hidden">
-    <div class="proj-toggle">
-      <button id="projPwn" class="sel">🔧 PWN</button>
-      <button id="projStekker">🔌 Stekkerslim</button>
-    </div>
     <div id="projLists"></div>
   </section>
 
@@ -172,7 +172,7 @@
 <nav class="tabs">
   <button data-tab="vandaag" class="active"><span class="emoji">🌗</span>Vandaag</button>
   <button data-tab="dump"><span class="emoji">📥</span>Dump</button>
-  <button data-tab="projecten"><span class="emoji">🔧</span>Projecten</button>
+  <button data-tab="projecten"><span class="emoji">🔧</span>PWN</button>
   <button data-tab="maandag"><span class="emoji">🗓️</span>Maandag</button>
 </nav>
 
@@ -318,8 +318,7 @@ async function loadDump(){
         <span>${new Date(it.created_at).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</span>
       </div>
       <div class="sheet-actions" style="margin-top:10px">
-        <button class="btn ghost" onclick="dumpNaarProject('${it.id}','pwn')">→ PWN</button>
-        <button class="btn ghost" onclick="dumpNaarProject('${it.id}','stekkerslim')">→ Stekkerslim</button>
+        <button class="btn ghost" onclick="dumpNaarProject('${it.id}')">→ PWN-taak</button>
         <button class="btn danger" onclick="archiveerDump('${it.id}')">Archiveer</button>
       </div>
     </div>
@@ -333,28 +332,20 @@ async function archiveerDump(id){
   toast('Gearchiveerd'); loadDump();
 }
 
-async function dumpNaarProject(id, project){
+async function dumpNaarProject(id){
   const items = await sb(`work_items?id=eq.${id}`);
   const item = items[0];
-  openTaskSheet(null, project, item.tekst, item.id);
+  openTaskSheet(null, 'pwn', item.tekst, item.id);
 }
 
-// ============ PROJECTEN TAB ============
-let huidigProject = 'pwn';
-document.getElementById('projPwn').addEventListener('click', ()=>{ huidigProject='pwn'; setProjToggle(); loadProjecten(); });
-document.getElementById('projStekker').addEventListener('click', ()=>{ huidigProject='stekkerslim'; setProjToggle(); loadProjecten(); });
-function setProjToggle(){
-  document.getElementById('projPwn').classList.toggle('sel', huidigProject==='pwn');
-  document.getElementById('projStekker').classList.toggle('sel', huidigProject==='stekkerslim');
-}
-
+// ============ PROJECTEN TAB (alleen PWN) ============
 const statusLabels = {backlog:'Backlog', bezig:'Bezig', wacht_op:'Wacht op', klaar:'Klaar'};
 
 async function loadProjecten(){
   const host = document.getElementById('projLists');
   host.innerHTML = '<div class="empty-state">Laden…</div>';
-  const tasks = await sb(`work_tasks?project=eq.${huidigProject}&order=deadline.asc.nullslast`);
-  host.innerHTML = `<button class="btn primary" style="width:100%;margin-bottom:14px" onclick="openTaskSheet(null,'${huidigProject}')">+ Nieuwe taak</button>`;
+  const tasks = await sb(`work_tasks?project=eq.pwn&order=deadline.asc.nullslast`);
+  host.innerHTML = `<button class="btn primary" style="width:100%;margin-bottom:14px" onclick="openTaskSheet(null,'pwn')">+ Nieuwe taak</button>`;
   if(!tasks.length){ host.innerHTML += '<div class="empty-state">Nog geen taken hier.</div>'; return; }
   ['bezig','wacht_op','backlog','klaar'].forEach(status=>{
     const inStatus = tasks.filter(t=>t.status===status);
@@ -382,7 +373,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId){
 
   openSheet(`
     <button class="closex" onclick="closeSheet()">✕</button>
-    <h2>${id ? 'Taak bewerken' : 'Nieuwe taak'} — ${project==='pwn'?'🔧 PWN':'🔌 Stekkerslim'}</h2>
+    <h2>${id ? 'Taak bewerken' : 'Nieuwe taak'} — 🔧 PWN</h2>
 
     ${(!id && prefillTekst) ? `<div class="aihelp" id="aiHelpBox">
       💡 AI kan proberen Waar/Wie/Deadline uit deze tekst te halen.
@@ -535,7 +526,7 @@ document.getElementById('btnSaveReflect').addEventListener('click', async ()=>{
 const maandagItems = [
   'DUMP-map leegmaken (sorteren)',
   'PWN: status per taak checken',
-  'Stekkerslim: status checken',
+  'Werkagenda deze week doorlopen',
   'Deze week: max 3 deadlines kiezen als focus',
   'Reflectielijst doorlezen — 1 patroon eruit halen'
 ];
