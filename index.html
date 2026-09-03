@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="WerkHub">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --bg:#f4f7fa; --panel:#ffffff; --panel2:#f0f4f8; --border:#dce4ec;
@@ -96,6 +97,14 @@
   .checklist input[type=checkbox]{width:20px; height:20px; accent-color:var(--blue);}
   .checklist label.done span{text-decoration:line-through; color:var(--sub);}
 
+  .filterrow{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;}
+  .filterrow button{flex:1; min-width:70px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 6px; color:var(--sub); font-size:12px; font-weight:700; box-shadow:var(--shadow);}
+  .filterrow button.sel{background:var(--blue-light); color:var(--blue-dark); border-color:var(--blue);}
+
+  .badge.offerte{background:var(--blue-light); color:var(--blue-dark);}
+  .badge.bon{background:var(--green-light); color:var(--green-dark);}
+  .badge.bestelling{background:var(--yellow-bg); color:var(--yellow);}
+
   .statuscol h3{font-size:12px; color:var(--sub); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px; font-weight:700;}
 </style>
 </head>
@@ -153,6 +162,20 @@
     <div id="dumpList"></div>
   </section>
 
+  <!-- ===== TAB: OFFERTES/BONNEN/BESTELLINGEN ===== -->
+  <section id="tab-docs" class="hidden">
+    <button class="btn primary" style="width:100%; margin-bottom:14px" id="btnNieuwDoc">+ Offerte / bon / bestelling</button>
+    <div class="filterrow" id="docFilterRow">
+      <button data-f="alle" class="sel">Alle</button>
+      <button data-f="offerte">Offertes</button>
+      <button data-f="bon">Bonnen</button>
+      <button data-f="bestelling">Bestellingen</button>
+    </div>
+    <input type="file" id="scanInput" accept="image/*" capture="environment" class="hidden">
+    <input type="file" id="fileInput" accept="image/*,.pdf" class="hidden">
+    <div id="docsList"></div>
+  </section>
+
   <!-- ===== TAB: PWN ===== -->
   <section id="tab-projecten" class="hidden">
     <div id="projLists"></div>
@@ -172,6 +195,7 @@
 <nav class="tabs">
   <button data-tab="vandaag" class="active"><span class="emoji">🌗</span>Vandaag</button>
   <button data-tab="dump"><span class="emoji">📥</span>Dump</button>
+  <button data-tab="docs"><span class="emoji">🧾</span>Offertes</button>
   <button data-tab="projecten"><span class="emoji">🔧</span>PWN</button>
   <button data-tab="maandag"><span class="emoji">🗓️</span>Maandag</button>
 </nav>
@@ -223,7 +247,7 @@ function toast(msg){
 }
 
 // ============ TABS ============
-const tabs = ['vandaag','dump','projecten','maandag'];
+const tabs = ['vandaag','dump','docs','projecten','maandag'];
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
 });
@@ -235,6 +259,7 @@ function switchTab(name){
   document.getElementById('fabDump').classList.toggle('hidden', name!=='dump');
   if(name==='vandaag') loadVandaag();
   if(name==='dump') loadDump();
+  if(name==='docs') loadDocs();
   if(name==='projecten') loadProjecten();
   if(name==='maandag') loadMaandag();
 }
@@ -330,6 +355,171 @@ function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':
 async function archiveerDump(id){
   await sb(`work_items?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({gesorteerd:true})});
   toast('Gearchiveerd'); loadDump();
+}
+
+// ============ DOCS TAB (offertes/bonnen/bestellingen) ============
+const docTypeLabels = {offerte:'Offerte', bon:'Bon', bestelling:'Bestelling'};
+let huidigDocFilter = 'alle';
+
+document.getElementById('docFilterRow').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-f]');
+  if(!btn) return;
+  huidigDocFilter = btn.dataset.f;
+  document.querySelectorAll('#docFilterRow button').forEach(b=>b.classList.toggle('sel', b===btn));
+  loadDocs();
+});
+
+document.getElementById('btnNieuwDoc').addEventListener('click', ()=>openDocSheet());
+
+document.getElementById('scanInput').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  e.target.value='';
+  if(!file) return;
+  toast('📷 Scan verwerken…');
+  try{
+    const pdfBlob = await fotoNaarPdf(file);
+    window._docBestandBlob = pdfBlob;
+    window._docBestandNaam = 'scan_' + Date.now() + '.pdf';
+    const prev = document.getElementById('docBestandPreview');
+    if(prev) prev.textContent = '📎 Scan klaar (pdf) — wordt opgeslagen bij bewaren';
+    toast('Scan omgezet naar PDF');
+  }catch(err){ toast('Scannen mislukt'); }
+});
+document.getElementById('fileInput').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  e.target.value='';
+  if(!file) return;
+  window._docBestandBlob = file;
+  window._docBestandNaam = file.name;
+  const prev = document.getElementById('docBestandPreview');
+  if(prev) prev.textContent = `📎 ${file.name} geselecteerd — wordt opgeslagen bij bewaren`;
+});
+
+async function fotoNaarPdf(file){
+  const dataUrl = await new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise((res,rej)=>{
+    const im = new Image();
+    im.onload = ()=>res(im);
+    im.onerror = rej;
+    im.src = dataUrl;
+  });
+  const { jsPDF } = window.jspdf;
+  const w = img.width, h = img.height;
+  const orientation = w > h ? 'landscape' : 'portrait';
+  const doc = new jsPDF({ orientation, unit:'px', format:[w,h] });
+  doc.addImage(dataUrl, 'JPEG', 0, 0, w, h);
+  return doc.output('blob');
+}
+
+async function uploadDocBestand(blob, naam){
+  const path = `werkhub/docs/${Date.now()}_${naam.replace(/[^a-zA-Z0-9.]/g,'_')}`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/notitie-fotos/${path}`, {
+    method:'POST',
+    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': blob.type || 'application/octet-stream' },
+    body: blob
+  });
+  if(!res.ok) throw new Error('upload mislukt');
+  return `${SB_URL}/storage/v1/object/public/notitie-fotos/${path}`;
+}
+
+async function loadDocs(){
+  const host = document.getElementById('docsList');
+  host.innerHTML = '<div class="empty-state">Laden…</div>';
+  const q = huidigDocFilter==='alle' ? '' : `&type=eq.${huidigDocFilter}`;
+  const docs = await sb(`work_docs?order=datum.desc.nullslast,created_at.desc${q}`);
+  if(!docs.length){ host.innerHTML = '<div class="empty-state">Nog niks hier. Scan een bonnetje of offerte.</div>'; return; }
+  host.innerHTML = docs.map(d=>`
+    <div class="card" onclick="openDocSheet('${d.id}')">
+      <div class="titel">${escapeHtml(d.titel)}</div>
+      <div class="meta">
+        <span class="badge ${d.type}">${docTypeLabels[d.type]}</span>
+        ${d.leverancier ? `<span>🏷️ ${escapeHtml(d.leverancier)}</span>` : ''}
+        ${d.bedrag != null ? `<span>€ ${Number(d.bedrag).toFixed(2)}</span>` : ''}
+        ${d.datum ? `<span>📅 ${new Date(d.datum).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</span>` : ''}
+        ${d.bestand_url ? `<a href="${d.bestand_url}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue); font-weight:600">bestand ↗</a>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openDocSheet(id){
+  let d = {type:'offerte', titel:'', leverancier:'', bedrag:'', datum:'', notitie:'', bestand_url:''};
+  if(id){ const rows = await sb(`work_docs?id=eq.${id}`); d = rows[0]; }
+  window._docBestandBlob = null;
+  window._docBestandNaam = null;
+  window._docStatusType = d.type;
+
+  openSheet(`
+    <button class="closex" onclick="closeSheet()">✕</button>
+    <h2>${id ? 'Bewerken' : 'Nieuw'} — offerte / bon / bestelling</h2>
+
+    <div class="field"><label>Type</label>
+      <div class="segrow" id="docTypeRow">
+        ${Object.keys(docTypeLabels).map(t=>`<button data-t="${t}" class="${d.type===t?'sel':''}" onclick="pickDocType('${t}')">${docTypeLabels[t]}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field"><label>Titel / omschrijving</label><input type="text" id="fDocTitel" value="${escapeHtml(d.titel)}" placeholder="bijv. Offerte loodgieter pompstation"></div>
+    <div class="field"><label>🏷️ Leverancier / winkel</label><input type="text" id="fDocLev" value="${escapeHtml(d.leverancier||'')}"></div>
+    <div class="field"><label>€ Bedrag</label><input type="text" inputmode="decimal" id="fDocBedrag" value="${d.bedrag ?? ''}" placeholder="bijv. 149.95"></div>
+    <div class="field"><label>📅 Datum</label><input type="date" id="fDocDatum" value="${d.datum||''}"></div>
+
+    <div class="field">
+      <label>📎 Bestand</label>
+      ${d.bestand_url ? `<div style="margin-bottom:8px"><a href="${d.bestand_url}" target="_blank" style="color:var(--blue); font-size:13px; font-weight:600">huidig bestand bekijken ↗</a></div>` : ''}
+      <div class="sheet-actions" style="margin-top:0">
+        <button class="btn ghost" type="button" onclick="document.getElementById('scanInput').click()">📷 Scan met camera</button>
+        <button class="btn ghost" type="button" onclick="document.getElementById('fileInput').click()">📎 Kies bestand</button>
+      </div>
+      <div id="docBestandPreview" style="font-size:12px; color:var(--sub); margin-top:8px"></div>
+    </div>
+
+    <div class="field"><label>Notitie</label><textarea id="fDocNotitie">${escapeHtml(d.notitie||'')}</textarea></div>
+
+    <div class="sheet-actions">
+      ${id ? `<button class="btn danger" onclick="deleteDoc('${id}')">Verwijder</button>` : ''}
+      <button class="btn primary" id="btnSaveDoc">Opslaan</button>
+    </div>
+  `);
+
+  document.getElementById('btnSaveDoc').addEventListener('click', async ()=>{
+    const titel = document.getElementById('fDocTitel').value.trim();
+    if(!titel){ toast('Vul een titel/omschrijving in'); return; }
+    let bestand_url = d.bestand_url || null;
+    if(window._docBestandBlob){
+      toast('Bestand uploaden…');
+      try{ bestand_url = await uploadDocBestand(window._docBestandBlob, window._docBestandNaam); }
+      catch(e){ toast('Upload mislukt'); return; }
+    }
+    const bedragRaw = document.getElementById('fDocBedrag').value.trim().replace(',', '.');
+    const payload = {
+      type: window._docStatusType,
+      titel,
+      leverancier: document.getElementById('fDocLev').value.trim(),
+      bedrag: bedragRaw ? parseFloat(bedragRaw) : null,
+      datum: document.getElementById('fDocDatum').value || null,
+      notitie: document.getElementById('fDocNotitie').value.trim(),
+      bestand_url
+    };
+    if(id){
+      await sb(`work_docs?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(payload)});
+    }else{
+      await sb('work_docs', {method:'POST', body: JSON.stringify(payload)});
+    }
+    closeSheet(); toast('Opgeslagen'); loadDocs();
+  });
+}
+function pickDocType(t){
+  window._docStatusType = t;
+  document.querySelectorAll('#docTypeRow button').forEach(b=>b.classList.toggle('sel', b.dataset.t===t));
+}
+async function deleteDoc(id){
+  await sb(`work_docs?id=eq.${id}`, {method:'DELETE'});
+  closeSheet(); toast('Verwijderd'); loadDocs();
 }
 
 async function dumpNaarProject(id){
