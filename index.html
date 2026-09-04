@@ -188,6 +188,13 @@
     <div class="card checklist" id="maandagChecklist"></div>
   </section>
 
+  <!-- ===== TAB: VRIJDAGPREP ===== -->
+  <section id="tab-vrijdag" class="hidden">
+    <h2>📆 Vrijdagprep</h2>
+    <p style="color:var(--sub); font-size:13px; margin-top:-4px">Plan hier op vrijdag alvast de week erna — 1x per week doorlopen.</p>
+    <div class="card checklist" id="vrijdagChecklist"></div>
+  </section>
+
 </main>
 
 <button class="fab hidden" id="fabDump">+</button>
@@ -198,6 +205,7 @@
   <button data-tab="docs"><span class="emoji">🧾</span>Offertes</button>
   <button data-tab="projecten"><span class="emoji">🔧</span>PWN</button>
   <button data-tab="maandag"><span class="emoji">🗓️</span>Maandag</button>
+  <button data-tab="vrijdag"><span class="emoji">📆</span>Vrijdag</button>
 </nav>
 
 <div id="sheetHost"></div>
@@ -247,7 +255,7 @@ function toast(msg){
 }
 
 // ============ TABS ============
-const tabs = ['vandaag','dump','docs','projecten','maandag'];
+const tabs = ['vandaag','dump','docs','projecten','maandag','vrijdag'];
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
 });
@@ -262,6 +270,7 @@ function switchTab(name){
   if(name==='docs') loadDocs();
   if(name==='projecten') loadProjecten();
   if(name==='maandag') loadMaandag();
+  if(name==='vrijdag') loadVrijdag();
 }
 
 // ============ SHEET (bottom modal) ============
@@ -743,6 +752,35 @@ function toggleMaandag(i, wk, checked){
   saved[i] = checked;
   localStorage.setItem('werkhub_maandag_'+wk, JSON.stringify(saved));
   loadMaandag();
+}
+
+// ============ VRIJDAGPREP (plant de week erna) ============
+const vrijdagItems = [
+  'Agenda van volgende week doorlopen',
+  'PWN-taken prioriteren voor volgende week',
+  'Openstaande offertes/bonnen deze week afgehandeld? Nachecken',
+  'Deadlines volgende week overzien en vastleggen',
+  'Dump-inbox leegmaken voor het weekend'
+];
+function loadVrijdag(){
+  // checklist hoort bij de week die je aan het plannen bent: volgende week
+  const volgendeWeek = new Date();
+  volgendeWeek.setDate(volgendeWeek.getDate() + 7);
+  const wk = isoWeek(volgendeWeek);
+  const saved = JSON.parse(localStorage.getItem('werkhub_vrijdag_'+wk) || '{}');
+  const host = document.getElementById('vrijdagChecklist');
+  host.innerHTML = vrijdagItems.map((txt,i)=>`
+    <label class="${saved[i]?'done':''}">
+      <input type="checkbox" ${saved[i]?'checked':''} onchange="toggleVrijdag(${i},'${wk}',this.checked)">
+      <span>${txt}</span>
+    </label>
+  `).join('');
+}
+function toggleVrijdag(i, wk, checked){
+  const saved = JSON.parse(localStorage.getItem('werkhub_vrijdag_'+wk) || '{}');
+  saved[i] = checked;
+  localStorage.setItem('werkhub_vrijdag_'+wk, JSON.stringify(saved));
+  loadVrijdag();
 }
 
 // ============ SETTINGS ============
