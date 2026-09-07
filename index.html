@@ -106,6 +106,20 @@
   .badge.bestelling{background:var(--yellow-bg); color:var(--yellow);}
 
   .statuscol h3{font-size:12px; color:var(--sub); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px; font-weight:700;}
+
+  /* AI-scan van offertes/bonnen */
+  .scanbox{background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px;}
+  .scanbox .status{font-size:12px; color:var(--sub); margin-top:8px; line-height:1.45;}
+  .scanbox .status.ok{color:var(--green-dark); font-weight:600;}
+  .scanbox .status.err{color:#c0392b; font-weight:600;}
+  .scanthumb{width:100%; max-height:180px; object-fit:contain; border-radius:10px; border:1px solid var(--border); background:#fff; margin-top:10px;}
+  .regels{border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--panel);}
+  .regels .r{display:flex; justify-content:space-between; gap:10px; padding:8px 10px; font-size:13px; border-bottom:1px solid var(--border);}
+  .regels .r:last-child{border-bottom:none;}
+  .regels .r span:first-child{color:var(--text); flex:1; min-width:0;}
+  .regels .r span:last-child{color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .bedragrij{display:flex; gap:10px;}
+  .bedragrij .field{flex:1; min-width:0;}
 </style>
 </head>
 <body>
@@ -164,16 +178,28 @@
 
   <!-- ===== TAB: OFFERTES/BONNEN/BESTELLINGEN ===== -->
   <section id="tab-docs" class="hidden">
-    <button class="btn primary" style="width:100%; margin-bottom:14px" id="btnNieuwDoc">+ Offerte / bon / bestelling</button>
-    <div class="filterrow" id="docFilterRow">
-      <button data-f="alle" class="sel">Alle</button>
-      <button data-f="offerte">Offertes</button>
-      <button data-f="bon">Bonnen</button>
-      <button data-f="bestelling">Bestellingen</button>
+    <div id="docsLock" class="hidden">
+      <div class="card" style="text-align:center; padding:28px 18px">
+        <div style="font-size:34px; margin-bottom:8px">🔒</div>
+        <div class="titel" style="margin-bottom:4px">Offertes &amp; bonnen</div>
+        <div style="font-size:13px; color:var(--sub); margin-bottom:16px">Vul je pincode in om je documenten te zien.</div>
+        <input type="password" inputmode="numeric" id="docsPinInput" placeholder="••••" style="text-align:center; letter-spacing:6px; font-size:20px">
+        <div id="docsPinFout" style="font-size:12px; color:var(--red,#c0392b); min-height:16px; margin-top:6px"></div>
+        <button class="btn primary" id="btnDocsUnlock" style="width:100%; margin-top:6px">Ontgrendel</button>
+      </div>
+    </div>
+    <div id="docsBody">
+      <button class="btn primary" style="width:100%; margin-bottom:14px" id="btnNieuwDoc">+ Offerte / bon / bestelling</button>
+      <div class="filterrow" id="docFilterRow">
+        <button data-f="alle" class="sel">Alle</button>
+        <button data-f="offerte">Offertes</button>
+        <button data-f="bon">Bonnen</button>
+        <button data-f="bestelling">Bestellingen</button>
+      </div>
+      <div id="docsList"></div>
     </div>
     <input type="file" id="scanInput" accept="image/*" capture="environment" class="hidden">
-    <input type="file" id="fileInput" accept="image/*,.pdf" class="hidden">
-    <div id="docsList"></div>
+    <input type="file" id="fileInput" accept="image/*,application/pdf,.pdf" class="hidden">
   </section>
 
   <!-- ===== TAB: PWN ===== -->
@@ -216,9 +242,44 @@
 const SB_URL = 'https://mdslvdrsggpksqrbtwci.supabase.co';
 const SB_KEY = 'sb_publishable_up1OFNJ06uqTvpzLo9YNkQ_2u6IvSXj';
 const AI_MODEL = 'claude-haiku-4-5-20251001';
+const AI_SCAN_MODEL = 'claude-sonnet-5';   // leest bonnen/offertes uit, heeft beeld + pdf nodig
 
 function getAiKey(){ return localStorage.getItem('werkhub_ai_key') || ''; }
 function setAiKey(k){ localStorage.setItem('werkhub_ai_key', k.trim()); }
+
+// AI-calls lopen via de Supabase-proxy; die houdt de Anthropic-key server-side,
+// zodat hij niet in deze (publieke) HTML hoeft te staan en op elk toestel werkt.
+// Staat er lokaal toch een key, dan is dat de noodoplossing als de proxy plat ligt.
+const AI_PROXY = `${SB_URL}/functions/v1/ai-proxy`;
+
+async function aiMessages(body){
+  let proxyFout = '';
+  try{
+    const res = await fetch(AI_PROXY, {
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` },
+      body: JSON.stringify(body)
+    });
+    if(res.ok) return await res.json();
+    proxyFout = res.status + ' ' + (await res.text().catch(()=> '')).slice(0,120);
+  }catch(e){
+    proxyFout = String(e.message || e);
+  }
+  const key = getAiKey();
+  if(!key) throw new Error('AI-proxy: ' + proxyFout);
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key': key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error(res.status + ' ' + (await res.text().catch(()=> '')).slice(0,120));
+  return await res.json();
+}
 
 // ============ SUPABASE REST HELPER ============
 async function sb(path, opts={}){
@@ -368,7 +429,42 @@ async function archiveerDump(id){
 
 // ============ DOCS TAB (offertes/bonnen/bestellingen) ============
 const docTypeLabels = {offerte:'Offerte', bon:'Bon', bestelling:'Bestelling'};
+const DOCS_BUCKET = 'werkhub-docs';
 let huidigDocFilter = 'alle';
+
+// --- pincodeslot op deze tab ---
+function getDocsPinHash(){ return localStorage.getItem('werkhub_docs_pin') || ''; }
+function setDocsPinHash(h){ h ? localStorage.setItem('werkhub_docs_pin', h) : localStorage.removeItem('werkhub_docs_pin'); }
+async function hashPin(pin){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('werkhub:' + pin));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+let docsOntgrendeld = false;
+
+function toonDocsSlot(){
+  const vergrendeld = !!getDocsPinHash() && !docsOntgrendeld;
+  document.getElementById('docsLock').classList.toggle('hidden', !vergrendeld);
+  document.getElementById('docsBody').classList.toggle('hidden', vergrendeld);
+  if(vergrendeld){
+    const inp = document.getElementById('docsPinInput');
+    inp.value = ''; document.getElementById('docsPinFout').textContent = '';
+  }
+  return vergrendeld;
+}
+document.getElementById('btnDocsUnlock').addEventListener('click', probeerOntgrendelen);
+document.getElementById('docsPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') probeerOntgrendelen(); });
+async function probeerOntgrendelen(){
+  const pin = document.getElementById('docsPinInput').value.trim();
+  if(!pin) return;
+  if(await hashPin(pin) === getDocsPinHash()){
+    docsOntgrendeld = true;
+    toonDocsSlot();
+    loadDocs();
+  }else{
+    document.getElementById('docsPinFout').textContent = 'Pincode klopt niet';
+    document.getElementById('docsPinInput').value = '';
+  }
+}
 
 document.getElementById('docFilterRow').addEventListener('click', e=>{
   const btn = e.target.closest('button[data-f]');
@@ -384,59 +480,219 @@ document.getElementById('scanInput').addEventListener('change', async e=>{
   const file = e.target.files[0];
   e.target.value='';
   if(!file) return;
-  toast('📷 Scan verwerken…');
+  setScanStatus('📷 Scan verwerken…');
   try{
-    const pdfBlob = await fotoNaarPdf(file);
-    window._docBestandBlob = pdfBlob;
+    const klein = await verkleinAfbeelding(file);
+    window._docBestandBlob = await fotoNaarPdf(klein);
     window._docBestandNaam = 'scan_' + Date.now() + '.pdf';
-    const prev = document.getElementById('docBestandPreview');
-    if(prev) prev.textContent = '📎 Scan klaar (pdf) — wordt opgeslagen bij bewaren';
-    toast('Scan omgezet naar PDF');
-  }catch(err){ toast('Scannen mislukt'); }
+    window._docScanBron = { soort:'image', media_type:'image/jpeg', base64: klein.base64 };
+    toonScanPreview(klein.dataUrl, `Scan klaar — ${kbLabel(window._docBestandBlob.size)}`);
+    aiScanDocument();
+  }catch(err){
+    setScanStatus('Scannen mislukt: ' + (err.message||err), 'err');
+  }
 });
-document.getElementById('fileInput').addEventListener('change', e=>{
+document.getElementById('fileInput').addEventListener('change', async e=>{
   const file = e.target.files[0];
   e.target.value='';
   if(!file) return;
-  window._docBestandBlob = file;
-  window._docBestandNaam = file.name;
-  const prev = document.getElementById('docBestandPreview');
-  if(prev) prev.textContent = `📎 ${file.name} geselecteerd — wordt opgeslagen bij bewaren`;
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  setScanStatus('Bestand inlezen…');
+  try{
+    if(isPdf){
+      window._docBestandBlob = file;
+      window._docBestandNaam = file.name;
+      window._docScanBron = { soort:'pdf', media_type:'application/pdf', base64: await leesBase64(file) };
+      toonScanPreview(null, `📎 ${file.name} — ${kbLabel(file.size)}`);
+    }else{
+      const klein = await verkleinAfbeelding(file);
+      window._docBestandBlob = await fotoNaarPdf(klein);
+      window._docBestandNaam = (file.name.replace(/\.[^.]+$/,'') || 'document') + '.pdf';
+      window._docScanBron = { soort:'image', media_type:'image/jpeg', base64: klein.base64 };
+      toonScanPreview(klein.dataUrl, `📎 ${file.name} → pdf — ${kbLabel(window._docBestandBlob.size)}`);
+    }
+    aiScanDocument();
+  }catch(err){
+    setScanStatus('Inlezen mislukt: ' + (err.message||err), 'err');
+  }
 });
 
-async function fotoNaarPdf(file){
-  const dataUrl = await new Promise((res,rej)=>{
+// bestandslinks: data uit data-attributen, nooit uit een inline onclick
+document.addEventListener('click', e=>{
+  const a = e.target.closest('a.doclink');
+  if(!a) return;
+  e.preventDefault(); e.stopPropagation();
+  openDocBestand(a.dataset.path || '', a.dataset.url || '');
+});
+
+function kbLabel(bytes){ return bytes > 1048576 ? (bytes/1048576).toFixed(1)+' MB' : Math.round(bytes/1024)+' kB'; }
+function setScanStatus(tekst, soort){
+  const el = document.getElementById('docScanStatus');
+  if(el){ el.textContent = tekst; el.className = 'status' + (soort ? ' '+soort : ''); }
+}
+function toonScanPreview(dataUrl, tekst){
+  const host = document.getElementById('docScanThumb');
+  if(host) host.innerHTML = dataUrl ? `<img class="scanthumb" src="${dataUrl}" alt="scan">` : '';
+  setScanStatus(tekst + ' — wordt opgeslagen bij bewaren', 'ok');
+}
+
+function leesDataUrl(file){
+  return new Promise((res,rej)=>{
     const r = new FileReader();
     r.onload = ()=>res(r.result);
-    r.onerror = rej;
+    r.onerror = ()=>rej(new Error('bestand niet leesbaar'));
     r.readAsDataURL(file);
   });
+}
+async function leesBase64(file){ return (await leesDataUrl(file)).split(',')[1]; }
+
+// Camerafoto's zijn 10+ MB; die eerst terugbrengen naar iets dat uploadt en dat de AI aankan.
+async function verkleinAfbeelding(file, maxZijde = 2000, kwaliteit = 0.82){
+  const dataUrl = await leesDataUrl(file);
   const img = await new Promise((res,rej)=>{
     const im = new Image();
     im.onload = ()=>res(im);
-    im.onerror = rej;
+    im.onerror = ()=>rej(new Error('geen geldige afbeelding'));
     im.src = dataUrl;
   });
-  const { jsPDF } = window.jspdf;
-  const w = img.width, h = img.height;
-  const orientation = w > h ? 'landscape' : 'portrait';
-  const doc = new jsPDF({ orientation, unit:'px', format:[w,h] });
-  doc.addImage(dataUrl, 'JPEG', 0, 0, w, h);
+  const schaal = Math.min(1, maxZijde / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * schaal));
+  const h = Math.max(1, Math.round(img.height * schaal));
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  cv.getContext('2d').drawImage(img, 0, 0, w, h);
+  const jpeg = cv.toDataURL('image/jpeg', kwaliteit);
+  return { dataUrl: jpeg, base64: jpeg.split(',')[1], w, h };
+}
+
+async function fotoNaarPdf(klein){
+  const { jsPDF } = window.jspdf || {};
+  if(!jsPDF) throw new Error('pdf-tool niet geladen (geen internet?)');
+  const doc = new jsPDF({ orientation: klein.w > klein.h ? 'landscape' : 'portrait', unit:'px', format:[klein.w, klein.h] });
+  doc.addImage(klein.dataUrl, 'JPEG', 0, 0, klein.w, klein.h);
   return doc.output('blob');
 }
 
 async function uploadDocBestand(blob, naam){
-  const path = `werkhub/docs/${Date.now()}_${naam.replace(/[^a-zA-Z0-9.]/g,'_')}`;
-  const res = await fetch(`${SB_URL}/storage/v1/object/notitie-fotos/${path}`, {
+  const path = `docs/${Date.now()}_${naam.replace(/[^a-zA-Z0-9.]/g,'_')}`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
     method:'POST',
     headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': blob.type || 'application/octet-stream' },
     body: blob
   });
-  if(!res.ok) throw new Error('upload mislukt');
-  return `${SB_URL}/storage/v1/object/public/notitie-fotos/${path}`;
+  if(!res.ok){
+    const body = await res.text().catch(()=> '');
+    throw new Error(`${res.status} ${body.slice(0,140)}`);
+  }
+  return path;
+}
+
+// Prive bucket: bestanden zijn alleen bereikbaar via een link van 1 uur.
+async function signedDocUrl(path){
+  const res = await fetch(`${SB_URL}/storage/v1/object/sign/${DOCS_BUCKET}/${path}`, {
+    method:'POST',
+    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
+    body: JSON.stringify({ expiresIn: 3600 })
+  });
+  if(!res.ok) throw new Error('kon geen link maken (' + res.status + ')');
+  const j = await res.json();
+  return SB_URL + '/storage/v1' + j.signedURL;
+}
+async function openDocBestand(path, oudeUrl){
+  const tab = window.open('', '_blank');
+  try{
+    const url = path ? await signedDocUrl(path) : oudeUrl;
+    if(!url) throw new Error('geen bestand');
+    if(tab) tab.location = url; else window.location = url;
+  }catch(e){
+    if(tab) tab.close();
+    toast('Bestand openen mislukt: ' + (e.message||e));
+  }
+}
+async function verwijderDocBestand(path){
+  if(!path) return;
+  await fetch(`${SB_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
+    method:'DELETE',
+    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+  }).catch(()=>{});
+}
+
+// ---- AI: leest de scan uit en vult de velden ----
+const AI_SCAN_SYSTEM = `Je leest Nederlandse bonnen, offertes en bestelbevestigingen en haalt daar de administratieve gegevens uit.
+Antwoord UITSLUITEND met geldige JSON, geen uitleg, geen codeblok:
+{"type":"offerte|bon|bestelling","titel":"","leverancier":"","factuurnummer":"","datum":"YYYY-MM-DD","bedrag_incl":null,"bedrag_excl":null,"btw_bedrag":null,"btw_pct":null,"regels":[{"omschrijving":"","aantal":null,"bedrag":null}]}
+Regels:
+- titel: korte omschrijving van max 6 woorden, in het Nederlands.
+- leverancier: de partij die het document stuurt (winkel/bedrijf), niet de ontvanger.
+- bedragen: gewoon getal met punt als decimaalteken, zonder euroteken of duizendtalscheiding.
+- bedrag_incl is het eindtotaal inclusief btw, bedrag_excl het subtotaal exclusief btw.
+- Verzin niets. Staat iets er niet, dan null (of "" bij tekstvelden). Enige uitzondering: staan incl en excl er allebei maar het btw-bedrag niet, dan mag je het verschil nemen.
+- type: "bon" bij een kassabon/aankoopbewijs/factuur, "offerte" bij een prijsopgave, "bestelling" bij een bestelbevestiging.
+- regels: de productregels, maximaal 25, bedrag per regel is de regelprijs.`;
+
+async function aiScanDocument(){
+  const bron = window._docScanBron;
+  const box = document.getElementById('docAiStatus');
+  if(!bron || !box) return;
+  box.className = 'status';
+  box.textContent = '✨ AI leest het document…';
+  try{
+    const blok = bron.soort === 'pdf'
+      ? { type:'document', source:{ type:'base64', media_type:'application/pdf', data: bron.base64 } }
+      : { type:'image',    source:{ type:'base64', media_type: bron.media_type, data: bron.base64 } };
+    const data = await aiMessages({
+      model: AI_SCAN_MODEL,
+      max_tokens: 1500,
+      system: AI_SCAN_SYSTEM,
+      messages:[{ role:'user', content:[ blok, { type:'text', text:'Haal de gegevens uit dit document.' } ] }]
+    });
+    const raw = (data.content || []).filter(c=>c.type==='text').map(c=>c.text).join('');
+    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    vulDocVelden(parsed);
+    window._docAiGescand = true;
+    box.className = 'status ok';
+    box.textContent = '✅ Ingevuld door AI — controleer de bedragen voordat je opslaat.';
+  }catch(e){
+    box.className = 'status err';
+    box.textContent = '⚠️ AI-scan lukte niet (' + (e.message||e) + '). Vul zelf in.';
+  }
+}
+
+function zetVeld(id, waarde){
+  const el = document.getElementById(id);
+  if(el && waarde !== null && waarde !== undefined && waarde !== '') el.value = waarde;
+}
+function vulDocVelden(p){
+  if(p.type && docTypeLabels[p.type]) pickDocType(p.type);
+  zetVeld('fDocTitel', p.titel);
+  zetVeld('fDocLev', p.leverancier);
+  zetVeld('fDocFactuur', p.factuurnummer);
+  zetVeld('fDocBedrag', p.bedrag_incl);
+  zetVeld('fDocBedragExcl', p.bedrag_excl);
+  zetVeld('fDocBtw', p.btw_bedrag);
+  zetVeld('fDocBtwPct', p.btw_pct);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(p.datum||'')) zetVeld('fDocDatum', p.datum);
+  window._docRegels = Array.isArray(p.regels) ? p.regels.slice(0,25) : [];
+  tekenRegels();
+}
+function tekenRegels(){
+  const host = document.getElementById('docRegels');
+  if(!host) return;
+  const r = window._docRegels || [];
+  if(!r.length){ host.innerHTML = ''; return; }
+  host.innerHTML = `
+    <div class="field"><label>📦 Producten (${r.length})</label>
+      <div class="regels">${r.map(x=>`
+        <div class="r">
+          <span>${escapeHtml(String(x.omschrijving||'—'))}${x.aantal ? ` <em style="color:var(--sub)">×${escapeHtml(String(x.aantal))}</em>` : ''}</span>
+          <span>${x.bedrag != null && x.bedrag !== '' ? '€ ' + Number(x.bedrag).toFixed(2) : ''}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
 }
 
 async function loadDocs(){
+  if(toonDocsSlot()) return;
   const host = document.getElementById('docsList');
   host.innerHTML = '<div class="empty-state">Laden…</div>';
   const q = huidigDocFilter==='alle' ? '' : `&type=eq.${huidigDocFilter}`;
@@ -449,23 +705,51 @@ async function loadDocs(){
         <span class="badge ${d.type}">${docTypeLabels[d.type]}</span>
         ${d.leverancier ? `<span>🏷️ ${escapeHtml(d.leverancier)}</span>` : ''}
         ${d.bedrag != null ? `<span>€ ${Number(d.bedrag).toFixed(2)}</span>` : ''}
+        ${d.bedrag_excl != null ? `<span style="color:var(--sub)">excl. € ${Number(d.bedrag_excl).toFixed(2)}</span>` : ''}
         ${d.datum ? `<span>📅 ${new Date(d.datum).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</span>` : ''}
-        ${d.bestand_url ? `<a href="${d.bestand_url}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue); font-weight:600">bestand ↗</a>` : ''}
+        ${(d.regels||[]).length ? `<span style="color:var(--sub)">📦 ${d.regels.length}</span>` : ''}
+        ${(d.bestand_path || d.bestand_url) ? `<a href="#" class="doclink" data-path="${escapeHtml(d.bestand_path||'')}" data-url="${escapeHtml(d.bestand_url||'')}" style="color:var(--blue); font-weight:600">bestand ↗</a>` : ''}
       </div>
     </div>
   `).join('');
 }
 
+function getal(id){
+  const el = document.getElementById(id);
+  const raw = (el ? el.value : '').trim().replace(/[€\s]/g,'').replace(',', '.');
+  if(!raw) return null;
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function openDocSheet(id){
-  let d = {type:'offerte', titel:'', leverancier:'', bedrag:'', datum:'', notitie:'', bestand_url:''};
+  let d = {type:'offerte', titel:'', leverancier:'', bedrag:'', bedrag_excl:'', btw_bedrag:'', btw_pct:'',
+           factuurnummer:'', datum:'', notitie:'', bestand_url:'', bestand_path:'', regels:[]};
   if(id){ const rows = await sb(`work_docs?id=eq.${id}`); d = rows[0]; }
   window._docBestandBlob = null;
   window._docBestandNaam = null;
+  window._docScanBron = null;
+  window._docAiGescand = false;
   window._docStatusType = d.type;
+  window._docRegels = Array.isArray(d.regels) ? d.regels : [];
 
   openSheet(`
     <button class="closex" onclick="closeSheet()">✕</button>
     <h2>${id ? 'Bewerken' : 'Nieuw'} — offerte / bon / bestelling</h2>
+
+    <div class="scanbox">
+      <div class="sheet-actions" style="margin-top:0">
+        <button class="btn ghost" type="button" onclick="document.getElementById('scanInput').click()">📷 Scan met camera</button>
+        <button class="btn ghost" type="button" onclick="document.getElementById('fileInput').click()">📎 Kies bestand</button>
+      </div>
+      <div id="docScanThumb"></div>
+      <div class="status" id="docScanStatus">${
+        (d.bestand_path || d.bestand_url)
+          ? `Er hangt al een bestand aan. <a href="#" class="doclink" data-path="${escapeHtml(d.bestand_path||'')}" data-url="${escapeHtml(d.bestand_url||'')}" style="color:var(--blue); font-weight:600">bekijken ↗</a>`
+          : 'Scan of kies een bestand — de AI vult de velden hieronder dan zelf in.'
+      }</div>
+      <div class="status" id="docAiStatus"></div>
+    </div>
 
     <div class="field"><label>Type</label>
       <div class="segrow" id="docTypeRow">
@@ -474,18 +758,21 @@ async function openDocSheet(id){
     </div>
     <div class="field"><label>Titel / omschrijving</label><input type="text" id="fDocTitel" value="${escapeHtml(d.titel)}" placeholder="bijv. Offerte loodgieter pompstation"></div>
     <div class="field"><label>🏷️ Leverancier / winkel</label><input type="text" id="fDocLev" value="${escapeHtml(d.leverancier||'')}"></div>
-    <div class="field"><label>€ Bedrag</label><input type="text" inputmode="decimal" id="fDocBedrag" value="${d.bedrag ?? ''}" placeholder="bijv. 149.95"></div>
-    <div class="field"><label>📅 Datum</label><input type="date" id="fDocDatum" value="${d.datum||''}"></div>
 
-    <div class="field">
-      <label>📎 Bestand</label>
-      ${d.bestand_url ? `<div style="margin-bottom:8px"><a href="${d.bestand_url}" target="_blank" style="color:var(--blue); font-size:13px; font-weight:600">huidig bestand bekijken ↗</a></div>` : ''}
-      <div class="sheet-actions" style="margin-top:0">
-        <button class="btn ghost" type="button" onclick="document.getElementById('scanInput').click()">📷 Scan met camera</button>
-        <button class="btn ghost" type="button" onclick="document.getElementById('fileInput').click()">📎 Kies bestand</button>
-      </div>
-      <div id="docBestandPreview" style="font-size:12px; color:var(--sub); margin-top:8px"></div>
+    <div class="bedragrij">
+      <div class="field"><label>€ Incl. btw</label><input type="text" inputmode="decimal" id="fDocBedrag" value="${d.bedrag ?? ''}" placeholder="149.95"></div>
+      <div class="field"><label>€ Excl. btw</label><input type="text" inputmode="decimal" id="fDocBedragExcl" value="${d.bedrag_excl ?? ''}" placeholder="123.93"></div>
     </div>
+    <div class="bedragrij">
+      <div class="field"><label>€ Btw</label><input type="text" inputmode="decimal" id="fDocBtw" value="${d.btw_bedrag ?? ''}" placeholder="26.02"></div>
+      <div class="field"><label>Btw %</label><input type="text" inputmode="decimal" id="fDocBtwPct" value="${d.btw_pct ?? ''}" placeholder="21"></div>
+    </div>
+    <div class="bedragrij">
+      <div class="field"><label>📅 Datum</label><input type="date" id="fDocDatum" value="${d.datum||''}"></div>
+      <div class="field"><label># Factuur / bon</label><input type="text" id="fDocFactuur" value="${escapeHtml(d.factuurnummer||'')}"></div>
+    </div>
+
+    <div id="docRegels"></div>
 
     <div class="field"><label>Notitie</label><textarea id="fDocNotitie">${escapeHtml(d.notitie||'')}</textarea></div>
 
@@ -494,32 +781,50 @@ async function openDocSheet(id){
       <button class="btn primary" id="btnSaveDoc">Opslaan</button>
     </div>
   `);
+  tekenRegels();
 
   document.getElementById('btnSaveDoc').addEventListener('click', async ()=>{
+    const btn = document.getElementById('btnSaveDoc');
     const titel = document.getElementById('fDocTitel').value.trim();
     if(!titel){ toast('Vul een titel/omschrijving in'); return; }
-    let bestand_url = d.bestand_url || null;
-    if(window._docBestandBlob){
-      toast('Bestand uploaden…');
-      try{ bestand_url = await uploadDocBestand(window._docBestandBlob, window._docBestandNaam); }
-      catch(e){ toast('Upload mislukt'); return; }
+    btn.disabled = true;
+    try{
+      let bestand_path = d.bestand_path || null;
+      let bestand_url  = d.bestand_url || null;
+      if(window._docBestandBlob){
+        toast('Bestand uploaden…');
+        const oud = bestand_path;
+        bestand_path = await uploadDocBestand(window._docBestandBlob, window._docBestandNaam);
+        bestand_url = null;               // nieuw bestand staat in de prive bucket
+        if(oud) verwijderDocBestand(oud);
+      }
+      const payload = {
+        type: window._docStatusType,
+        titel,
+        leverancier: document.getElementById('fDocLev').value.trim(),
+        bedrag: getal('fDocBedrag'),
+        bedrag_excl: getal('fDocBedragExcl'),
+        btw_bedrag: getal('fDocBtw'),
+        btw_pct: getal('fDocBtwPct'),
+        factuurnummer: document.getElementById('fDocFactuur').value.trim() || null,
+        datum: document.getElementById('fDocDatum').value || null,
+        notitie: document.getElementById('fDocNotitie').value.trim(),
+        regels: window._docRegels || [],
+        bestand_path,
+        bestand_url,
+        ...(window._docAiGescand ? { ai_gescand_op: new Date().toISOString() } : {})
+      };
+      if(id){
+        await sb(`work_docs?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(payload)});
+      }else{
+        await sb('work_docs', {method:'POST', body: JSON.stringify(payload)});
+      }
+      closeSheet(); toast('Opgeslagen'); loadDocs();
+    }catch(e){
+      btn.disabled = false;
+      toast('Opslaan mislukt: ' + (e.message||e));
+      console.error('opslaan doc mislukt', e);
     }
-    const bedragRaw = document.getElementById('fDocBedrag').value.trim().replace(',', '.');
-    const payload = {
-      type: window._docStatusType,
-      titel,
-      leverancier: document.getElementById('fDocLev').value.trim(),
-      bedrag: bedragRaw ? parseFloat(bedragRaw) : null,
-      datum: document.getElementById('fDocDatum').value || null,
-      notitie: document.getElementById('fDocNotitie').value.trim(),
-      bestand_url
-    };
-    if(id){
-      await sb(`work_docs?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(payload)});
-    }else{
-      await sb('work_docs', {method:'POST', body: JSON.stringify(payload)});
-    }
-    closeSheet(); toast('Opgeslagen'); loadDocs();
   });
 }
 function pickDocType(t){
@@ -527,7 +832,9 @@ function pickDocType(t){
   document.querySelectorAll('#docTypeRow button').forEach(b=>b.classList.toggle('sel', b.dataset.t===t));
 }
 async function deleteDoc(id){
+  const rows = await sb(`work_docs?id=eq.${id}&select=bestand_path`);
   await sb(`work_docs?id=eq.${id}`, {method:'DELETE'});
+  if(rows && rows[0] && rows[0].bestand_path) verwijderDocBestand(rows[0].bestand_path);
   closeSheet(); toast('Verwijderd'); loadDocs();
 }
 
@@ -642,26 +949,14 @@ async function deleteTask(id){
 }
 
 async function aiVulTaakIn(tekst){
-  const key = getAiKey();
-  if(!key){ toast('Zet eerst je Anthropic API-key in ⚙️ Instellingen'); return; }
   const box = document.getElementById('aiHelpBox');
   box.innerHTML = '⏳ Bezig met analyseren…';
   try{
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'content-type':'application/json',
-        'x-api-key': key,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body: JSON.stringify({
-        model: AI_MODEL, max_tokens: 200,
-        system: 'Je haalt uit een korte Nederlandse werknotitie de velden Waar (locatie of URL), Wie (contactpersoon of bedrijf) en Deadline (datum in formaat YYYY-MM-DD, alleen als expliciet genoemd of duidelijk afleidbaar, anders leeg) en een korte titel (max 6 woorden). Antwoord UITSLUITEND met geldige JSON: {"titel":"...","waar":"...","wie":"...","deadline":"..."}. Onbekende velden: lege string.',
-        messages:[{role:'user', content: tekst.slice(0,500)}]
-      })
+    const data = await aiMessages({
+      model: AI_MODEL, max_tokens: 200,
+      system: 'Je haalt uit een korte Nederlandse werknotitie de velden Waar (locatie of URL), Wie (contactpersoon of bedrijf) en Deadline (datum in formaat YYYY-MM-DD, alleen als expliciet genoemd of duidelijk afleidbaar, anders leeg) en een korte titel (max 6 woorden). Antwoord UITSLUITEND met geldige JSON: {"titel":"...","waar":"...","wie":"...","deadline":"..."}. Onbekende velden: lege string.',
+      messages:[{role:'user', content: tekst.slice(0,500)}]
     });
-    const data = await res.json();
     const raw = data.content?.[0]?.text || '{}';
     const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
     if(parsed.titel) document.getElementById('fTitel').value = parsed.titel;
@@ -789,16 +1084,35 @@ document.getElementById('btnSettings').addEventListener('click', ()=>{
     <button class="closex" onclick="closeSheet()">✕</button>
     <h2>⚙️ Instellingen</h2>
     <div class="field">
-      <label>Anthropic API-key (voor ✨ AI-hulp bij taken invullen)</label>
+      <label>Anthropic API-key — reserve, meestal niet nodig</label>
       <input type="text" id="fAiKey" value="${escapeHtml(getAiKey())}" placeholder="sk-ant-...">
-      <div style="font-size:12px; color:var(--sub); margin-top:6px">Blijft alleen lokaal op dit toestel staan, gaat nergens anders heen dan rechtstreeks naar Anthropic.</div>
+      <div style="font-size:12px; color:var(--sub); margin-top:6px">
+        De AI loopt via de Supabase-proxy, dus dit hoeft normaal niet ingevuld.
+        Vul je hier wel iets in, dan wordt dat alleen gebruikt als de proxy niet reageert.
+        Blijft dan lokaal op dit toestel.
+      </div>
+    </div>
+    <div class="field">
+      <label>🔒 Pincode op Offertes &amp; bonnen</label>
+      <input type="password" inputmode="numeric" id="fDocsPin" placeholder="${getDocsPinHash() ? 'ingesteld — leeg laten = ongewijzigd' : 'bijv. 4 cijfers'}">
+      <div style="font-size:12px; color:var(--sub); margin-top:6px">
+        Schermt de tab af op dit toestel. Je documenten staan in een privé-opslag; losse links werken niet meer.
+        ${getDocsPinHash() ? '<a href="#" id="lnkPinWeg" style="color:var(--blue); font-weight:600"> Pincode verwijderen</a>' : ''}
+      </div>
     </div>
     <div class="sheet-actions">
       <button class="btn primary" id="btnSaveKey" style="width:100%">Opslaan</button>
     </div>
   `);
-  document.getElementById('btnSaveKey').addEventListener('click', ()=>{
+  const lnk = document.getElementById('lnkPinWeg');
+  if(lnk) lnk.addEventListener('click', e=>{
+    e.preventDefault(); setDocsPinHash(''); docsOntgrendeld = true;
+    closeSheet(); toast('Pincode verwijderd'); toonDocsSlot();
+  });
+  document.getElementById('btnSaveKey').addEventListener('click', async ()=>{
     setAiKey(document.getElementById('fAiKey').value);
+    const pin = document.getElementById('fDocsPin').value.trim();
+    if(pin){ setDocsPinHash(await hashPin(pin)); docsOntgrendeld = true; }
     closeSheet(); toast('Instellingen opgeslagen');
   });
 });
