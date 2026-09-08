@@ -1,5 +1,5 @@
 // WerkHub — Service Worker: alleen offline-shell caching, geen API-caching
-const CACHE = 'werkhub-v7';
+const CACHE = 'werkhub-v8';
 const ASSETS = [
   './',
   './index.html',

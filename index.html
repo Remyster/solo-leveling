@@ -61,8 +61,8 @@
   .fab{position:fixed; right:18px; bottom:86px; width:56px; height:56px; border-radius:50%; background:var(--blue); color:#fff; border:none; font-size:26px; box-shadow:0 6px 18px rgba(11,92,165,.35); z-index:20;}
 
   nav.tabs{position:fixed; bottom:0; left:0; right:0; display:flex; background:rgba(255,255,255,.97); backdrop-filter:blur(8px); border-top:1px solid var(--border); z-index:10; padding-bottom:env(safe-area-inset-bottom);}
-  nav.tabs button{flex:1; background:none; border:none; color:var(--sub); font-size:11px; padding:10px 2px 8px; display:flex; flex-direction:column; align-items:center; gap:3px; font-weight:600;}
-  nav.tabs button span.emoji{font-size:19px;}
+  nav.tabs button{flex:1; min-width:0; background:none; border:none; color:var(--sub); font-size:10px; padding:10px 1px 8px; display:flex; flex-direction:column; align-items:center; gap:3px; font-weight:600;}
+  nav.tabs button span.emoji{font-size:18px;}
   nav.tabs button.active{color:var(--blue);}
 
   .sheet-bg{position:fixed; inset:0; background:rgba(10,25,45,.45); z-index:30; display:flex; align-items:flex-end;}
@@ -120,6 +120,27 @@
   .regels .r span:last-child{color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap;}
   .bedragrij{display:flex; gap:10px;}
   .bedragrij .field{flex:1; min-width:0;}
+
+  /* Workload / urenregistratie */
+  .chiprow{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+  .chiprow button{background:var(--blue-light); border:1px solid #cfe2f6; color:var(--blue-dark); border-radius:999px; padding:6px 12px; font-size:12px; font-weight:700; letter-spacing:.03em;}
+  .chiprow button.sel{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .badge.code{background:var(--blue-light); color:var(--blue-dark); letter-spacing:.04em;}
+  .totrow{display:flex; align-items:center; gap:9px; padding:7px 0;}
+  .totrow + .totrow{border-top:1px solid var(--border);}
+  .totrow .bar{flex:1; height:7px; background:var(--panel2); border-radius:999px; overflow:hidden;}
+  .totrow .bar i{display:block; height:100%; background:var(--blue); border-radius:999px;}
+  .totrow .u{font-size:13px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; min-width:52px; text-align:right;}
+  .totaal{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .totaal .groot{font-size:22px; font-weight:800; color:var(--blue-dark); font-variant-numeric:tabular-nums;}
+  .wl{padding:2px 12px;}
+  .wlrow{display:flex; align-items:flex-start; gap:9px; padding:10px 2px;}
+  .wlrow + .wlrow{border-top:1px solid var(--border);}
+  .wlrow .txt{flex:1; min-width:0; font-size:14px; line-height:1.35;}
+  .wlrow .u{font-size:13px; font-weight:700; color:var(--blue-dark); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .daghead{display:flex; justify-content:space-between; align-items:baseline; margin:14px 0 6px;}
+  .daghead h3{font-size:12px; color:var(--sub); text-transform:uppercase; letter-spacing:.05em; margin:0; font-weight:700;}
+  .daghead span{font-size:12px; color:var(--sub); font-weight:700;}
 </style>
 </head>
 <body>
@@ -136,6 +157,7 @@
       <div class="row"><span class="ico">⏰</span><div><div class="lbl">Volgende deadline</div><div class="val" id="wDeadline">–</div></div></div>
       <div class="row"><span class="ico">✅</span><div><div class="lbl">Actieve taak</div><div class="val" id="wActief">–</div></div></div>
       <div class="row"><span class="ico">🔥</span><div><div class="lbl">Urgente dump</div><div class="val" id="wUrgent">–</div></div></div>
+      <div class="row"><span class="ico">⏱️</span><div><div class="lbl">Uren deze week</div><div class="val" id="wUren">–</div></div></div>
     </div>
 
     <h2>📅 Werkagenda</h2>
@@ -207,6 +229,35 @@
     <div id="projLists"></div>
   </section>
 
+  <!-- ===== TAB: WORKLOAD (uren) ===== -->
+  <section id="tab-uren" class="hidden">
+    <div class="card">
+      <div class="field">
+        <label>Code / klus</label>
+        <div class="chiprow" id="urenCodeChips"></div>
+        <input type="text" id="fUrenCode" placeholder="bijv. AKF of DWAT" autocapitalize="characters" autocomplete="off">
+      </div>
+      <div class="bedragrij">
+        <div class="field"><label>⏱️ Uren</label><input type="text" inputmode="decimal" id="fUrenUren" placeholder="1,5"></div>
+        <div class="field"><label>📅 Datum</label><input type="date" id="fUrenDatum"></div>
+      </div>
+      <div class="segrow" id="urenSnelRow" style="margin:-4px 0 12px">
+        <button data-u="0.5">½ u</button><button data-u="1">1 u</button><button data-u="2">2 u</button>
+        <button data-u="4">4 u</button><button data-u="8">8 u</button>
+      </div>
+      <div class="field"><label>Werkzaamheden</label><textarea id="fUrenWerk" placeholder="Kort: wat heb je gedaan?"></textarea></div>
+      <button class="btn primary" id="btnUrenSave" style="width:100%">+ Uren opslaan</button>
+    </div>
+
+    <div class="filterrow" id="urenPeriodeRow">
+      <button data-p="week" class="sel">Deze week</button>
+      <button data-p="maand">Deze maand</button>
+      <button data-p="alles">Alles</button>
+    </div>
+    <div id="urenTotalen"></div>
+    <div id="urenList"></div>
+  </section>
+
   <!-- ===== TAB: MAANDAGPREP ===== -->
   <section id="tab-maandag" class="hidden">
     <h2>🗓️ Maandagprep</h2>
@@ -230,6 +281,7 @@
   <button data-tab="dump"><span class="emoji">📥</span>Dump</button>
   <button data-tab="docs"><span class="emoji">🧾</span>Offertes</button>
   <button data-tab="projecten"><span class="emoji">🔧</span>PWN</button>
+  <button data-tab="uren"><span class="emoji">⏱️</span>Uren</button>
   <button data-tab="maandag"><span class="emoji">🗓️</span>Maandag</button>
   <button data-tab="vrijdag"><span class="emoji">📆</span>Vrijdag</button>
 </nav>
@@ -316,7 +368,7 @@ function toast(msg){
 }
 
 // ============ TABS ============
-const tabs = ['vandaag','dump','docs','projecten','maandag','vrijdag'];
+const tabs = ['vandaag','dump','docs','projecten','uren','maandag','vrijdag'];
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
 });
@@ -330,6 +382,7 @@ function switchTab(name){
   if(name==='dump') loadDump();
   if(name==='docs') loadDocs();
   if(name==='projecten') loadProjecten();
+  if(name==='uren') loadUren();
   if(name==='maandag') loadMaandag();
   if(name==='vrijdag') loadVrijdag();
 }
@@ -971,10 +1024,18 @@ async function aiVulTaakIn(tekst){
 
 // ============ VANDAAG TAB (widget + reflectie) ============
 async function loadVandaag(){
-  const [tasks, dumps] = await Promise.all([
+  const [wkStart, wkEind] = weekBereik();
+  const [tasks, dumps, uren] = await Promise.all([
     sb('work_tasks?status=neq.klaar&order=deadline.asc.nullslast'),
-    sb('work_items?gesorteerd=eq.false&urgent=eq.true&order=created_at.desc')
+    sb('work_items?gesorteerd=eq.false&urgent=eq.true&order=created_at.desc'),
+    sb(`work_load?select=code,uren&datum=gte.${isoDatum(wkStart)}&datum=lte.${isoDatum(wkEind)}`)
   ]);
+
+  const totaalUren = uren.reduce((s,r)=>s + Number(r.uren||0), 0);
+  const perCode = urenPerCode(uren).slice(0,3).map(([c,u])=>`${c} ${fmtUren(u)}`).join(' · ');
+  document.getElementById('wUren').innerHTML = totaalUren
+    ? `${fmtUren(totaalUren)} u${perCode ? ` <span style="color:#cfe3f5">— ${escapeHtml(perCode)}</span>` : ''}`
+    : '<span class="empty">nog niks geboekt</span>';
   const metDeadline = tasks.filter(t=>t.deadline);
   document.getElementById('wDeadline').innerHTML = metDeadline.length
     ? `${escapeHtml(metDeadline[0].titel)} — ${new Date(metDeadline[0].deadline).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}`
@@ -1015,6 +1076,228 @@ document.getElementById('btnSaveReflect').addEventListener('click', async ()=>{
   toast('🌗 Dag opgeslagen');
   loadVandaag();
 });
+
+// ============ WORKLOAD (urenregistratie) ============
+let urenPeriode = 'week';
+
+function fmtUren(n){
+  return Number(n||0).toFixed(2).replace(/0+$/,'').replace(/\.$/,'').replace('.', ',');
+}
+function isoDatum(d){
+  return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+function weekBereik(d = new Date()){
+  const start = new Date(d); start.setHours(0,0,0,0);
+  start.setDate(start.getDate() - (start.getDay()+6)%7);   // maandag
+  const eind = new Date(start); eind.setDate(eind.getDate()+6);
+  return [start, eind];
+}
+function periodeBereik(){
+  if(urenPeriode==='week') return weekBereik();
+  if(urenPeriode==='maand'){
+    const n = new Date();
+    return [new Date(n.getFullYear(), n.getMonth(), 1), new Date(n.getFullYear(), n.getMonth()+1, 0)];
+  }
+  return null;   // alles
+}
+function periodeLabel(){
+  const b = periodeBereik();
+  if(!b) return 'Alles';
+  const o = {day:'numeric', month:'short'};
+  if(urenPeriode==='maand') return new Date().toLocaleDateString('nl-NL',{month:'long', year:'numeric'});
+  return `Week ${isoWeek(new Date()).split('-')[1]} · ${b[0].toLocaleDateString('nl-NL',o)} t/m ${b[1].toLocaleDateString('nl-NL',o)}`;
+}
+
+document.getElementById('urenPeriodeRow').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-p]');
+  if(!btn) return;
+  urenPeriode = btn.dataset.p;
+  document.querySelectorAll('#urenPeriodeRow button').forEach(b=>b.classList.toggle('sel', b===btn));
+  loadUren();
+});
+document.getElementById('urenSnelRow').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-u]');
+  if(!btn) return;
+  document.getElementById('fUrenUren').value = fmtUren(btn.dataset.u);
+  document.querySelectorAll('#urenSnelRow button').forEach(b=>b.classList.toggle('sel', b===btn));
+});
+document.getElementById('urenCodeChips').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-c]');
+  if(!btn) return;
+  document.getElementById('fUrenCode').value = btn.dataset.c;
+  document.querySelectorAll('#urenCodeChips button').forEach(b=>b.classList.toggle('sel', b===btn));
+});
+
+document.getElementById('btnUrenSave').addEventListener('click', async ()=>{
+  const code = document.getElementById('fUrenCode').value.trim().toUpperCase();
+  const uren = getal('fUrenUren');
+  const werkzaamheden = document.getElementById('fUrenWerk').value.trim();
+  const datum = document.getElementById('fUrenDatum').value || isoDatum(new Date());
+  if(!code){ toast('Vul een code in (bijv. AKF)'); return; }
+  if(uren === null || uren <= 0){ toast('Vul de uren in'); return; }
+  if(!werkzaamheden){ toast('Zet er kort bij wat je gedaan hebt'); return; }
+  const btn = document.getElementById('btnUrenSave');
+  btn.disabled = true;
+  try{
+    await sb('work_load', {method:'POST', body: JSON.stringify({code, uren, werkzaamheden, datum})});
+    // code laten staan: meestal boek je meerdere regels op dezelfde klus
+    document.getElementById('fUrenCode').value = code;
+    document.getElementById('fUrenUren').value = '';
+    document.getElementById('fUrenWerk').value = '';
+    document.querySelectorAll('#urenSnelRow button').forEach(b=>b.classList.remove('sel'));
+    toast('⏱️ Uren opgeslagen');
+    loadUren();
+  }catch(e){
+    toast('Opslaan mislukt: ' + (e.message||e));
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+async function loadUren(){
+  const inpDatum = document.getElementById('fUrenDatum');
+  if(!inpDatum.value) inpDatum.value = isoDatum(new Date());
+  const host = document.getElementById('urenList');
+  host.innerHTML = '<div class="empty-state">Laden…</div>';
+  const b = periodeBereik();
+  const q = b ? `&datum=gte.${isoDatum(b[0])}&datum=lte.${isoDatum(b[1])}` : '';
+  const [rijen, alleCodes] = await Promise.all([
+    sb(`work_load?order=datum.desc,created_at.desc${q}`),
+    sb('work_load?select=code&order=created_at.desc&limit=300')
+  ]);
+  tekenCodeChips(alleCodes);
+  tekenUrenTotalen(rijen);
+  tekenUrenLijst(rijen);
+}
+
+function tekenCodeChips(rijen){
+  const telling = {};
+  (rijen||[]).forEach(r=>{ telling[r.code] = (telling[r.code]||0) + 1; });
+  const top = Object.keys(telling).sort((a,b)=>telling[b]-telling[a]).slice(0,8);
+  const huidig = document.getElementById('fUrenCode').value.trim().toUpperCase();
+  document.getElementById('urenCodeChips').innerHTML = top
+    .map(c=>`<button data-c="${escapeHtml(c)}" class="${c===huidig?'sel':''}">${escapeHtml(c)}</button>`).join('');
+}
+
+function urenPerCode(rijen){
+  const per = {};
+  rijen.forEach(r=>{ per[r.code] = (per[r.code]||0) + Number(r.uren||0); });
+  return Object.entries(per).sort((a,b)=>b[1]-a[1]);
+}
+
+function tekenUrenTotalen(rijen){
+  const host = document.getElementById('urenTotalen');
+  const totaal = rijen.reduce((s,r)=>s + Number(r.uren||0), 0);
+  if(!rijen.length){ host.innerHTML = ''; return; }
+  const per = urenPerCode(rijen);
+  const max = per[0][1] || 1;
+  host.innerHTML = `
+    <div class="card">
+      <div class="totaal">
+        <div><div class="titel">${periodeLabel()}</div></div>
+        <div class="groot">${fmtUren(totaal)} u</div>
+      </div>
+      ${per.map(([code,u])=>`
+        <div class="totrow">
+          <span class="badge code">${escapeHtml(code)}</span>
+          <span class="bar"><i style="width:${Math.round(u/max*100)}%"></i></span>
+          <span class="u">${fmtUren(u)} u</span>
+        </div>`).join('')}
+      <button class="btn ghost" style="width:100%; margin-top:12px" onclick="kopieerUren()">📋 Kopieer overzicht</button>
+    </div>`;
+}
+
+function tekenUrenLijst(rijen){
+  const host = document.getElementById('urenList');
+  if(!rijen.length){
+    host.innerHTML = '<div class="empty-state">Nog geen uren in deze periode.</div>';
+    return;
+  }
+  const perDag = {};
+  rijen.forEach(r=>{ (perDag[r.datum] = perDag[r.datum] || []).push(r); });
+  host.innerHTML = Object.keys(perDag).sort().reverse().map(datum=>{
+    const dag = perDag[datum];
+    const dagTotaal = dag.reduce((s,r)=>s + Number(r.uren||0), 0);
+    return `
+      <div class="daghead">
+        <h3>${new Date(datum).toLocaleDateString('nl-NL',{weekday:'short', day:'numeric', month:'short'})}</h3>
+        <span>${fmtUren(dagTotaal)} u</span>
+      </div>
+      <div class="card wl">
+        ${dag.map(r=>`
+          <div class="wlrow" onclick="openUrenSheet('${r.id}')">
+            <span class="badge code">${escapeHtml(r.code)}</span>
+            <span class="txt">${r.werkzaamheden ? escapeHtml(r.werkzaamheden) : '<span style="color:var(--sub)">—</span>'}</span>
+            <span class="u">${fmtUren(r.uren)} u</span>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+}
+
+async function openUrenSheet(id){
+  const rows = await sb(`work_load?id=eq.${id}`);
+  const r = rows[0];
+  if(!r) return;
+  openSheet(`
+    <button class="closex" onclick="closeSheet()">✕</button>
+    <h2>⏱️ Uren bewerken</h2>
+    <div class="bedragrij">
+      <div class="field"><label>Code / klus</label><input type="text" id="eUrenCode" value="${escapeHtml(r.code)}" autocapitalize="characters"></div>
+      <div class="field"><label>Uren</label><input type="text" inputmode="decimal" id="eUrenUren" value="${fmtUren(r.uren)}"></div>
+    </div>
+    <div class="field"><label>📅 Datum</label><input type="date" id="eUrenDatum" value="${r.datum||''}"></div>
+    <div class="field"><label>Werkzaamheden</label><textarea id="eUrenWerk">${escapeHtml(r.werkzaamheden||'')}</textarea></div>
+    <div class="sheet-actions">
+      <button class="btn danger" onclick="verwijderUren('${r.id}')">Verwijder</button>
+      <button class="btn primary" id="btnUrenUpdate">Opslaan</button>
+    </div>
+  `);
+  document.getElementById('btnUrenUpdate').addEventListener('click', async ()=>{
+    const code = document.getElementById('eUrenCode').value.trim().toUpperCase();
+    const uren = getal('eUrenUren');
+    if(!code){ toast('Vul een code in'); return; }
+    if(uren === null || uren <= 0){ toast('Vul de uren in'); return; }
+    await sb(`work_load?id=eq.${r.id}`, {method:'PATCH', body: JSON.stringify({
+      code, uren,
+      datum: document.getElementById('eUrenDatum').value || r.datum,
+      werkzaamheden: document.getElementById('eUrenWerk').value.trim()
+    })});
+    closeSheet(); toast('Opgeslagen'); loadUren();
+  });
+}
+async function verwijderUren(id){
+  await sb(`work_load?id=eq.${id}`, {method:'DELETE'});
+  closeSheet(); toast('Verwijderd'); loadUren();
+}
+
+// Compact blokje tekst om door te sturen of in een urenbriefje te plakken.
+async function kopieerUren(){
+  const b = periodeBereik();
+  const q = b ? `&datum=gte.${isoDatum(b[0])}&datum=lte.${isoDatum(b[1])}` : '';
+  const rijen = await sb(`work_load?order=datum.asc,created_at.asc${q}`);
+  if(!rijen.length){ toast('Niks te kopiëren'); return; }
+  const totaal = rijen.reduce((s,r)=>s + Number(r.uren||0), 0);
+  const regels = [`${periodeLabel()} — ${fmtUren(totaal)} uur`, ''];
+  urenPerCode(rijen).forEach(([code, u])=>{
+    regels.push(`${code} — ${fmtUren(u)} u`);
+    rijen.filter(r=>r.code===code).forEach(r=>{
+      const d = new Date(r.datum).toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit'});
+      regels.push(`  ${d}  ${fmtUren(r.uren)} u  ${r.werkzaamheden||'—'}`);
+    });
+    regels.push('');
+  });
+  const tekst = regels.join('\n').trim();
+  try{
+    await navigator.clipboard.writeText(tekst);
+    toast('📋 Overzicht gekopieerd');
+  }catch(e){
+    openSheet(`
+      <button class="closex" onclick="closeSheet()">✕</button>
+      <h2>📋 Urenoverzicht</h2>
+      <div class="field"><textarea style="min-height:220px" onclick="this.select()">${escapeHtml(tekst)}</textarea></div>
+    `);
+  }
+}
 
 // ============ MAANDAGPREP ============
 const maandagItems = [
