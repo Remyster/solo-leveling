@@ -23,7 +23,7 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
-  body{padding-bottom:80px; overflow-x:hidden;}
+  body{padding-bottom:calc(104px + env(safe-area-inset-bottom)); overflow-x:hidden;}
   h1,h2,h3{margin:0 0 8px;}
   button{font-family:inherit; cursor:pointer;}
   .hidden{display:none !important;}
@@ -258,20 +258,6 @@
     <div id="urenList"></div>
   </section>
 
-  <!-- ===== TAB: MAANDAGPREP ===== -->
-  <section id="tab-maandag" class="hidden">
-    <h2>🗓️ Maandagprep</h2>
-    <p style="color:var(--sub); font-size:13px; margin-top:-4px">Vinkt zichzelf terug op maandag — 1x per week doorlopen, geen open denkwerk.</p>
-    <div class="card checklist" id="maandagChecklist"></div>
-  </section>
-
-  <!-- ===== TAB: VRIJDAGPREP ===== -->
-  <section id="tab-vrijdag" class="hidden">
-    <h2>📆 Vrijdagprep</h2>
-    <p style="color:var(--sub); font-size:13px; margin-top:-4px">Plan hier op vrijdag alvast de week erna — 1x per week doorlopen.</p>
-    <div class="card checklist" id="vrijdagChecklist"></div>
-  </section>
-
 </main>
 
 <button class="fab hidden" id="fabDump">+</button>
@@ -282,8 +268,6 @@
   <button data-tab="docs"><span class="emoji">🧾</span>Offertes</button>
   <button data-tab="projecten"><span class="emoji">🔧</span>PWN</button>
   <button data-tab="uren"><span class="emoji">⏱️</span>Uren</button>
-  <button data-tab="maandag"><span class="emoji">🗓️</span>Maandag</button>
-  <button data-tab="vrijdag"><span class="emoji">📆</span>Vrijdag</button>
 </nav>
 
 <div id="sheetHost"></div>
@@ -368,7 +352,7 @@ function toast(msg){
 }
 
 // ============ TABS ============
-const tabs = ['vandaag','dump','docs','projecten','uren','maandag','vrijdag'];
+const tabs = ['vandaag','dump','docs','projecten','uren'];
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
 });
@@ -383,8 +367,6 @@ function switchTab(name){
   if(name==='docs') loadDocs();
   if(name==='projecten') loadProjecten();
   if(name==='uren') loadUren();
-  if(name==='maandag') loadMaandag();
-  if(name==='vrijdag') loadVrijdag();
 }
 
 // ============ SHEET (bottom modal) ============
