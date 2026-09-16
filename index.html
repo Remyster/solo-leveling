@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f7fa">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <title>WerkHub</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -145,11 +146,22 @@
 </head>
 <body>
 
-<header class="top">
+<div id="loginGate" style="position:fixed; inset:0; z-index:999; background:#f4f7fa; display:flex; align-items:center; justify-content:center; padding:20px;">
+  <div style="width:100%; max-width:340px; background:#fff; border-radius:16px; padding:24px; box-shadow:0 2px 10px rgba(20,40,70,.12);">
+    <h2 style="margin:0 0 4px; color:#08447d;">🔒 WerkHub</h2>
+    <p style="font-size:13px; color:#66798c; margin:0 0 16px;">Alleen voor jou toegankelijk. Log in om verder te gaan.</p>
+    <div class="field"><label>E-mail</label><input type="email" id="fLoginEmail" autocomplete="username"></div>
+    <div class="field"><label>Wachtwoord</label><input type="password" id="fLoginPass" autocomplete="current-password"></div>
+    <div id="loginError" style="color:#c94a4a; font-size:13px; margin:4px 0 8px; display:none;"></div>
+    <button class="btn primary" id="btnLogin" style="width:100%">Inloggen</button>
+  </div>
+</div>
+
+<header class="top hidden" id="appHeader">
   <h1><img class="logo" src="./icon-192.png" alt="PWN"> WerkHub<button class="gearbtn" id="btnSettings">⚙️</button></h1>
 </header>
 
-<main>
+<main class="hidden" id="appMain">
 
   <!-- ===== TAB: VANDAAG ===== -->
   <section id="tab-vandaag">
@@ -262,7 +274,7 @@
 
 <button class="fab hidden" id="fabDump">+</button>
 
-<nav class="tabs">
+<nav class="tabs hidden" id="appNav">
   <button data-tab="vandaag" class="active"><span class="emoji">🌗</span>Vandaag</button>
   <button data-tab="dump"><span class="emoji">📥</span>Dump</button>
   <button data-tab="docs"><span class="emoji">🧾</span>Offertes</button>
@@ -317,18 +329,78 @@ async function aiMessages(body){
   return await res.json();
 }
 
+// ============ AUTH ============
+// Alleen ingelogde gebruikers (Supabase Auth) mogen data lezen/schrijven — zie RLS-policies.
+// Sessie (access/refresh token) staat lokaal op dit toestel, niet in de broncode.
+function getAuthSession(){
+  try{ return JSON.parse(localStorage.getItem('werkhub_auth') || 'null'); }catch(e){ return null; }
+}
+function setAuthSession(session){
+  if(session) localStorage.setItem('werkhub_auth', JSON.stringify(session));
+  else localStorage.removeItem('werkhub_auth');
+}
+function getAccessToken(){
+  const s = getAuthSession();
+  return s ? s.access_token : null;
+}
+
+async function authLogin(email, password){
+  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+    method:'POST',
+    headers:{ 'apikey': SB_KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error_description || data.msg || 'Inloggen mislukt');
+  setAuthSession(data);
+  return data;
+}
+
+async function authRefresh(){
+  const s = getAuthSession();
+  if(!s || !s.refresh_token) return null;
+  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method:'POST',
+    headers:{ 'apikey': SB_KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ refresh_token: s.refresh_token })
+  });
+  if(!res.ok){ setAuthSession(null); return null; }
+  const data = await res.json();
+  setAuthSession(data);
+  return data;
+}
+
+function authLogout(){
+  setAuthSession(null);
+  location.reload();
+}
+
+async function requireAuth(){
+  let token = getAccessToken();
+  if(!token) return false;
+  // token 1 uur geldig; ververs 'm zodra hij korter dan 5 min mee kan.
+  const s = getAuthSession();
+  if(s && s.expires_at && (s.expires_at * 1000 - Date.now() < 5*60*1000)){
+    const refreshed = await authRefresh();
+    if(!refreshed) return false;
+  }
+  return true;
+}
+
 // ============ SUPABASE REST HELPER ============
 async function sb(path, opts={}){
+  const token = getAccessToken() || SB_KEY;
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
     ...opts,
     headers:{
       'apikey': SB_KEY,
-      'Authorization': `Bearer ${SB_KEY}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type':'application/json',
       'Prefer': opts.prefer || 'return=representation',
       ...(opts.headers||{})
     }
   });
+  if(res.status === 401){ authLogout(); throw new Error('Sessie verlopen, opnieuw inloggen'); }
   if(!res.ok){ console.error('sb error', path, await res.text()); throw new Error('Supabase-fout'); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;
@@ -338,7 +410,7 @@ async function uploadFoto(file){
   const path = `werkhub/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g,'_')}`;
   const res = await fetch(`${SB_URL}/storage/v1/object/notitie-fotos/${path}`, {
     method:'POST',
-    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': file.type },
+    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${getAccessToken() || SB_KEY}`, 'Content-Type': file.type },
     body:file
   });
   if(!res.ok) throw new Error('upload mislukt');
@@ -612,7 +684,7 @@ async function uploadDocBestand(blob, naam){
   const path = `docs/${Date.now()}_${naam.replace(/[^a-zA-Z0-9.]/g,'_')}`;
   const res = await fetch(`${SB_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
     method:'POST',
-    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': blob.type || 'application/octet-stream' },
+    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${getAccessToken() || SB_KEY}`, 'Content-Type': blob.type || 'application/octet-stream' },
     body: blob
   });
   if(!res.ok){
@@ -626,7 +698,7 @@ async function uploadDocBestand(blob, naam){
 async function signedDocUrl(path){
   const res = await fetch(`${SB_URL}/storage/v1/object/sign/${DOCS_BUCKET}/${path}`, {
     method:'POST',
-    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
+    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${getAccessToken() || SB_KEY}`, 'Content-Type':'application/json' },
     body: JSON.stringify({ expiresIn: 3600 })
   });
   if(!res.ok) throw new Error('kon geen link maken (' + res.status + ')');
@@ -648,7 +720,7 @@ async function verwijderDocBestand(path){
   if(!path) return;
   await fetch(`${SB_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
     method:'DELETE',
-    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${getAccessToken() || SB_KEY}` }
   }).catch(()=>{});
 }
 
@@ -1281,66 +1353,12 @@ async function kopieerUren(){
   }
 }
 
-// ============ MAANDAGPREP ============
-const maandagItems = [
-  'DUMP-map leegmaken (sorteren)',
-  'PWN: status per taak checken',
-  'Werkagenda deze week doorlopen',
-  'Deze week: max 3 deadlines kiezen als focus',
-  'Reflectielijst doorlezen — 1 patroon eruit halen'
-];
 function isoWeek(d){
   const date = new Date(d.getTime());
   date.setHours(0,0,0,0);
   date.setDate(date.getDate() + 3 - (date.getDay()+6)%7);
   const week1 = new Date(date.getFullYear(),0,4);
   return date.getFullYear()+'-'+(1 + Math.round(((date-week1)/86400000 - 3 + (week1.getDay()+6)%7)/7));
-}
-function loadMaandag(){
-  const wk = isoWeek(new Date());
-  const saved = JSON.parse(localStorage.getItem('werkhub_maandag_'+wk) || '{}');
-  const host = document.getElementById('maandagChecklist');
-  host.innerHTML = maandagItems.map((txt,i)=>`
-    <label class="${saved[i]?'done':''}">
-      <input type="checkbox" ${saved[i]?'checked':''} onchange="toggleMaandag(${i},'${wk}',this.checked)">
-      <span>${txt}</span>
-    </label>
-  `).join('');
-}
-function toggleMaandag(i, wk, checked){
-  const saved = JSON.parse(localStorage.getItem('werkhub_maandag_'+wk) || '{}');
-  saved[i] = checked;
-  localStorage.setItem('werkhub_maandag_'+wk, JSON.stringify(saved));
-  loadMaandag();
-}
-
-// ============ VRIJDAGPREP (plant de week erna) ============
-const vrijdagItems = [
-  'Agenda van volgende week doorlopen',
-  'PWN-taken prioriteren voor volgende week',
-  'Openstaande offertes/bonnen deze week afgehandeld? Nachecken',
-  'Deadlines volgende week overzien en vastleggen',
-  'Dump-inbox leegmaken voor het weekend'
-];
-function loadVrijdag(){
-  // checklist hoort bij de week die je aan het plannen bent: volgende week
-  const volgendeWeek = new Date();
-  volgendeWeek.setDate(volgendeWeek.getDate() + 7);
-  const wk = isoWeek(volgendeWeek);
-  const saved = JSON.parse(localStorage.getItem('werkhub_vrijdag_'+wk) || '{}');
-  const host = document.getElementById('vrijdagChecklist');
-  host.innerHTML = vrijdagItems.map((txt,i)=>`
-    <label class="${saved[i]?'done':''}">
-      <input type="checkbox" ${saved[i]?'checked':''} onchange="toggleVrijdag(${i},'${wk}',this.checked)">
-      <span>${txt}</span>
-    </label>
-  `).join('');
-}
-function toggleVrijdag(i, wk, checked){
-  const saved = JSON.parse(localStorage.getItem('werkhub_vrijdag_'+wk) || '{}');
-  saved[i] = checked;
-  localStorage.setItem('werkhub_vrijdag_'+wk, JSON.stringify(saved));
-  loadVrijdag();
 }
 
 // ============ SETTINGS ============
@@ -1367,8 +1385,10 @@ document.getElementById('btnSettings').addEventListener('click', ()=>{
     </div>
     <div class="sheet-actions">
       <button class="btn primary" id="btnSaveKey" style="width:100%">Opslaan</button>
+      <button class="btn" id="btnLogout" style="width:100%; margin-top:8px;">Uitloggen</button>
     </div>
   `);
+  document.getElementById('btnLogout').addEventListener('click', authLogout);
   const lnk = document.getElementById('lnkPinWeg');
   if(lnk) lnk.addEventListener('click', e=>{
     e.preventDefault(); setDocsPinHash(''); docsOntgrendeld = true;
@@ -1383,7 +1403,36 @@ document.getElementById('btnSettings').addEventListener('click', ()=>{
 });
 
 // ============ INIT ============
-loadVandaag();
+async function boot(){
+  const ok = await requireAuth();
+  if(ok){
+    document.getElementById('loginGate').classList.add('hidden');
+    document.getElementById('appHeader').classList.remove('hidden');
+    document.getElementById('appMain').classList.remove('hidden');
+    document.getElementById('appNav').classList.remove('hidden');
+    loadVandaag();
+  }else{
+    document.getElementById('loginGate').classList.remove('hidden');
+    document.getElementById('appHeader').classList.add('hidden');
+    document.getElementById('appMain').classList.add('hidden');
+    document.getElementById('appNav').classList.add('hidden');
+  }
+}
+document.getElementById('btnLogin').addEventListener('click', async ()=>{
+  const email = document.getElementById('fLoginEmail').value.trim();
+  const pass = document.getElementById('fLoginPass').value;
+  const errBox = document.getElementById('loginError');
+  errBox.classList.add('hidden');
+  if(!email || !pass){ errBox.textContent = 'Vul e-mail en wachtwoord in'; errBox.classList.remove('hidden'); return; }
+  try{
+    await authLogin(email, pass);
+    boot();
+  }catch(e){
+    errBox.textContent = e.message || 'Inloggen mislukt';
+    errBox.classList.remove('hidden');
+  }
+});
+boot();
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
 </script>
 </body>
