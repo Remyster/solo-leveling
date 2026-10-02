@@ -24,7 +24,7 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
-  body{padding-bottom:calc(140px + env(safe-area-inset-bottom)); overflow-x:hidden;}
+  body{padding-bottom:calc(180px + env(safe-area-inset-bottom)); overflow-x:hidden;}
   h1,h2,h3{margin:0 0 8px;}
   button{font-family:inherit; cursor:pointer;}
   .hidden{display:none !important;}
@@ -35,6 +35,7 @@
   .gearbtn{margin-left:auto; background:none; border:none; color:var(--sub); font-size:19px; padding:4px;}
 
   main{padding:14px 14px 40px; max-width:640px; margin:0 auto;}
+  main > section:not(.hidden){padding-bottom:40px;}
 
   .widget{background:linear-gradient(155deg,var(--blue),var(--blue-dark)); border-radius:16px; padding:14px; margin-bottom:16px; box-shadow:var(--shadow);}
   .widget .row{display:flex; align-items:flex-start; gap:10px; padding:8px 2px; color:#fff;}
@@ -71,7 +72,7 @@
   .sheet h2{font-size:17px; color:var(--blue-dark);}
   .field{margin-bottom:12px;}
   .field label{display:block; font-size:12px; color:var(--sub); margin-bottom:5px; font-weight:600;}
-  .field input[type=text], .field input[type=date], .field textarea, .field select{
+  .field input[type=text], .field input[type=date], .field input[type=time], .field textarea, .field select{
     width:100%; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; color:var(--text); font-size:15px; font-family:inherit;
   }
   .field input:focus, .field textarea:focus{outline:none; border-color:var(--blue); background:#fff;}
@@ -401,7 +402,13 @@ async function sb(path, opts={}){
     }
   });
   if(res.status === 401){ authLogout(); throw new Error('Sessie verlopen, opnieuw inloggen'); }
-  if(!res.ok){ console.error('sb error', path, await res.text()); throw new Error('Supabase-fout'); }
+  if(!res.ok){
+    const bodyText = await res.text();
+    console.error('sb error', path, bodyText);
+    let msg = 'Supabase-fout';
+    try{ const j = JSON.parse(bodyText); if(j && j.message) msg = j.message; }catch(_){}
+    throw new Error(msg);
+  }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;
 }
@@ -954,11 +961,34 @@ async function dumpNaarProject(id){
 // ============ PROJECTEN TAB (alleen PWN) ============
 const statusLabels = {backlog:'Backlog', bezig:'Bezig', wacht_op:'Wacht op', klaar:'Klaar'};
 
+// Sorteert op deadline (datum) en daarbinnen op begintijd. Taken zonder deadline/tijd
+// komen achteraan — werkt ook als begin_tijd/eind_tijd nog niet in de database bestaan
+// (sb() geeft dan gewoon 'undefined' terug, die behandelen we als "geen tijd").
+function sortTakenOpDeadlineEnTijd(taken){
+  return [...taken].sort((a,b)=>{
+    const ad = a.deadline || '9999-99-99', bd = b.deadline || '9999-99-99';
+    if(ad !== bd) return ad < bd ? -1 : 1;
+    const at = a.begin_tijd || '99:99', bt = b.begin_tijd || '99:99';
+    if(at !== bt) return at < bt ? -1 : 1;
+    return 0;
+  });
+}
+
 async function loadProjecten(){
   const host = document.getElementById('projLists');
   host.innerHTML = '<div class="empty-state">Laden…</div>';
-  const tasks = await sb(`work_tasks?project=eq.pwn&order=deadline.asc.nullslast`);
+  const tasksRaw = await sb(`work_tasks?project=eq.pwn&order=deadline.asc.nullslast`);
+  const day = new URL(location.href).searchParams.get('datum');
+  const filteredDay = /^\d{4}-\d{2}-\d{2}$/.test(day || '') ? day : null;
+  const tasks = sortTakenOpDeadlineEnTijd(filteredDay ? tasksRaw.filter(t=>t.deadline===filteredDay) : tasksRaw);
   host.innerHTML = `<button class="btn primary" style="width:100%;margin-bottom:14px" onclick="openTaskSheet(null,'pwn')">+ Nieuwe taak</button>`;
+  if(filteredDay){
+    host.innerHTML += `<div class="card">Taken op ${escapeHtml(filteredDay)} <button class="btn ghost" id="clearTaskDay">Alle taken tonen</button></div>`;
+    document.getElementById('clearTaskDay').addEventListener('click', ()=>{
+      const url = new URL(location.href); url.searchParams.delete('datum');
+      history.replaceState(null,'',url); loadProjecten();
+    });
+  }
   if(!tasks.length){ host.innerHTML += '<div class="empty-state">Nog geen taken hier.</div>'; return; }
   ['bezig','wacht_op','backlog','klaar'].forEach(status=>{
     const inStatus = tasks.filter(t=>t.status===status);
@@ -967,13 +997,21 @@ async function loadProjecten(){
   });
 }
 
+function fmtTaakDatumTijd(t){
+  if(!t.deadline) return '';
+  const datum = new Date(`${t.deadline}T12:00:00`).toLocaleDateString('nl-NL',{day:'numeric',month:'short'});
+  if(t.begin_tijd && t.eind_tijd) return `${datum} ${t.begin_tijd.slice(0,5)}–${t.eind_tijd.slice(0,5)}`;
+  if(t.begin_tijd) return `${datum} ${t.begin_tijd.slice(0,5)}`;
+  return datum;
+}
+
 function taskCard(t){
   return `
     <div class="card" onclick="openTaskSheet('${t.id}','${t.project}')">
       <div class="titel">${escapeHtml(t.titel)}</div>
       <div class="meta">
         <span class="badge ${t.status}">${statusLabels[t.status]}</span>
-        ${t.deadline ? `<span>📅 ${new Date(t.deadline).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</span>` : ''}
+        ${t.deadline ? `<span>📅 ${fmtTaakDatumTijd(t)}</span>` : ''}
         ${t.wie ? `<span>👤 ${escapeHtml(t.wie)}</span>` : ''}
         ${t.waar ? `<span>📍 ${escapeHtml(t.waar)}</span>` : ''}
       </div>
@@ -997,6 +1035,9 @@ async function openTaskSheet(id, project, prefillTekst, dumpId){
     <div class="field"><label>📍 Waar (locatie/URL)</label><input type="text" id="fWaar" value="${escapeHtml(t.waar||'')}"></div>
     <div class="field"><label>👤 Wie (contactpersoon)</label><input type="text" id="fWie" value="${escapeHtml(t.wie||'')}"></div>
     <div class="field"><label>📅 Deadline</label><input type="date" id="fDeadline" value="${t.deadline||''}"></div>
+    <div class="field"><label>⏰ Begintijd</label><input type="time" id="fBeginTijd" value="${(t.begin_tijd||'').slice(0,5)}"></div>
+    <div class="field"><label>⏰ Eindtijd (optioneel)</label><input type="time" id="fEindTijd" value="${(t.eind_tijd||'').slice(0,5)}"></div>
+    <div id="calLinkWrap"></div>
     <div class="field"><label>Status</label>
       <div class="segrow" id="statusRow">
         ${Object.keys(statusLabels).map(s=>`<button data-s="${s}" class="${t.status===s?'sel':''}" onclick="pickStatus('${s}')">${statusLabels[s]}</button>`).join('')}
@@ -1019,13 +1060,40 @@ async function openTaskSheet(id, project, prefillTekst, dumpId){
   const aiBtn = document.getElementById('btnAiHelp');
   if(aiBtn) aiBtn.addEventListener('click', ()=>aiVulTaakIn(prefillTekst));
 
-  document.getElementById('btnSaveTask').addEventListener('click', async ()=>{
-    const fileInput = document.getElementById('fBijlage');
-    let bijlage_url = window._taskBijlageUrl;
-    if(fileInput.files[0]){
-      toast('Bijlage uploaden…');
-      try{ bijlage_url = await uploadFoto(fileInput.files[0]); }catch(e){ toast('Upload mislukt'); }
+  function renderCalLink(){
+    const wrap = document.getElementById('calLinkWrap');
+    const datum = document.getElementById('fDeadline').value;
+    const begin = document.getElementById('fBeginTijd').value;
+    const eind = document.getElementById('fEindTijd').value;
+    if(!datum || !begin || !eind || eind <= begin){
+      wrap.innerHTML = '<p style="font-size:12px; color:var(--sub)">Voor Google Calendar: vul datum, begintijd en een latere eindtijd in. Geen automatische synchronisatie; stel de herinnering in Google zelf in.</p>';
+      return;
     }
+    const titel = document.getElementById('fTitel').value.trim() || 'Taak';
+    const waar = document.getElementById('fWaar').value.trim();
+    const startStr = `${datum.replace(/-/g,'')}T${begin.replace(':','')}00`;
+    const eindDatumTijd = `${datum.replace(/-/g,'')}T${eind.replace(':','')}00`;
+    const url = new URL('https://calendar.google.com/calendar/render');
+    url.searchParams.set('action','TEMPLATE');
+    url.searchParams.set('text', titel);
+    url.searchParams.set('dates', `${startStr}/${eindDatumTijd}`);
+    if(waar) url.searchParams.set('location', waar);
+    url.searchParams.set('ctz','Europe/Amsterdam');
+    wrap.innerHTML = `<div class="field"><a class="btn ghost" style="display:block; text-align:center; text-decoration:none" href="${escapeHtml(url.toString())}" target="_blank" rel="noopener noreferrer">📅 Toevoegen aan Google Calendar</a><p style="font-size:12px; color:var(--sub)">Opent Google met titel, locatie en tijden. Controleer en sla daar op; geen automatische synchronisatie of ingestelde herinnering.</p></div>`;
+  }
+  ['fDeadline','fBeginTijd','fEindTijd','fTitel','fWaar'].forEach(elId=>{
+    document.getElementById(elId).addEventListener('input', renderCalLink);
+  });
+  renderCalLink();
+
+  document.getElementById('btnSaveTask').addEventListener('click', async ()=>{
+    const btn = document.getElementById('btnSaveTask');
+    if(btn.disabled) return;
+    const beginTijd = document.getElementById('fBeginTijd').value || '';
+    const eindTijd = document.getElementById('fEindTijd').value || '';
+    if(beginTijd && !document.getElementById('fDeadline').value){ toast('Vul een datum in bij de begintijd'); return; }
+    if(eindTijd && !beginTijd){ toast('Vul ook een begintijd in bij een eindtijd'); return; }
+    if(beginTijd && eindTijd && eindTijd <= beginTijd){ toast('Eindtijd moet na de begintijd liggen (zelfde dag)'); return; }
     const payload = {
       project, titel: document.getElementById('fTitel').value.trim(),
       waar: document.getElementById('fWaar').value.trim(),
@@ -1033,15 +1101,40 @@ async function openTaskSheet(id, project, prefillTekst, dumpId){
       deadline: document.getElementById('fDeadline').value || null,
       status: window._taskStatus,
       notitie: document.getElementById('fNotitie').value.trim(),
-      bijlage_url,
+      bijlage_url: window._taskBijlageUrl,
       updated_at: new Date().toISOString()
     };
     if(!payload.titel){ toast('Vul iets in bij "Wat"'); return; }
-    if(id){
-      await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(payload)});
-    }else{
-      await sb('work_tasks', {method:'POST', body: JSON.stringify(payload)});
-      if(dumpId) await sb(`work_items?id=eq.${dumpId}`, {method:'PATCH', body: JSON.stringify({gesorteerd:true})});
+    // Keep untimed tasks writable before the optional time-column migration.
+    const tijdenMeesturen = !!beginTijd || !!eindTijd || (id && (t.begin_tijd || t.eind_tijd));
+    if(tijdenMeesturen){
+      payload.begin_tijd = beginTijd || null;
+      payload.eind_tijd = eindTijd || null;
+    }
+    btn.disabled = true;
+    try{
+      const fileInput = document.getElementById('fBijlage');
+      if(fileInput.files[0]){
+        toast('Bijlage uploaden…');
+        payload.bijlage_url = await uploadFoto(fileInput.files[0]);
+        window._taskBijlageUrl = payload.bijlage_url;
+      }
+      if(id){
+        await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(payload)});
+      }else{
+        await sb('work_tasks', {method:'POST', body: JSON.stringify(payload)});
+        if(dumpId) await sb(`work_items?id=eq.${dumpId}`, {method:'PATCH', body: JSON.stringify({gesorteerd:true})});
+      }
+    }catch(err){
+      const msg = (err && err.message) || '';
+      if(tijdenMeesturen && /(?:begin_tijd|eind_tijd)/i.test(msg) && /(?:does not exist|could not find|schema cache)/i.test(msg)){
+        toast('Kan tijd niet opslaan: voer eerst TAAKTIJDEN-MIGRATIE.sql uit in Supabase.');
+      }else{
+        toast('Opslaan mislukt: ' + (msg || 'onbekende fout'));
+      }
+      return;
+    }finally{
+      btn.disabled = false;
     }
     closeSheet(); toast('Opgeslagen'); loadProjecten();
   });
@@ -1090,9 +1183,9 @@ async function loadVandaag(){
   document.getElementById('wUren').innerHTML = totaalUren
     ? `${fmtUren(totaalUren)} u${perCode ? ` <span style="color:#cfe3f5">— ${escapeHtml(perCode)}</span>` : ''}`
     : '<span class="empty">nog niks geboekt</span>';
-  const metDeadline = tasks.filter(t=>t.deadline);
+  const metDeadline = sortTakenOpDeadlineEnTijd(tasks.filter(t=>t.deadline));
   document.getElementById('wDeadline').innerHTML = metDeadline.length
-    ? `${escapeHtml(metDeadline[0].titel)} — ${new Date(metDeadline[0].deadline).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}`
+    ? `${escapeHtml(metDeadline[0].titel)} — ${fmtTaakDatumTijd(metDeadline[0])}`
     : '<span class="empty">geen deadlines</span>';
 
   const actief = tasks.find(t=>t.status==='bezig');
@@ -1362,10 +1455,120 @@ function isoWeek(d){
 }
 
 // ============ SETTINGS ============
+async function reminderApi(action, body){
+  if(!await requireAuth()) throw new Error('Log opnieuw in om herinneringen in te stellen');
+  const response = await fetch(`${SB_URL}/functions/v1/werkhub-reminders/${action}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${getAccessToken()}`,
+      'Content-Type':'application/json'
+    },
+    ...(body === undefined ? {} : {body:JSON.stringify(body)})
+  });
+  const data = await response.json();
+  if(!response.ok){
+    if(response.status === 404) throw new Error('Herinneringenserver is nog niet gepubliceerd');
+    throw new Error(`Herinneringenserver: ${data.error || response.status}`);
+  }
+  return data;
+}
+
+function vapidBytes(key){
+  const padded = (key + '='.repeat((4-key.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');
+  return Uint8Array.from(atob(padded), c=>c.charCodeAt(0));
+}
+
+async function openReminderSettings(){
+  openSheet(`
+    <button class="closex" onclick="closeSheet()">✕</button>
+    <h2>Herinneringen</h2>
+    <p style="font-size:13px">Nederlandse tijd. Mails en meldingen bevatten geen taaknamen of locaties, alleen een link naar WerkHub.</p>
+    <div class="field"><label><input type="checkbox" id="rDaily"> Overzichtsmail om 20:00 voor morgen</label></div>
+    <div class="field"><label><input type="checkbox" id="rEmail"> E-mail 45 minuten voor begintijd</label></div>
+    <div class="field"><label><input type="checkbox" id="rPush"> Push 45 minuten voor begintijd</label></div>
+    <p style="font-size:12px">Op iPhone: open WerkHub vanuit je beginscherm (iOS 16.4+). Zonder begintijd geen 45-minutenherinnering.</p>
+    <div id="rStatus" role="status" style="font-size:13px; margin-bottom:12px">Serverstatus laden...</div>
+    <div class="sheet-actions"><button class="btn ghost" id="rRegister" disabled>Meldingen op dit toestel toestaan</button></div>
+    <div class="sheet-actions"><button class="btn primary" id="rSave" disabled>Herinneringen opslaan</button></div>
+    <div class="sheet-actions"><button class="btn ghost" id="rTestEmail" disabled>Testmail</button><button class="btn ghost" id="rTestPush" disabled>Testmelding</button></div>
+    <p style="font-size:12px">Een test wordt direct verzonden. Controleer echte ontvangst; toestemming alleen garandeert geen bezorging.</p>
+  `);
+  const status = document.getElementById('rStatus');
+  const daily = document.getElementById('rDaily');
+  const email = document.getElementById('rEmail');
+  const push = document.getElementById('rPush');
+  const save = document.getElementById('rSave');
+  const register = document.getElementById('rRegister');
+  const testEmail = document.getElementById('rTestEmail');
+  const testPush = document.getElementById('rTestPush');
+  let publicKey;
+  try{
+    const data = await reminderApi('status');
+    if(!status.isConnected) return;
+    daily.checked = !!data.settings?.daily_email;
+    email.checked = !!data.settings?.task_email;
+    push.checked = !!data.settings?.task_push;
+    publicKey = data.vapidPublicKey;
+    const checked = data.settings?.last_checked_at;
+    const recent = checked && Date.now()-new Date(checked).getTime() < 5*60000;
+    status.textContent = recent
+      ? `Servercontrole: ${new Date(checked).toLocaleTimeString('nl-NL')}. ${data.subscriptions} toestel(len) geregistreerd.`
+      : 'Nog geen recente servercontrole. Herinneringen zijn niet bewezen actief; controleer de cron-instelling.';
+    if(data.failures.length) status.textContent += ` ${data.failures.length} verzending(en) mislukt; controleer de server.`;
+    if(!data.emailConfigured) status.textContent += ' Maildienst nog niet ingesteld.';
+    save.disabled = false;
+    register.disabled = !publicKey || !('PushManager' in window) || !('Notification' in window);
+    testEmail.disabled = !data.emailConfigured;
+    testPush.disabled = !publicKey || data.subscriptions === 0;
+    if(register.disabled) status.textContent += ' Push niet beschikbaar: controleer serverinstellingen en open op iPhone vanuit het beginscherm.';
+  }catch(error){
+    status.textContent = error.message;
+    return;
+  }
+  save.addEventListener('click', async ()=>{
+    save.disabled = true;
+    try{
+      await reminderApi('settings', {daily_email:daily.checked, task_email:email.checked, task_push:push.checked});
+      status.textContent = 'Instellingen opgeslagen. Gebruik de tests en controleer daarna of de servercontrole recent is.';
+    }catch(error){ status.textContent = error.message; }
+    finally{ save.disabled = false; }
+  });
+  register.addEventListener('click', async ()=>{
+    register.disabled = true;
+    try{
+      const permission = await Notification.requestPermission();
+      if(permission !== 'granted') throw new Error('Meldingen niet toegestaan. Controleer de iPhone-instellingen.');
+      const registration = await navigator.serviceWorker.getRegistration();
+      if(!registration?.active) throw new Error('Service worker nog niet actief. Heropen WerkHub vanaf het beginscherm.');
+      let subscription = await registration.pushManager.getSubscription();
+      if(!subscription) subscription = await registration.pushManager.subscribe({
+        userVisibleOnly:true, applicationServerKey:vapidBytes(publicKey)
+      });
+      await reminderApi('subscribe', subscription.toJSON());
+      push.checked = true;
+      testPush.disabled = false;
+      status.textContent = 'Dit toestel geregistreerd. Klik op Herinneringen opslaan en stuur een testmelding.';
+    }catch(error){ status.textContent = error.message; }
+    finally{ register.disabled = false; }
+  });
+  [[testEmail,'test-email'],[testPush,'test-push']].forEach(([button,action])=>{
+    button.addEventListener('click', async ()=>{
+      button.disabled = true;
+      try{
+        await reminderApi(action, {});
+        status.textContent = 'Test door verzenddienst geaccepteerd. Controleer daadwerkelijk je inbox of meldingen.';
+      }catch(error){ status.textContent = error.message; }
+      finally{ button.disabled = false; }
+    });
+  });
+}
+
 document.getElementById('btnSettings').addEventListener('click', ()=>{
   openSheet(`
     <button class="closex" onclick="closeSheet()">✕</button>
     <h2>⚙️ Instellingen</h2>
+    <div class="field"><button class="btn ghost" id="btnReminders" style="width:100%">E-mail en iPhone-meldingen instellen</button></div>
     <div class="field">
       <label>Anthropic API-key — reserve, meestal niet nodig</label>
       <input type="text" id="fAiKey" value="${escapeHtml(getAiKey())}" placeholder="sk-ant-...">
@@ -1388,6 +1591,7 @@ document.getElementById('btnSettings').addEventListener('click', ()=>{
       <button class="btn" id="btnLogout" style="width:100%; margin-top:8px;">Uitloggen</button>
     </div>
   `);
+  document.getElementById('btnReminders').addEventListener('click', openReminderSettings);
   document.getElementById('btnLogout').addEventListener('click', authLogout);
   const lnk = document.getElementById('lnkPinWeg');
   if(lnk) lnk.addEventListener('click', e=>{
@@ -1410,7 +1614,8 @@ async function boot(){
     document.getElementById('appHeader').classList.remove('hidden');
     document.getElementById('appMain').classList.remove('hidden');
     document.getElementById('appNav').classList.remove('hidden');
-    loadVandaag();
+    if(new URL(location.href).searchParams.get('tab') === 'projecten') switchTab('projecten');
+    else loadVandaag();
   }else{
     document.getElementById('loginGate').classList.remove('hidden');
     document.getElementById('appHeader').classList.add('hidden');
