@@ -1,5 +1,5 @@
 // WerkHub: offline-shell en pushmeldingen, geen API-caching.
-const CACHE = 'werkhub-v12';
+const CACHE = 'werkhub-v13';
 const ASSETS = [
   './',
   './index.html',
@@ -27,6 +27,28 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Nooit API-calls (Supabase/Anthropic) cachen, alleen de eigen shell
   if (url.origin !== self.location.origin) return;
+  if(e.request.mode === 'navigate'){
+    e.respondWith((async ()=>{
+      try{
+        const response = await fetch(e.request, {cache:'no-cache'});
+        if(response.ok){
+          try{
+            const cache = await caches.open(CACHE);
+            await cache.put('./index.html', response.clone());
+          }catch(error){
+            console.warn('WerkHub: offline-cache kon niet worden bijgewerkt', error);
+          }
+        }
+        return response;
+      }catch(error){
+        console.warn('WerkHub offline: gecachte pagina gebruiken');
+        const cached = await caches.match('./index.html');
+        if(cached) return cached;
+        throw error;
+      }
+    })());
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );

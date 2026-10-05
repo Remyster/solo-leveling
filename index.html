@@ -346,15 +346,27 @@ function getAccessToken(){
 }
 
 async function authLogin(email, password){
-  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
-    method:'POST',
-    headers:{ 'apikey': SB_KEY, 'Content-Type':'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-  const data = await res.json();
-  if(!res.ok) throw new Error(data.error_description || data.msg || 'Inloggen mislukt');
-  setAuthSession(data);
-  return data;
+  const controller = new AbortController();
+  const timeout = setTimeout(()=>controller.abort(), 15000);
+  try{
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method:'POST',
+      headers:{ 'apikey': SB_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, password }),
+      signal: controller.signal
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error_description || data.msg || 'Inloggen mislukt');
+    try{ setAuthSession(data); }
+    catch(error){ throw new Error('Deze browser kan de login niet bewaren. Controleer of websiteopslag is toegestaan.'); }
+    return data;
+  }catch(error){
+    if(controller.signal.aborted) throw new Error('Inloggen duurt te lang. Controleer je internetverbinding en probeer opnieuw.');
+    if(error instanceof TypeError) throw new Error('Geen verbinding met de loginserver. Controleer internet, VPN of een browserblokkering.');
+    throw error;
+  }finally{
+    clearTimeout(timeout);
+  }
 }
 
 async function authRefresh(){
@@ -1624,20 +1636,33 @@ async function boot(){
   }
 }
 document.getElementById('btnLogin').addEventListener('click', async ()=>{
+  const button = document.getElementById('btnLogin');
+  if(button.disabled) return;
   const email = document.getElementById('fLoginEmail').value.trim();
   const pass = document.getElementById('fLoginPass').value;
   const errBox = document.getElementById('loginError');
   errBox.classList.add('hidden');
   if(!email || !pass){ errBox.textContent = 'Vul e-mail en wachtwoord in'; errBox.classList.remove('hidden'); return; }
+  button.disabled = true;
+  button.textContent = 'Inloggen…';
+  errBox.setAttribute('role','alert');
   try{
     await authLogin(email, pass);
-    boot();
+    await boot();
   }catch(e){
     errBox.textContent = e.message || 'Inloggen mislukt';
     errBox.classList.remove('hidden');
+  }finally{
+    button.disabled = false;
+    button.textContent = 'Inloggen';
   }
 });
-boot();
+boot().catch(error=>{
+  const errBox = document.getElementById('loginError');
+  errBox.textContent = 'WerkHub starten mislukt: ' + (error.message || 'onbekende fout');
+  errBox.classList.remove('hidden');
+  errBox.setAttribute('role','alert');
+});
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
 </script>
 </body>
