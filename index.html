@@ -145,6 +145,10 @@
   .daghead span{font-size:12px; color:var(--sub); font-weight:700;}
 
   /* Rittenlogboek (lease-auto) — stops */
+  .ritregels h3{ font-size:15px; margin:18px 0 6px; color:#08447d; }
+  .ritregels p, .ritregels li{ font-size:14px; line-height:1.45; }
+  .ritregels ul, .ritregels ol{ padding-left:20px; margin:6px 0; }
+  .ritregels blockquote{ margin:8px 0; padding:10px 12px; border-left:3px solid #08447d; background:rgba(8,68,125,.06); border-radius:6px; font-size:14px; }
   .hintje{font-size:12px; color:var(--sub); line-height:1.45; margin:-2px 0 12px;}
   .badge.prive{background:var(--yellow-bg); color:var(--yellow);}
   .badge.zakelijk{background:var(--green-light); color:var(--green-dark);}
@@ -315,6 +319,7 @@
       Eén tik per stop. Waar je vandaan kwam en waar je heen ging leest de app af uit de volgorde.
       Blijft staan in de cloud, ook na een nieuwe telefoon.
     </div>
+    <button class="btn ghost" id="btnRitRegels" style="width:100%;margin:8px 0 12px">📖 Regels woon-werk, omrijden en privégebruik</button>
 
     <div class="filterrow" id="ritPeriodeRow">
       <button data-p="maand" class="sel">Deze maand</button>
@@ -1591,6 +1596,7 @@ function haalPositie(){
   });
 }
 
+document.getElementById('btnRitRegels').addEventListener('click', openRitRegels);
 document.getElementById('btnHier').addEventListener('click', async ()=>{
   const btn = document.getElementById('btnHier');
   const sub = document.getElementById('hierSub');
@@ -1833,6 +1839,29 @@ async function stopsVanPeriode(){
   return metAfstanden(await sb(`work_stops?order=tijd.asc${q}`));
 }
 
+async function openRitRegels(){
+  openSheet(`
+    <button class="closex" onclick="closeSheet()">✕</button>
+    <h2>📖 Regels lease-auto</h2>
+    <div class="ritregels" id="ritRegelsBody"><p class="hintje">Laden…</p></div>
+  `);
+  const body = document.getElementById('ritRegelsBody');
+  try{
+    const rows = await sb('work_teksten?select=inhoud&sleutel=eq.ritregels&limit=1');
+    if(!document.body.contains(body)) return;
+    if(!rows || !rows.length){ body.innerHTML = '<p class="hintje">Geen uitleg gevonden in Supabase.</p>'; return; }
+    // Trusted content: only the owner can write this row (RLS eigenaar_only).
+    body.innerHTML = rows[0].inhoud;
+  }catch(e){
+    if(!document.body.contains(body)) return;
+    body.innerHTML = '';
+    const p = document.createElement('p');
+    p.className = 'hintje';
+    p.textContent = 'Uitleg laden mislukt: ' + e.message;
+    body.appendChild(p);
+  }
+}
+
 // Compact blokje tekst om door te sturen als iemand ernaar vraagt.
 async function kopieerRitten(){
   const stops = await stopsVanPeriode();
@@ -1940,7 +1969,7 @@ async function openReminderSettings(){
     push.checked = !!data.settings?.task_push;
     publicKey = data.vapidPublicKey;
     const checked = data.settings?.last_checked_at;
-    const recent = checked && Date.now()-new Date(checked).getTime() < 5*60000;
+    const recent = checked && Date.now()-new Date(checked).getTime() < 10*60000;
     status.textContent = recent
       ? `Servercontrole: ${new Date(checked).toLocaleTimeString('nl-NL')}. ${data.subscriptions} toestel(len) geregistreerd.`
       : 'Nog geen recente servercontrole. Herinneringen zijn niet bewezen actief; controleer de cron-instelling.';
