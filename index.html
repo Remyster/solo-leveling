@@ -72,7 +72,7 @@
   .sheet h2{font-size:17px; color:var(--blue-dark);}
   .field{margin-bottom:12px;}
   .field label{display:block; font-size:12px; color:var(--sub); margin-bottom:5px; font-weight:600;}
-  .field input[type=text], .field input[type=date], .field input[type=time], .field textarea, .field select{
+  .field input[type=text], .field input[type=date], .field input[type=time], .field input[type=datetime-local], .field textarea, .field select{
     width:100%; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; color:var(--text); font-size:15px; font-family:inherit;
   }
   .field input:focus, .field textarea:focus{outline:none; border-color:var(--blue); background:#fff;}
@@ -214,21 +214,6 @@
     </div>
     <p style="color:var(--sub); font-size:12px; margin-top:-8px">Toont je agenda alleen goed als je in deze browser bent ingelogd op je Google-account.</p>
 
-    <h2>🌗 Dagafsluiting</h2>
-    <div class="card">
-      <div class="field">
-        <label>🟢 Wat ging goed vandaag?</label>
-        <textarea id="reflGoed" placeholder="1 zin is genoeg…"></textarea>
-      </div>
-      <div class="field">
-        <label>🔴 Wat was stressvol?</label>
-        <textarea id="reflStress" placeholder="1 zin is genoeg…"></textarea>
-      </div>
-      <button class="btn primary" id="btnSaveReflect" style="width:100%">Opslaan voor vandaag</button>
-    </div>
-
-    <h2 style="margin-top:20px">📓 Reflectielijst (stressvol)</h2>
-    <div id="reflectList"></div>
   </section>
 
   <!-- ===== TAB: DUMP ===== -->
@@ -240,7 +225,15 @@
       <button id="dumpFoto"><span class="emoji">📷</span>Foto</button>
     </div>
     <input type="file" id="fotoInput" accept="image/*" capture="environment" class="hidden">
-    <h2>📥 Inbox</h2>
+    <h2>📥 Onthoudlijstjes</h2>
+    <div class="filterrow" id="dumpCategorieRow">
+      <button data-c="inbox" class="sel">Inbox</button>
+      <button data-c="kopen">Kopen</button>
+      <button data-c="akf_dwat">AKF/DWAT</button>
+      <button data-c="uf_ro">UF-RO</button>
+      <button data-c="lab">LAB/Analyseruimte</button>
+    </div>
+    <p class="hintje">Bewaar hier dingen voor later. Kies bij het opslaan een lijstje en eventueel een herinnering.</p>
     <div id="dumpList"></div>
   </section>
 
@@ -272,6 +265,13 @@
 
   <!-- ===== TAB: PWN ===== -->
   <section id="tab-projecten" class="hidden">
+    <details class="card">
+      <summary>Wat betekenen de taakstatussen?</summary>
+      <p><b>Nog niet gestart:</b> nog te doen, nog niet gestart.<br>
+      <b>Ben ik mee bezig:</b> hier werk je nu aan.<br>
+      <b>Wacht op iemand of iets:</b> ligt stil tot iemand reageert of iets geleverd wordt.<br>
+      <b>Klaar:</b> afgerond.</p>
+    </details>
     <div id="projLists"></div>
   </section>
 
@@ -310,13 +310,16 @@
       <button data-s="prive" class="sel">🏠 Privé</button>
       <button data-s="zakelijk">🔧 Zakelijk</button>
     </div>
-    <button class="hierbtn" id="btnHier">
+    <div style="display:flex;gap:8px;align-items:stretch">
+    <button class="hierbtn" id="btnHier" style="flex:1;min-width:0">
       <span class="pin">📍</span>
       <span class="tekst">Ik sta hier</span>
       <span class="sub" id="hierSub">pakt je GPS-punt en de tijd</span>
     </button>
+    <button class="btn ghost" id="btnRitHandmatig" style="flex:1;min-width:0;margin-bottom:12px">Rit invoeren<br><small>Van → naar</small></button>
+    </div>
     <div class="hintje" style="text-align:center">
-      Eén tik per stop. Waar je vandaan kwam en waar je heen ging leest de app af uit de volgorde.
+      GPS-stop via ‘Ik sta hier’, of zelf vertrek en bestemming invoeren via ‘Rit invoeren’.
       Blijft staan in de cloud, ook na een nieuwe telefoon.
     </div>
     <button class="btn ghost" id="btnRitRegels" style="width:100%;margin:8px 0 12px">📖 Regels woon-werk, omrijden en privégebruik</button>
@@ -531,6 +534,16 @@ function closeSheet(){ document.getElementById('sheetHost').innerHTML=''; }
 
 // ============ DUMP TAB ============
 let huidigeDumpType = 'tekst';
+const DUMP_CATEGORIEEN = {inbox:'Inbox', kopen:'Kopen', akf_dwat:'AKF/DWAT', uf_ro:'UF-RO', lab:'LAB/Analyseruimte'};
+let dumpCategorie = 'inbox';
+let dumpItems = [];
+document.getElementById('dumpCategorieRow').addEventListener('click', e=>{
+  const button = e.target.closest('button[data-c]');
+  if(!button) return;
+  dumpCategorie = button.dataset.c;
+  document.querySelectorAll('#dumpCategorieRow button').forEach(b=>b.classList.toggle('sel', b===button));
+  loadDump();
+});
 document.getElementById('dumpTekst').addEventListener('click', ()=>openDumpSheet('tekst'));
 document.getElementById('dumpLink').addEventListener('click', ()=>openDumpSheet('link'));
 document.getElementById('fabDump').addEventListener('click', ()=>openDumpSheet('tekst'));
@@ -541,10 +554,8 @@ document.getElementById('fotoInput').addEventListener('change', async e=>{
   toast('Foto uploaden…');
   try{
     const url = await uploadFoto(file);
-    await sb('work_items', {method:'POST', body: JSON.stringify({type:'foto', foto_url:url, tekst:file.name})});
-    toast('📥 Foto in Dump gezet');
-    loadDump();
-  }catch(err){ toast('Upload mislukt'); }
+    openDumpSheet('foto', {tekst:file.name, foto_url:url});
+  }catch(err){ toast('Upload mislukt: ' + err.message); }
   e.target.value='';
 });
 
@@ -555,22 +566,32 @@ document.getElementById('dumpSpraak').addEventListener('click', ()=>{
   rec.lang = 'nl-NL';
   rec.onresult = async (ev)=>{
     const tekst = ev.results[0][0].transcript;
-    await sb('work_items', {method:'POST', body: JSON.stringify({type:'spraak', tekst})});
-    toast('🎙️ Spraaknotitie in Dump gezet');
-    loadDump();
+    openDumpSheet('spraak', {tekst});
   };
   rec.onerror = ()=>openDumpSheet('spraak');
   rec.start();
 });
 
-function openDumpSheet(type){
-  const labels = {tekst:'📝 Tekst', link:'🔗 Link', spraak:'🎙️ Spraaknotitie (typ over)'};
+function lokaalDatumTijd(value){
+  const d = new Date(value);
+  return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+
+function openDumpSheet(type, item = {}){
+  const labels = {tekst:'📝 Tekst', link:'🔗 Link', spraak:'🎙️ Spraaknotitie', foto:'📷 Foto'};
   openSheet(`
     <button class="closex" onclick="closeSheet()">✕</button>
     <h2>${labels[type]||type}</h2>
-    <div class="field"><textarea id="dumpTekstVal" placeholder="${type==='link' ? 'Plak de link…' : 'Typ het even neer…'}" autofocus></textarea></div>
+    <div class="field"><textarea id="dumpTekstVal" placeholder="${type==='link' ? 'Plak de link…' : 'Typ het even neer…'}" autofocus>${escapeHtml(item.tekst||'')}</textarea></div>
+    <div class="field"><label>Lijstje</label><select id="dumpCategorieVal">
+      ${Object.entries(DUMP_CATEGORIEEN).map(([key,label])=>`<option value="${key}" ${(item.categorie||dumpCategorie)===key?'selected':''}>${label}</option>`).join('')}
+    </select></div>
+    <div class="field"><label>Herinner me op (optioneel)</label>
+      <input type="datetime-local" id="dumpHerinnerVal" value="${item.herinner_at ? lokaalDatumTijd(item.herinner_at) : ''}">
+      <p class="hintje">Op dit tijdstip, niet 45 minuten vooraf. Verzending kan tot ongeveer 5 minuten later zijn. Gebruik je ingestelde e-mail- en/of pushkanaal.</p>
+    </div>
     <div class="field">
-      <label><input type="checkbox" id="dumpUrgent"> 🔥 Urgent — moet naar de Vandaag-widget</label>
+      <label><input type="checkbox" id="dumpUrgent" ${item.urgent?'checked':''}> 🔥 Urgent — moet naar de Vandaag-widget</label>
     </div>
     <div class="sheet-actions">
       <button class="btn ghost" onclick="closeSheet()">Annuleren</button>
@@ -580,16 +601,48 @@ function openDumpSheet(type){
   document.getElementById('dumpSaveBtn').addEventListener('click', async ()=>{
     const tekst = document.getElementById('dumpTekstVal').value.trim();
     const urgent = document.getElementById('dumpUrgent').checked;
-    if(!tekst) return;
-    await sb('work_items', {method:'POST', body: JSON.stringify({type, tekst, urgent})});
-    closeSheet(); toast('📥 In Dump gezet'); loadDump(); loadVandaag();
+    const categorie = document.getElementById('dumpCategorieVal').value;
+    const herinnerVeld = document.getElementById('dumpHerinnerVal').value;
+    if(!tekst){ toast('Vul iets in om te onthouden'); return; }
+    const herinner_at = herinnerVeld
+      ? (item.herinner_at && herinnerVeld === lokaalDatumTijd(item.herinner_at)
+        ? item.herinner_at : new Date(herinnerVeld).toISOString())
+      : null;
+    const herinneringGewijzigd = herinner_at !== (item.herinner_at || null);
+    if(herinneringGewijzigd && herinner_at && new Date(herinner_at).getTime() <= Date.now()){ toast('Kies een tijdstip in de toekomst'); return; }
+    const btn = document.getElementById('dumpSaveBtn');
+    btn.disabled = true;
+    try{
+      if(herinner_at && herinneringGewijzigd){
+        const status = await reminderApi('status');
+        if(!status.settings?.task_email && !status.settings?.task_push)
+          throw new Error('Zet eerst e-mail of push aan via Instellingen > Herinneringen');
+        if(status.settings?.task_push && !status.settings?.task_email && !status.subscriptions)
+          throw new Error('Registreer eerst je iPhone via Instellingen > Herinneringen');
+      }
+      const payload = {type, tekst, urgent, categorie, herinner_at,
+        herinner_user_id: herinner_at ? getAuthSession()?.user?.id : null};
+      if(herinner_at && !payload.herinner_user_id) throw new Error('Log opnieuw in voordat je een herinnering opslaat');
+      if(item.foto_url) payload.foto_url = item.foto_url;
+      await sb(item.id ? `work_items?id=eq.${item.id}` : 'work_items',
+        {method:item.id?'PATCH':'POST', body:JSON.stringify(payload)});
+      closeSheet(); toast('Opgeslagen in ' + DUMP_CATEGORIEEN[categorie]); loadDump(); loadVandaag();
+    }catch(error){ toast('Opslaan mislukt: ' + error.message); }
+    finally{ btn.disabled = false; }
   });
 }
 
 async function loadDump(){
   const list = document.getElementById('dumpList');
   list.innerHTML = '<div class="empty-state">Laden…</div>';
-  const items = await sb('work_items?gesorteerd=eq.false&order=created_at.desc');
+  let items;
+  try{
+    dumpItems = await sb('work_items?gesorteerd=eq.false&order=created_at.desc');
+    items = dumpItems.filter(it=>(it.categorie||'inbox')===dumpCategorie);
+  }catch(error){
+    list.textContent = 'Lijstje laden mislukt: ' + error.message;
+    return;
+  }
   if(!items.length){ list.innerHTML = '<div class="empty-state">Niks in de dump. Rustig hoor 🙂</div>'; return; }
   list.innerHTML = items.map(it=>`
     <div class="card">
@@ -597,9 +650,11 @@ async function loadDump(){
       ${it.foto_url ? `<div class="meta"><a href="${it.foto_url}" target="_blank" style="color:var(--teal)">bekijk foto</a></div>` : ''}
       <div class="meta">
         ${it.urgent ? '<span class="badge urgent">🔥 urgent</span>' : ''}
+        ${it.herinner_at ? `<span>⏰ ${escapeHtml(new Date(it.herinner_at).toLocaleString('nl-NL'))}</span>` : ''}
         <span>${new Date(it.created_at).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</span>
       </div>
       <div class="sheet-actions" style="margin-top:10px">
+        <button class="btn ghost" onclick="bewerkDump('${it.id}')">Lijst / herinnering</button>
         <button class="btn ghost" onclick="dumpNaarProject('${it.id}')">→ PWN-taak</button>
         <button class="btn danger" onclick="archiveerDump('${it.id}')">Archiveer</button>
       </div>
@@ -607,6 +662,10 @@ async function loadDump(){
   `).join('');
 }
 function iconVoorType(t){ return {tekst:'📝',link:'🔗',foto:'📷',spraak:'🎙️'}[t]||'📝'; }
+function bewerkDump(id){
+  const item = dumpItems.find(it=>it.id===id);
+  if(item) openDumpSheet(item.type, item);
+}
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function archiveerDump(id){
@@ -890,6 +949,7 @@ async function loadDocs(){
       <div class="titel">${escapeHtml(d.titel)}</div>
       <div class="meta">
         <span class="badge ${d.type}">${docTypeLabels[d.type]}</span>
+        <span class="badge">${d.ontvangen === true ? '✓ Binnen / ontvangen' : d.ontvangen === false ? 'Nog niet binnen' : 'Ontvangst niet ingevuld'}</span>
         ${d.leverancier ? `<span>🏷️ ${escapeHtml(d.leverancier)}</span>` : ''}
         ${d.bedrag != null ? `<span>€ ${Number(d.bedrag).toFixed(2)}</span>` : ''}
         ${d.bedrag_excl != null ? `<span style="color:var(--sub)">excl. € ${Number(d.bedrag_excl).toFixed(2)}</span>` : ''}
@@ -945,6 +1005,9 @@ async function openDocSheet(id){
     </div>
     <div class="field"><label>Titel / omschrijving</label><input type="text" id="fDocTitel" value="${escapeHtml(d.titel)}" placeholder="bijv. Offerte loodgieter pompstation"></div>
     <div class="field"><label>🏷️ Leverancier / winkel</label><input type="text" id="fDocLev" value="${escapeHtml(d.leverancier||'')}"></div>
+    <div class="field"><label><input type="checkbox" id="fDocOntvangen" ${d.ontvangen?'checked':''}> Binnen / ontvangen</label>
+      <p class="hintje">Aangevinkt: binnen. Niet aangevinkt: nog niet binnen. Een streepje betekent nog niet ingevuld. Bewaar je keuze met Opslaan.</p>
+    </div>
 
     <div class="bedragrij">
       <div class="field"><label>€ Incl. btw</label><input type="text" inputmode="decimal" id="fDocBedrag" value="${d.bedrag ?? ''}" placeholder="149.95"></div>
@@ -969,6 +1032,7 @@ async function openDocSheet(id){
     </div>
   `);
   tekenRegels();
+  document.getElementById('fDocOntvangen').indeterminate = !!id && d.ontvangen == null;
 
   document.getElementById('btnSaveDoc').addEventListener('click', async ()=>{
     const btn = document.getElementById('btnSaveDoc');
@@ -989,6 +1053,8 @@ async function openDocSheet(id){
         type: window._docStatusType,
         titel,
         leverancier: document.getElementById('fDocLev').value.trim(),
+        ontvangen: document.getElementById('fDocOntvangen').indeterminate
+          ? null : document.getElementById('fDocOntvangen').checked,
         bedrag: getal('fDocBedrag'),
         bedrag_excl: getal('fDocBedragExcl'),
         btw_bedrag: getal('fDocBtw'),
@@ -1032,7 +1098,7 @@ async function dumpNaarProject(id){
 }
 
 // ============ PROJECTEN TAB (alleen PWN) ============
-const statusLabels = {backlog:'Backlog', bezig:'Bezig', wacht_op:'Wacht op', klaar:'Klaar'};
+const statusLabels = {backlog:'Nog niet gestart', bezig:'Ben ik mee bezig', wacht_op:'Wacht op iemand of iets', klaar:'Klaar'};
 
 // Sorteert op deadline (datum) en daarbinnen op begintijd. Taken zonder deadline/tijd
 // komen achteraan — werkt ook als begin_tijd/eind_tijd nog niet in de database bestaan
@@ -1242,7 +1308,7 @@ async function aiVulTaakIn(tekst){
   }
 }
 
-// ============ VANDAAG TAB (widget + reflectie) ============
+// ============ VANDAAG TAB ============
 async function loadVandaag(){
   const [wkStart, wkEind] = weekBereik();
   const [tasks, dumps, uren] = await Promise.all([
@@ -1268,34 +1334,7 @@ async function loadVandaag(){
   document.getElementById('wUrgent').innerHTML = dumps.length
     ? escapeHtml(dumps[0].tekst||'(foto)') : '<span class="empty">geen urgente dumps</span>';
 
-  // reflectie van vandaag inladen
-  const vandaag = new Date().toISOString().slice(0,10);
-  const rows = await sb(`work_reflect?datum=eq.${vandaag}`);
-  if(rows.length){
-    document.getElementById('reflGoed').value = rows[0].goed || '';
-    document.getElementById('reflStress').value = rows[0].stressvol || '';
-  }
-
-  const historie = await sb('work_reflect?stressvol=not.is.null&order=datum.desc&limit=10');
-  const list = document.getElementById('reflectList');
-  const metTekst = historie.filter(h=>h.stressvol && h.stressvol.trim());
-  list.innerHTML = metTekst.length
-    ? metTekst.map(h=>`<div class="card"><div class="meta">${new Date(h.datum).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</div><div>${escapeHtml(h.stressvol)}</div></div>`).join('')
-    : '<div class="empty-state">Nog geen reflecties.</div>';
 }
-
-document.getElementById('btnSaveReflect').addEventListener('click', async ()=>{
-  const vandaag = new Date().toISOString().slice(0,10);
-  const goed = document.getElementById('reflGoed').value.trim();
-  const stressvol = document.getElementById('reflStress').value.trim();
-  await sb('work_reflect', {
-    method:'POST',
-    prefer:'resolution=merge-duplicates,return=representation',
-    body: JSON.stringify({datum:vandaag, goed, stressvol})
-  });
-  toast('🌗 Dag opgeslagen');
-  loadVandaag();
-});
 
 // ============ WORKLOAD (urenregistratie) ============
 let urenPeriode = 'week';
@@ -1597,6 +1636,61 @@ function haalPositie(){
 }
 
 document.getElementById('btnRitRegels').addEventListener('click', openRitRegels);
+document.getElementById('btnRitHandmatig').addEventListener('click', ()=>openRitHandmatig());
+const RIT_PLAATSEN = ['Heemskerk','Andijk','Hoorn','Blokker','Velserbroek','Overveen','Waag','Castricum'];
+
+function openRitHandmatig(stop = null){
+  openSheet(`
+    <button class="closex" onclick="closeSheet()">✕</button>
+    <h2>Rit ${stop?'bewerken':'invoeren'}</h2>
+    ${['Van','Naar'].map(label=>`<div class="field"><label>${label==='Van'?'Ik kwam van':'Ik ga naar'}</label>
+      <div class="chiprow" data-ritveld="rit${label}">${RIT_PLAATSEN.map(p=>`<button data-plaats="${p}">${p}</button>`).join('')}</div>
+      <input id="rit${label}" type="text" placeholder="Of typ zelf een plaats / bestemming" value="${escapeHtml(stop ? (label==='Van'?stop.vertrek:stop.plaats) : '')}">
+    </div>`).join('')}
+    <div class="field"><label>Wanneer</label><input id="ritWanneer" type="datetime-local" value="${lokaalDatumTijd(stop?.tijd||Date.now())}"></div>
+    <div class="field"><label>Soort</label><select id="ritHandSoort">
+      ${Object.entries(RIT_SOORTEN).map(([k,v])=>`<option value="${k}" ${k===(stop?.soort||ritSoort)?'selected':''}>${v.label}</option>`).join('')}
+    </select></div>
+    <p class="hintje">Je legt zelf een rit vast, zonder GPS-punten of berekende kilometers. De bestaande GPS-stops blijven ongewijzigd.</p>
+    <div class="sheet-actions">
+      ${stop?'<button class="btn danger" id="ritHandVerwijder">Verwijder</button>':''}
+      <button class="btn primary" id="ritHandSave">Opslaan</button>
+    </div>
+  `);
+  document.querySelectorAll('[data-ritveld]').forEach(row=>row.addEventListener('click', e=>{
+    const button = e.target.closest('button[data-plaats]');
+    if(button) document.getElementById(row.dataset.ritveld).value = button.dataset.plaats;
+  }));
+  document.getElementById('ritHandSave').addEventListener('click', async ()=>{
+    const vertrek = document.getElementById('ritVan').value.trim();
+    const plaats = document.getElementById('ritNaar').value.trim();
+    const wanneer = document.getElementById('ritWanneer').value;
+    if(!vertrek || !plaats || !wanneer){ toast('Vul vertrek, bestemming en tijd in'); return; }
+    const button = document.getElementById('ritHandSave');
+    button.disabled = true;
+    try{
+      await sb(stop ? `work_stops?id=eq.${stop.id}` : 'work_stops', {
+        method:stop?'PATCH':'POST', body:JSON.stringify({
+          vertrek, plaats, tijd:new Date(wanneer).toISOString(),
+          soort:document.getElementById('ritHandSoort').value
+        })
+      });
+      closeSheet(); toast('Rit opgeslagen'); loadRitten();
+    }catch(error){ toast('Opslaan mislukt: ' + error.message); }
+    finally{ button.disabled = false; }
+  });
+  if(stop){
+    const button = document.getElementById('ritHandVerwijder');
+    button.addEventListener('click', async ()=>{
+      if(button.dataset.zeker!=='1'){ button.dataset.zeker='1'; button.textContent='Zeker weten?'; return; }
+      button.disabled = true;
+      try{
+        await sb(`work_stops?id=eq.${stop.id}`, {method:'DELETE'});
+        closeSheet(); toast('Rit verwijderd'); loadRitten();
+      }catch(error){ toast('Verwijderen mislukt: ' + error.message); button.disabled = false; }
+    });
+  }
+}
 document.getElementById('btnHier').addEventListener('click', async ()=>{
   const btn = document.getElementById('btnHier');
   const sub = document.getElementById('hierSub');
@@ -1699,8 +1793,8 @@ function metAfstanden(stops){
   (stops||[]).forEach(s=>{
     const zelfdeDag = vorige && new Date(vorige.tijd).toDateString() === new Date(s.tijd).toDateString();
     uit.push(Object.assign({}, s, {
-      vanaf: zelfdeDag ? vorige.plaats : null,
-      km: zelfdeDag ? afstandKm(vorige, s) : null
+      vanaf: s.vertrek || (zelfdeDag ? vorige.plaats : null),
+      km: !s.vertrek && zelfdeDag ? afstandKm(vorige, s) : null
     }));
     vorige = s;
   });
@@ -1771,7 +1865,7 @@ function tekenStopLijst(stops){
           <div class="stoprow" onclick="openStopBewerk('${s.id}')">
             <span class="tijd">${fmtTijd(s.tijd)}</span>
             <span class="txt">
-              <div class="naam">${escapeHtml(s.plaats||'?')}</div>
+              <div class="naam">${s.vertrek ? escapeHtml(s.vertrek) + ' → ' : ''}${escapeHtml(s.plaats||'?')}</div>
               <div class="sub">
                 ${s.notitie ? escapeHtml(s.notitie) + ' · ' : ''}
                 ${s.lat != null
@@ -1789,6 +1883,7 @@ async function openStopBewerk(id){
   const rows = await sb(`work_stops?id=eq.${id}`);
   const s = rows[0];
   if(!s) return;
+  if(s.vertrek){ openRitHandmatig(s); return; }
   const lokaal = new Date(new Date(s.tijd).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
   openSheet(`
     <button class="closex" onclick="closeSheet()">✕</button>
@@ -1872,6 +1967,7 @@ async function kopieerRitten(){
     const d = new Date(s.tijd).toLocaleDateString('nl-NL',{weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'});
     if(d !== dag){ regels.push(d); dag = d; }
     regels.push(`  ${fmtTijd(s.tijd)}  ${s.plaats}  (${(RIT_SOORTEN[s.soort]||{}).label || s.soort})`
+      + (s.vertrek ? `  vanaf ${s.vertrek}` : '')
       + (s.km !== null ? `  ± ${fmtKm(s.km)} km vanaf ${s.vanaf}` : '')
       + (s.notitie ? `  — ${s.notitie}` : ''));
   });
@@ -1978,7 +2074,22 @@ async function openReminderSettings(){
     save.disabled = false;
     register.disabled = !publicKey || !('PushManager' in window) || !('Notification' in window);
     testEmail.disabled = !data.emailConfigured;
-    testPush.disabled = !publicKey || data.subscriptions === 0;
+    const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    const subscription = registration?.pushManager ? await registration.pushManager.getSubscription() : null;
+    const onIphone = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const beginscherm = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const toegestaan = 'Notification' in window && Notification.permission === 'granted';
+    const ditToestel = !!subscription && toegestaan;
+    testPush.disabled = !publicKey || data.subscriptions === 0 || !ditToestel;
+    if(onIphone && !beginscherm){
+      register.disabled = true;
+      status.textContent += ' Open WerkHub via het beginscherm, niet als Safari-tabblad. Safari > Deel > Zet op beginscherm.';
+    }else if(!ditToestel){
+      status.textContent += ' Dit toestel is nog niet aangemeld of meldingen zijn geblokkeerd. Gebruik de registratieknop.';
+    }else{
+      status.textContent += ' Dit toestel heeft meldingstoestemming. Registreer opnieuw als een test niet aankomt.';
+    }
+    if(data.failures.length) status.textContent += ' Foutcode: ' + data.failures.map(f=>f.last_error||'onbekend').join(', ');
     if(register.disabled) status.textContent += ' Push niet beschikbaar: controleer serverinstellingen en open op iPhone vanuit het beginscherm.';
   }catch(error){
     status.textContent = error.message;
@@ -1996,17 +2107,29 @@ async function openReminderSettings(){
     register.disabled = true;
     try{
       const permission = await Notification.requestPermission();
-      if(permission !== 'granted') throw new Error('Meldingen niet toegestaan. Controleer de iPhone-instellingen.');
+      if(permission !== 'granted') throw new Error('Meldingen niet toegestaan. Zet WerkHub aan bij iPhone > Instellingen > Meldingen en probeer opnieuw vanuit het beginscherm.');
       const registration = await navigator.serviceWorker.getRegistration();
       if(!registration?.active) throw new Error('Service worker nog niet actief. Heropen WerkHub vanaf het beginscherm.');
       let subscription = await registration.pushManager.getSubscription();
+      if(subscription){
+        const key = subscription.options.applicationServerKey;
+        const expected = vapidBytes(publicKey);
+        const actual = key ? new Uint8Array(key) : null;
+        if(!actual || actual.length!==expected.length || actual.some((value,i)=>value!==expected[i])){
+          const endpoint = subscription.endpoint;
+          if(!await subscription.unsubscribe()) throw new Error('Oude toestelregistratie kon niet worden verwijderd');
+          await reminderApi('unsubscribe', {endpoint});
+          subscription = null;
+        }
+      }
       if(!subscription) subscription = await registration.pushManager.subscribe({
         userVisibleOnly:true, applicationServerKey:vapidBytes(publicKey)
       });
       await reminderApi('subscribe', subscription.toJSON());
       push.checked = true;
       testPush.disabled = false;
-      status.textContent = 'Dit toestel geregistreerd. Klik op Herinneringen opslaan en stuur een testmelding.';
+      await reminderApi('settings', {daily_email:daily.checked, task_email:email.checked, task_push:true});
+      status.textContent = 'Dit toestel geregistreerd en push ingeschakeld. Stuur nu een testmelding en controleer ontvangst (ook Focus/Niet storen).';
     }catch(error){ status.textContent = error.message; }
     finally{ register.disabled = false; }
   });
@@ -2072,7 +2195,8 @@ async function boot(){
     document.getElementById('appHeader').classList.remove('hidden');
     document.getElementById('appMain').classList.remove('hidden');
     document.getElementById('appNav').classList.remove('hidden');
-    if(new URL(location.href).searchParams.get('tab') === 'projecten') switchTab('projecten');
+    const requestedTab = new URL(location.href).searchParams.get('tab');
+    if(requestedTab && tabs.includes(requestedTab)) switchTab(requestedTab);
     else loadVandaag();
   }else{
     document.getElementById('loginGate').classList.remove('hidden');
@@ -2109,7 +2233,12 @@ boot().catch(error=>{
   errBox.classList.remove('hidden');
   errBox.setAttribute('role','alert');
 });
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
+if('serviceWorker' in navigator && location.protocol !== 'file:'){
+  navigator.serviceWorker.register('./sw.js').catch(error=>{
+    console.error('WerkHub service worker registreren mislukt', error);
+    toast('Meldingen niet beschikbaar: heropen WerkHub online');
+  });
+}
 </script>
 </body>
 </html>

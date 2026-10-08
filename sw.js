@@ -1,5 +1,5 @@
 // WerkHub: offline-shell en pushmeldingen, geen API-caching.
-const CACHE = 'werkhub-v16';
+const CACHE = 'werkhub-v17';
 const ASSETS = [
   './',
   './index.html',
@@ -63,12 +63,14 @@ self.addEventListener('push', e => {
       console.error('WerkHub push: ongeldig bericht');
       return;
     }
+    const target = new URL('./index.html', self.registration.scope);
+    target.searchParams.set('tab', payload.tab === 'dump' ? 'dump' : 'projecten');
     await self.registration.showNotification('WerkHub', {
       body: payload.body || 'Open WerkHub voor je planning.',
       icon: './icon-192.png',
       badge: './icon-192.png',
       tag: payload.tag || 'werkhub-reminder',
-      data: { url: new URL('./index.html?tab=projecten', self.registration.scope).href }
+      data: { url: target.href }
     });
   })());
 });
@@ -76,7 +78,10 @@ self.addEventListener('push', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil((async () => {
-    const url = new URL('./index.html?tab=projecten', self.registration.scope).href;
+    const fallback = new URL('./index.html?tab=projecten', self.registration.scope);
+    const requested = new URL(e.notification.data?.url || fallback.href, self.registration.scope);
+    const url = requested.origin === fallback.origin && requested.pathname === fallback.pathname
+      ? requested.href : fallback.href;
     const windows = await self.clients.matchAll({type:'window', includeUncontrolled:true});
     for(const client of windows){
       if(client.url.startsWith(self.registration.scope) && 'focus' in client){
