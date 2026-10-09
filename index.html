@@ -857,10 +857,18 @@ async function openDocBestand(path, oudeUrl){
 }
 async function verwijderDocBestand(path){
   if(!path) return;
-  await fetch(`${SB_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
-    method:'DELETE',
-    headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${getAccessToken() || SB_KEY}` }
-  }).catch(()=>{});
+  try{
+    const response = await fetch(`${SB_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
+      method:'DELETE',
+      headers:{ 'apikey': SB_KEY, 'Authorization': `Bearer ${getAccessToken() || SB_KEY}` }
+    });
+    if(!response.ok) throw new Error('Opslag verwijderen gaf HTTP ' + response.status);
+    return true;
+  }catch(error){
+    console.error('WerkHub: documentbestand opruimen mislukt', error);
+    toast('Bestand kon niet worden opgeruimd: ' + error.message);
+    return false;
+  }
 }
 
 // ---- AI: leest de scan uit en vult de velden ----
@@ -909,6 +917,10 @@ function zetVeld(id, waarde){
   if(el && waarde !== null && waarde !== undefined && waarde !== '') el.value = waarde;
 }
 function vulDocVelden(p){
+  if((window._docRegels||[]).some(r=>typeof r.ontvangen==='boolean') &&
+      !confirm('Een nieuwe scan vervangt de productregels en hun ontvangstvinkjes. Doorgaan?')){
+    throw new Error('Scan niet overgenomen; bestaande productregels behouden');
+  }
   if(p.type && docTypeLabels[p.type]) pickDocType(p.type);
   zetVeld('fDocTitel', p.titel);
   zetVeld('fDocLev', p.leverancier);
@@ -918,8 +930,24 @@ function vulDocVelden(p){
   zetVeld('fDocBtw', p.btw_bedrag);
   zetVeld('fDocBtwPct', p.btw_pct);
   if(/^\d{4}-\d{2}-\d{2}$/.test(p.datum||'')) zetVeld('fDocDatum', p.datum);
-  window._docRegels = Array.isArray(p.regels) ? p.regels.slice(0,25) : [];
+  window._docRegels = Array.isArray(p.regels)
+    ? p.regels.slice(0,25).map(r=>({...r, ontvangen:null})) : [];
+  const ontvangst = document.getElementById('fDocOntvangen');
+  if(ontvangst){ ontvangst.checked=false; ontvangst.indeterminate=true; }
   tekenRegels();
+}
+function productOntvangst(regels){
+  if(!regels.length) return null;
+  if(regels.every(r=>r.ontvangen===true)) return true;
+  if(regels.some(r=>r.ontvangen===false)) return false;
+  return null;
+}
+function syncProductOntvangst(){
+  const veld = document.getElementById('fDocOntvangen');
+  if(!veld || !(window._docRegels||[]).length) return;
+  const status = productOntvangst(window._docRegels);
+  veld.checked = status===true;
+  veld.indeterminate = status===null;
 }
 function tekenRegels(){
   const host = document.getElementById('docRegels');
@@ -928,13 +956,25 @@ function tekenRegels(){
   if(!r.length){ host.innerHTML = ''; return; }
   host.innerHTML = `
     <div class="field"><label>📦 Producten (${r.length})</label>
-      <div class="regels">${r.map(x=>`
+      <p class="hintje">Vink per product aan of het volledig binnen is. Een streepje betekent: ontvangst nog niet ingevuld. Bewaar met Opslaan.</p>
+      <div class="regels">${r.map((x,i)=>`
         <div class="r">
-          <span>${escapeHtml(String(x.omschrijving||'—'))}${x.aantal ? ` <em style="color:var(--sub)">×${escapeHtml(String(x.aantal))}</em>` : ''}</span>
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" data-product-ontvangst="${i}" aria-label="${escapeHtml(String(x.omschrijving||'Product'))} volledig binnen" ${x.ontvangen===true?'checked':''}>
+            <span>${escapeHtml(String(x.omschrijving||'—'))}${x.aantal ? ` <em style="color:var(--sub)">×${escapeHtml(String(x.aantal))}</em>` : ''}</span>
+          </label>
           <span>${x.bedrag != null && x.bedrag !== '' ? '€ ' + Number(x.bedrag).toFixed(2) : ''}</span>
         </div>`).join('')}
       </div>
     </div>`;
+  host.querySelectorAll('[data-product-ontvangst]').forEach(veld=>{
+    const regel = r[Number(veld.dataset.productOntvangst)];
+    veld.indeterminate = typeof regel.ontvangen !== 'boolean';
+    veld.addEventListener('change', ()=>{
+      regel.ontvangen = veld.checked;
+      syncProductOntvangst();
+    });
+  });
 }
 
 async function loadDocs(){
@@ -955,6 +995,7 @@ async function loadDocs(){
         ${d.bedrag_excl != null ? `<span style="color:var(--sub)">excl. € ${Number(d.bedrag_excl).toFixed(2)}</span>` : ''}
         ${d.datum ? `<span>📅 ${new Date(d.datum).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</span>` : ''}
         ${(d.regels||[]).length ? `<span style="color:var(--sub)">📦 ${d.regels.length}</span>` : ''}
+        ${(d.levering_fotos||[]).length ? `<span>📷 ${d.levering_fotos.length} leveringsfoto('s)</span>` : ''}
         ${(d.bestand_path || d.bestand_url) ? `<a href="#" class="doclink" data-path="${escapeHtml(d.bestand_path||'')}" data-url="${escapeHtml(d.bestand_url||'')}" style="color:var(--blue); font-weight:600">bestand ↗</a>` : ''}
       </div>
     </div>
@@ -978,7 +1019,9 @@ async function openDocSheet(id){
   window._docScanBron = null;
   window._docAiGescand = false;
   window._docStatusType = d.type;
-  window._docRegels = Array.isArray(d.regels) ? d.regels : [];
+  window._docRegels = Array.isArray(d.regels) ? d.regels.map(r=>({...r})) : [];
+  const leveringFotos = Array.isArray(d.levering_fotos) ? d.levering_fotos.map(f=>({...f})) : [];
+  const nieuweFotos = [];
 
   openSheet(`
     <button class="closex" onclick="closeSheet()">✕</button>
@@ -1005,8 +1048,8 @@ async function openDocSheet(id){
     </div>
     <div class="field"><label>Titel / omschrijving</label><input type="text" id="fDocTitel" value="${escapeHtml(d.titel)}" placeholder="bijv. Offerte loodgieter pompstation"></div>
     <div class="field"><label>🏷️ Leverancier / winkel</label><input type="text" id="fDocLev" value="${escapeHtml(d.leverancier||'')}"></div>
-    <div class="field"><label><input type="checkbox" id="fDocOntvangen" ${d.ontvangen?'checked':''}> Binnen / ontvangen</label>
-      <p class="hintje">Aangevinkt: binnen. Niet aangevinkt: nog niet binnen. Een streepje betekent nog niet ingevuld. Bewaar je keuze met Opslaan.</p>
+    <div class="field"><label><input type="checkbox" id="fDocOntvangen" ${d.ontvangen?'checked':''}> Alles binnen / ontvangen</label>
+      <p class="hintje">Met producten: dit vinkje zet alle productregels binnen of niet binnen. Een streepje betekent nog niet volledig ingevuld. Bewaar je keuze met Opslaan.</p>
     </div>
 
     <div class="bedragrij">
@@ -1024,6 +1067,14 @@ async function openDocSheet(id){
 
     <div id="docRegels"></div>
 
+    <div class="field">
+      <label>📷 Nieuwe levering / pakbon fotograferen</label>
+      <input type="file" id="fLeveringFoto" accept="image/*" capture="environment">
+      <p class="hintje">Foto blijft apart bij deze offerte bewaard, in de privé-opslag. Je offertebestand wordt niet vervangen. Geen automatische AI-verwerking: vergelijk de foto met de producten en vink zelf aan wat volledig binnen is.</p>
+      <div id="leveringFotoList"></div>
+      <div id="leveringFotoStatus" class="hintje" role="status"></div>
+    </div>
+
     <div class="field"><label>Notitie</label><textarea id="fDocNotitie">${escapeHtml(d.notitie||'')}</textarea></div>
 
     <div class="sheet-actions">
@@ -1033,12 +1084,48 @@ async function openDocSheet(id){
   `);
   tekenRegels();
   document.getElementById('fDocOntvangen').indeterminate = !!id && d.ontvangen == null;
+  syncProductOntvangst();
+  document.getElementById('fDocOntvangen').addEventListener('change', e=>{
+    if(!window._docRegels.length) return;
+    window._docRegels.forEach(r=>{ r.ontvangen=e.target.checked; });
+    tekenRegels();
+  });
+  const fotoStatus = document.getElementById('leveringFotoStatus');
+  const fotoInput = document.getElementById('fLeveringFoto');
+  function renderLeveringFotos(){
+    document.getElementById('leveringFotoList').innerHTML = leveringFotos.map(f=>`
+      <p><a href="#" class="doclink" data-path="${escapeHtml(f.path)}" style="color:var(--blue)">📷 ${escapeHtml(f.naam||'Leveringsfoto')} ↗</a>
+      ${f.created_at ? escapeHtml(new Date(f.created_at).toLocaleDateString('nl-NL')) : ''}</p>
+    `).join('') + nieuweFotos.map(f=>`<p>📷 ${escapeHtml(f.naam)} (opslaan met de offerte)</p>`).join('');
+  }
+  renderLeveringFotos();
+  fotoInput.addEventListener('change', async ()=>{
+    const file = fotoInput.files[0];
+    if(!file) return;
+    const save = document.getElementById('btnSaveDoc');
+    fotoInput.disabled = true; save.disabled = true;
+    fotoStatus.textContent = 'Foto voorbereiden…';
+    try{
+      const klein = await verkleinAfbeelding(file);
+      const blob = await (await fetch(klein.dataUrl)).blob();
+      nieuweFotos.push({blob, naam:file.name.replace(/\.[^.]+$/,'')+'.jpg',
+        created_at:new Date().toISOString(), path:null});
+      renderLeveringFotos();
+      fotoStatus.textContent = 'Foto klaar. Vergelijk de producten en klik op Opslaan. Sluiten zonder opslaan bewaart de foto niet.';
+    }catch(error){
+      fotoStatus.textContent = 'Foto verwerken mislukt: ' + error.message;
+    }finally{
+      fotoInput.value = ''; fotoInput.disabled = false; save.disabled = false;
+    }
+  });
 
   document.getElementById('btnSaveDoc').addEventListener('click', async ()=>{
     const btn = document.getElementById('btnSaveDoc');
+    if(btn.disabled) return;
     const titel = document.getElementById('fDocTitel').value.trim();
     if(!titel){ toast('Vul een titel/omschrijving in'); return; }
     btn.disabled = true;
+    fotoInput.disabled = true;
     try{
       let bestand_path = d.bestand_path || null;
       let bestand_url  = d.bestand_url || null;
@@ -1049,12 +1136,16 @@ async function openDocSheet(id){
         bestand_url = null;               // nieuw bestand staat in de prive bucket
         if(oud) verwijderDocBestand(oud);
       }
+      for(const foto of nieuweFotos){
+        if(!foto.path) foto.path = await uploadDocBestand(foto.blob, foto.naam);
+      }
       const payload = {
         type: window._docStatusType,
         titel,
         leverancier: document.getElementById('fDocLev').value.trim(),
-        ontvangen: document.getElementById('fDocOntvangen').indeterminate
-          ? null : document.getElementById('fDocOntvangen').checked,
+        ontvangen: window._docRegels.length ? productOntvangst(window._docRegels)
+          : document.getElementById('fDocOntvangen').indeterminate
+            ? null : document.getElementById('fDocOntvangen').checked,
         bedrag: getal('fDocBedrag'),
         bedrag_excl: getal('fDocBedragExcl'),
         btw_bedrag: getal('fDocBtw'),
@@ -1063,6 +1154,7 @@ async function openDocSheet(id){
         datum: document.getElementById('fDocDatum').value || null,
         notitie: document.getElementById('fDocNotitie').value.trim(),
         regels: window._docRegels || [],
+        levering_fotos: [...leveringFotos, ...nieuweFotos.map(({path,naam,created_at})=>({path,naam,created_at}))],
         bestand_path,
         bestand_url,
         ...(window._docAiGescand ? { ai_gescand_op: new Date().toISOString() } : {})
@@ -1075,6 +1167,7 @@ async function openDocSheet(id){
       closeSheet(); toast('Opgeslagen'); loadDocs();
     }catch(e){
       btn.disabled = false;
+      fotoInput.disabled = false;
       toast('Opslaan mislukt: ' + (e.message||e));
       console.error('opslaan doc mislukt', e);
     }
@@ -1085,9 +1178,11 @@ function pickDocType(t){
   document.querySelectorAll('#docTypeRow button').forEach(b=>b.classList.toggle('sel', b.dataset.t===t));
 }
 async function deleteDoc(id){
-  const rows = await sb(`work_docs?id=eq.${id}&select=bestand_path`);
+  if(!confirm('Deze offerte / bon / bestelling en bijbehorende leveringsfoto’s verwijderen?')) return;
+  const rows = await sb(`work_docs?id=eq.${id}&select=bestand_path,levering_fotos`);
   await sb(`work_docs?id=eq.${id}`, {method:'DELETE'});
   if(rows && rows[0] && rows[0].bestand_path) verwijderDocBestand(rows[0].bestand_path);
+  for(const foto of rows?.[0]?.levering_fotos||[]) await verwijderDocBestand(foto.path);
   closeSheet(); toast('Verwijderd'); loadDocs();
 }
 
