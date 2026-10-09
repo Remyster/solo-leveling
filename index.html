@@ -118,6 +118,16 @@
   .badge.bestelling{background:var(--yellow-bg); color:var(--yellow);}
 
   .statuscol h3{font-size:12px; color:var(--sub); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px; font-weight:700;}
+  details.statuscol{background:var(--panel); border:1px solid var(--border); border-radius:12px; margin-bottom:10px; box-shadow:var(--shadow);}
+  details.statuscol > summary{list-style:none; cursor:pointer; padding:13px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-weight:700; font-size:14px; min-height:44px;}
+  details.statuscol > summary::-webkit-details-marker{display:none;}
+  details.statuscol > summary::after{content:'▸'; color:var(--sub); transition:transform .15s;}
+  details.statuscol[open] > summary::after{transform:rotate(90deg);}
+  details.statuscol .uitleg{font-size:12px; color:var(--sub); font-weight:400; display:block;}
+  details.statuscol .telling{margin-left:auto; background:var(--panel2); border-radius:999px; padding:2px 9px; font-size:12px; color:var(--sub);}
+  details.statuscol .inhoud{padding:0 10px 4px;}
+  .statushelp{font-size:12px; color:var(--sub); margin-top:6px; line-height:1.4;}
+  .badge.herhaling{background:var(--blue-light); color:var(--blue-dark);}
 
   /* AI-scan van offertes/bonnen */
   .scanbox{background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px;}
@@ -211,7 +221,7 @@
   <section id="tab-vandaag">
     <div class="widget" id="widgetBox">
       <div class="row"><span class="ico">⏰</span><div><div class="lbl">Volgende deadline</div><div class="val" id="wDeadline">–</div></div></div>
-      <div class="row"><span class="ico">✅</span><div><div class="lbl">Actieve taak</div><div class="val" id="wActief">–</div></div></div>
+      <div class="row"><span class="ico">✅</span><div><div class="lbl">Mee bezig</div><div class="val" id="wActief">–</div></div></div>
       <div class="row"><span class="ico">🔥</span><div><div class="lbl">Urgente dump</div><div class="val" id="wUrgent">–</div></div></div>
       <div class="row"><span class="ico">⏱️</span><div><div class="lbl">Uren deze week</div><div class="val" id="wUren">–</div></div></div>
     </div>
@@ -277,10 +287,12 @@
   <section id="tab-projecten" class="hidden">
     <details class="card">
       <summary>Wat betekenen de taakstatussen?</summary>
-      <p><b>Nog niet gestart:</b> nog te doen, nog niet gestart.<br>
-      <b>Ben ik mee bezig:</b> hier werk je nu aan.<br>
-      <b>Wacht op iemand of iets:</b> ligt stil tot iemand reageert of iets geleverd wordt.<br>
-      <b>Klaar:</b> afgerond.</p>
+      <p><b>Nog beginnen:</b> nog niets aan gedaan.<br>
+      <b>Mee bezig:</b> je bent begonnen, ook voorbereiden of spullen bestellen telt. Bijvoorbeeld: labwerk waarvoor je al hebt besteld.<br>
+      <b>Wacht op iemand of iets:</b> je kunt niet verder tot iemand reageert of iets geleverd wordt.<br>
+      <b>Klaar:</b> afgerond.<br>
+      <b>🔁 Vaste operatortaak:</b> geen status maar een soort taak (elke dag/week/maand). Kies dit bij "Soort taak". Met "Deze keer gedaan" schuift de datum door.<br>
+      Tik op een kopje om de lijst open of dicht te klappen. WerkHub onthoudt dat.</p>
     </details>
     <div id="projLists"></div>
   </section>
@@ -1415,7 +1427,37 @@ async function dumpNaarProject(id){
 }
 
 // ============ PROJECTEN TAB (alleen PWN) ============
-const statusLabels = {backlog:'Nog niet gestart', bezig:'Ben ik mee bezig', wacht_op:'Wacht op iemand of iets', klaar:'Klaar'};
+const statusLabels = {backlog:'Nog beginnen', bezig:'Mee bezig', wacht_op:'Wacht op iemand of iets', klaar:'Klaar'};
+const statusUitleg = {
+  backlog:'Nog niets aan gedaan.',
+  bezig:'Je bent begonnen, ook voorbereiden of bestellen telt.',
+  wacht_op:'Je kunt niet verder: wacht op levering, reactie of iemand anders.',
+  klaar:'Afgerond.'
+};
+const herhalingLabels = {eenmalig:'Eenmalig', dagelijks:'Elke dag', wekelijks:'Elke week', maandelijks:'Elke maand'};
+
+function isVasteTaak(t){ return !!t.herhaling && t.herhaling !== 'eenmalig'; }
+
+function volgendeDeadline(deadline, herhaling){
+  if(!deadline) return null;
+  const d = new Date(`${deadline}T12:00:00`);
+  if(herhaling==='dagelijks') d.setDate(d.getDate()+1);
+  else if(herhaling==='wekelijks') d.setDate(d.getDate()+7);
+  else if(herhaling==='maandelijks') d.setMonth(d.getMonth()+1);
+  else return deadline;
+  return isoDatum(d);
+}
+
+function takenSectieOpen(key){
+  try{ return JSON.parse(localStorage.getItem('werkhubTaakSecties')||'{}')[key] === true; }catch(e){ return false; }
+}
+function onthoudTakenSectie(key, open){
+  try{
+    const state = JSON.parse(localStorage.getItem('werkhubTaakSecties')||'{}');
+    state[key] = open;
+    localStorage.setItem('werkhubTaakSecties', JSON.stringify(state));
+  }catch(e){}
+}
 
 // Sorteert op deadline (datum) en daarbinnen op begintijd. Taken zonder deadline/tijd
 // komen achteraan — werkt ook als begin_tijd/eind_tijd nog niet in de database bestaan
@@ -1446,10 +1488,21 @@ async function loadProjecten(){
     });
   }
   if(!tasks.length){ host.innerHTML += '<div class="empty-state">Nog geen taken hier.</div>'; return; }
-  ['bezig','wacht_op','backlog','klaar'].forEach(status=>{
-    const inStatus = tasks.filter(t=>t.status===status);
-    if(!inStatus.length) return;
-    host.innerHTML += `<div class="statuscol"><h3>${statusLabels[status]} (${inStatus.length})</h3>${inStatus.map(taskCard).join('')}</div>`;
+  const vast = tasks.filter(t=>isVasteTaak(t) && t.status!=='klaar');
+  const los = tasks.filter(t=>!(isVasteTaak(t) && t.status!=='klaar'));
+  const secties = [
+    {key:'vast', titel:'🔁 Vaste operatortaken', uitleg:'Terugkerend werk. Na "Deze keer gedaan" schuift de datum door.', items:vast},
+    ...['bezig','wacht_op','backlog','klaar'].map(status=>({
+      key:status, titel:statusLabels[status], uitleg:statusUitleg[status], items:los.filter(t=>t.status===status)
+    }))
+  ];
+  host.insertAdjacentHTML('beforeend', secties.map(s=>`
+    <details class="statuscol" data-sectie="${s.key}" ${takenSectieOpen(s.key) ? 'open' : ''}>
+      <summary><span>${escapeHtml(s.titel)}<span class="uitleg">${escapeHtml(s.uitleg)}</span></span><span class="telling">${s.items.length}</span></summary>
+      <div class="inhoud">${s.items.length ? s.items.map(taskCard).join('') : '<div class="empty-state">Niets hier.</div>'}</div>
+    </details>`).join(''));
+  host.querySelectorAll('details.statuscol').forEach(d=>{
+    d.addEventListener('toggle', ()=>onthoudTakenSectie(d.dataset.sectie, d.open));
   });
 }
 
@@ -1467,6 +1520,7 @@ function taskCard(t){
       <div class="titel">${escapeHtml(t.titel)}</div>
       <div class="meta">
         <span class="badge ${t.status}">${statusLabels[t.status]}</span>
+        ${isVasteTaak(t) ? `<span class="badge herhaling">🔁 ${herhalingLabels[t.herhaling]||escapeHtml(t.herhaling)}</span>` : ''}
         ${t.deadline ? `<span>📅 ${fmtTaakDatumTijd(t)}</span>` : ''}
         ${t.wie ? `<span>👤 ${escapeHtml(t.wie)}</span>` : ''}
         ${t.waar ? `<span>📍 ${escapeHtml(t.waar)}</span>` : ''}
@@ -1502,7 +1556,13 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId){
       <div class="segrow" id="statusRow">
         ${Object.keys(statusLabels).map(s=>`<button data-s="${s}" class="${t.status===s?'sel':''}" onclick="pickStatus('${s}')">${statusLabels[s]}</button>`).join('')}
       </div>
+      <div class="statushelp" id="statusHelp">${escapeHtml(statusUitleg[t.status]||'')}</div>
     </div>
+    ${!isTeam ? `<div class="field"><label>🔁 Soort taak</label>
+      <select id="fHerhaling">${Object.entries(herhalingLabels).map(([k,v])=>`<option value="${k}" ${(t.herhaling||'eenmalig')===k?'selected':''}>${k==='eenmalig'?'Eenmalige taak':'Vaste taak: '+v.toLowerCase()}</option>`).join('')}</select>
+      <div class="statushelp">Vaste operatortaken staan apart bovenaan. Status Klaar = de vaste taak stopt.</div>
+      ${id && isVasteTaak(t) && t.status!=='klaar' ? `<button class="btn ghost" id="btnDezeKeerGedaan" style="width:100%;margin-top:8px">✓ Deze keer gedaan${t.deadline ? ' (datum naar '+escapeHtml(volgendeDeadline(t.deadline,t.herhaling))+')' : ''}</button>` : ''}
+    </div>` : ''}
     ${!isTeam ? `<div class="field"><label>📎 Bijlage (foto/document)</label>
       <input type="file" id="fBijlage" accept="image/*,.pdf">
       ${t.bijlage_url ? `<div style="margin-top:6px"><a href="${t.bijlage_url}" target="_blank" style="color:var(--teal); font-size:13px">huidige bijlage bekijken</a></div>` : ''}
@@ -1557,6 +1617,14 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId){
   });
   renderCalLink();
 
+  const dezeKeerBtn = document.getElementById('btnDezeKeerGedaan');
+  if(dezeKeerBtn) dezeKeerBtn.addEventListener('click', ()=>{
+    const deadlineEl = document.getElementById('fDeadline');
+    if(deadlineEl.value) deadlineEl.value = volgendeDeadline(deadlineEl.value, document.getElementById('fHerhaling').value);
+    pickStatus('backlog');
+    document.getElementById('btnSaveTask').click();
+  });
+
   document.getElementById('btnSaveTask').addEventListener('click', async ()=>{
     const btn = document.getElementById('btnSaveTask');
     if(btn.disabled) return;
@@ -1576,6 +1644,11 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId){
       updated_at: new Date().toISOString()
     };
     if(!payload.titel){ toast('Vul iets in bij "Wat"'); return; }
+    const herhalingEl = document.getElementById('fHerhaling');
+    const herhaling = herhalingEl ? herhalingEl.value : 'eenmalig';
+    // Only send herhaling when used, so the app keeps working before TAKEN-HERHALING-MIGRATIE.sql.
+    const herhalingMeesturen = !isTeam && (herhaling !== 'eenmalig' || (id && t.herhaling !== undefined));
+    if(herhalingMeesturen) payload.herhaling = herhaling;
     if(isTeam){
       try{
         if(!document.getElementById('teamTaskPrivacy').checked) throw new Error('Bevestig eerst de privacycontrole van deze teamactie');
@@ -1612,6 +1685,8 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId){
       if(isTeam) teamTaskError.textContent='Opslaan mislukt: '+(msg || 'onbekende fout');
       if(tijdenMeesturen && /(?:begin_tijd|eind_tijd)/i.test(msg) && /(?:does not exist|could not find|schema cache)/i.test(msg)){
         toast('Kan tijd niet opslaan: voer eerst TAAKTIJDEN-MIGRATIE.sql uit in Supabase.');
+      }else if(herhalingMeesturen && /herhaling/i.test(msg) && /(?:does not exist|could not find|schema cache)/i.test(msg)){
+        toast('Kan vaste taak niet opslaan: voer eerst TAKEN-HERHALING-MIGRATIE.sql uit in Supabase.');
       }else{
         toast('Opslaan mislukt: ' + (msg || 'onbekende fout'));
       }
@@ -1628,6 +1703,8 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId){
 function pickStatus(s){
   window._taskStatus = s;
   document.querySelectorAll('#statusRow button').forEach(b=>b.classList.toggle('sel', b.dataset.s===s));
+  const help = document.getElementById('statusHelp');
+  if(help) help.textContent = statusUitleg[s] || '';
 }
 async function deleteTask(id, linked=false){
   if(linked && !confirm('Deze teamactie verwijderen?')) return;
@@ -1686,7 +1763,7 @@ async function loadVandaag(){
 
   const actief = tasks.find(t=>t.status==='bezig');
   document.getElementById('wActief').innerHTML = actief
-    ? escapeHtml(actief.titel) : '<span class="empty">niks actief gezet</span>';
+    ? escapeHtml(actief.titel) : '<span class="empty">niks op "Mee bezig"</span>';
 
   document.getElementById('wUrgent').innerHTML = dumps.length
     ? escapeHtml(dumps[0].tekst||'(foto)') : '<span class="empty">geen urgente dumps</span>';
