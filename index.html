@@ -725,43 +725,37 @@ document.getElementById('btnNieuwDoc').addEventListener('click', ()=>openDocShee
 document.getElementById('scanInput').addEventListener('change', async e=>{
   const file = e.target.files[0];
   e.target.value='';
-  if(!file) return;
-  setScanStatus('📷 Scan verwerken…');
-  try{
-    const klein = await verkleinAfbeelding(file);
-    window._docBestandBlob = await fotoNaarPdf(klein);
-    window._docBestandNaam = 'scan_' + Date.now() + '.pdf';
-    window._docScanBron = { soort:'image', media_type:'image/jpeg', base64: klein.base64 };
-    toonScanPreview(klein.dataUrl, `Scan klaar — ${kbLabel(window._docBestandBlob.size)}`);
-    aiScanDocument();
-  }catch(err){
-    setScanStatus('Scannen mislukt: ' + (err.message||err), 'err');
-  }
+  if(file) await verwerkDocumentFoto(file);
 });
 document.getElementById('fileInput').addEventListener('change', async e=>{
   const file = e.target.files[0];
   e.target.value='';
-  if(!file) return;
-  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if(file) await verwerkDocumentFoto(file);
+});
+
+async function verwerkDocumentFoto(file){
+  const save = document.getElementById('btnSaveDoc');
+  if(!save || save.disabled){toast('Wacht tot de huidige verwerking klaar is');return;}
+  save.disabled = true;
   setScanStatus('Bestand inlezen…');
   try{
-    if(isPdf){
-      window._docBestandBlob = file;
-      window._docBestandNaam = file.name;
-      window._docScanBron = { soort:'pdf', media_type:'application/pdf', base64: await leesBase64(file) };
-      toonScanPreview(null, `📎 ${file.name} — ${kbLabel(file.size)}`);
-    }else{
-      const klein = await verkleinAfbeelding(file);
-      window._docBestandBlob = await fotoNaarPdf(klein);
-      window._docBestandNaam = (file.name.replace(/\.[^.]+$/,'') || 'document') + '.pdf';
-      window._docScanBron = { soort:'image', media_type:'image/jpeg', base64: klein.base64 };
-      toonScanPreview(klein.dataUrl, `📎 ${file.name} → pdf — ${kbLabel(window._docBestandBlob.size)}`);
+    if(file.type === 'application/pdf' || /\.pdf$/i.test(file.name)){
+      throw new Error('Maak van de productpagina een foto of schermafbeelding en kies die om bij te snijden. Een volledige PDF wordt niet overgenomen of verstuurd.');
     }
-    aiScanDocument();
+    const klein = await snijDocumentFoto(file);
+    if(!save.isConnected) return;
+    if(!klein){setScanStatus('Bijsnijden geannuleerd; de bestaande bijlage blijft behouden');return;}
+    window._docBestandBlob = klein.blob;
+    window._docBestandNaam = 'productregels_' + Date.now() + '.jpg';
+    window._docScanBron = { soort:'image', media_type:'image/jpeg', base64: klein.base64 };
+    toonScanPreview(klein.dataUrl, `Uitsnede — ${kbLabel(klein.blob.size)}`);
+    toonAiScanKeuze();
   }catch(err){
-    setScanStatus('Inlezen mislukt: ' + (err.message||err), 'err');
+    if(save.isConnected) setScanStatus('Inlezen mislukt: ' + (err.message||err), 'err');
+  }finally{
+    save.disabled = false;
   }
-});
+}
 
 // bestandslinks: data uit data-attributen, nooit uit een inline onclick
 document.addEventListener('click', e=>{
@@ -791,6 +785,139 @@ function leesDataUrl(file){
   });
 }
 async function leesBase64(file){ return (await leesDataUrl(file)).split(',')[1]; }
+
+function maakDocumentUitsnede(img, rect){
+  const {x,y,w,h} = rect;
+  if(![x,y,w,h].every(Number.isFinite) || x<0 || y<0 || w<1 || h<1 ||
+      x+w>img.naturalWidth || y+h>img.naturalHeight){
+    throw new Error('Kies een geldig gebied binnen de foto');
+  }
+  const schaal = Math.min(1, 2000/Math.max(w,h));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1,Math.round(w*schaal));
+  canvas.height = Math.max(1,Math.round(h*schaal));
+  canvas.getContext('2d').drawImage(img,x,y,w,h,0,0,canvas.width,canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg',0.9);
+  return {dataUrl,base64:dataUrl.split(',')[1],w:canvas.width,h:canvas.height};
+}
+
+async function snijDocumentFoto(file){
+  if(!file.type.startsWith('image/')) throw new Error('Kies een foto of schermafbeelding');
+  const original = await leesDataUrl(file);
+  const img = await new Promise((resolve,reject)=>{
+    const image = new Image();
+    image.onload = ()=>resolve(image);
+    image.onerror = ()=>reject(new Error('Geen geldige afbeelding'));
+    image.src = original;
+  });
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'sheet-bg';
+    overlay.style.zIndex = '1000';
+    overlay.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Productregels bijsnijden">
+      <h2>Alleen productregels</h2>
+      <p class="hintje">Sleep een kader op de foto of stel de vier randen hieronder in. Laat namen, adressen, klant-/ordernummers en andere niet-benodigde gegevens buiten het kader. De oorspronkelijke foto blijft alleen tijdelijk op dit toestel.</p>
+      <canvas id="cropCanvas" style="width:100%;display:block;touch-action:none;border:1px solid var(--border)"></canvas>
+      ${[['left','Links',0],['top','Boven',25],['right','Rechts',100],['bottom','Onder',85]].map(([key,label,value])=>`
+        <div class="field"><label>${label} <output id="crop-${key}-value">${value}%</output>
+        <input type="range" id="crop-${key}" min="0" max="100" value="${value}" style="width:100%"></label></div>`).join('')}
+      <h3>Dit wordt bewaard</h3>
+      <img id="cropPreview" alt="Voorbeeld van uitsluitend de geselecteerde productregels" style="max-width:100%;max-height:220px">
+      <p id="cropError" class="hintje" role="status"></p>
+      <div class="field"><label><input id="cropConfirm" type="checkbox"> Ik heb gecontroleerd: alleen de benodigde productregels staan in deze uitsnede.</label></div>
+      <p class="hintje">Bijsnijden verstuurt niets naar AI. Met de aparte AI-knop verstuur je deze uitsnede naar Claude (Anthropic). Controleer zelf dat er geen persoonsgegevens of vertrouwelijke bedrijfsinformatie in staan.</p>
+      <div class="sheet-actions"><button class="btn ghost" id="cropCancel">Annuleren</button><button class="btn primary" id="cropUse" disabled>Alleen deze uitsnede gebruiken</button></div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const get = id=>overlay.querySelector('#'+id);
+    const canvas = get('cropCanvas');
+    const scale = Math.min(1,700/Math.max(img.naturalWidth,img.naturalHeight));
+    canvas.width = Math.max(1,Math.round(img.naturalWidth*scale));
+    canvas.height = Math.max(1,Math.round(img.naturalHeight*scale));
+    let cropped = null, dragStart = null, processing = false, finished = false;
+    function render(){
+      get('cropConfirm').checked = false;
+      get('cropUse').disabled = true;
+      const edges = Object.fromEntries(['left','top','right','bottom'].map(key=>{
+        const value = Number(get('crop-'+key).value);
+        get('crop-'+key+'-value').textContent = value+'%';
+        return [key,value];
+      }));
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      try{
+        const x = Math.floor(img.naturalWidth*edges.left/100);
+        const y = Math.floor(img.naturalHeight*edges.top/100);
+        const right = Math.floor(img.naturalWidth*edges.right/100);
+        const bottom = Math.floor(img.naturalHeight*edges.bottom/100);
+        cropped = maakDocumentUitsnede(img,{x,y,w:right-x,h:bottom-y});
+        get('cropPreview').src = cropped.dataUrl;
+        get('cropError').textContent = '';
+        ctx.strokeStyle = '#e53935'; ctx.lineWidth = 3;
+        ctx.strokeRect(canvas.width*edges.left/100,canvas.height*edges.top/100,
+          canvas.width*(edges.right-edges.left)/100,canvas.height*(edges.bottom-edges.top)/100);
+      }catch(error){
+        cropped = null; get('cropPreview').removeAttribute('src');
+        get('cropError').textContent = error.message;
+      }
+    }
+    function point(event){
+      const box = canvas.getBoundingClientRect();
+      return {x:Math.round(Math.min(100,Math.max(0,(event.clientX-box.left)/box.width*100))),
+        y:Math.round(Math.min(100,Math.max(0,(event.clientY-box.top)/box.height*100)))};
+    }
+    canvas.addEventListener('pointerdown',event=>{
+      if(processing) return;
+      dragStart = point(event); canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove',event=>{
+      if(processing || !dragStart) return;
+      const end = point(event);
+      get('crop-left').value = Math.min(dragStart.x,end.x);
+      get('crop-top').value = Math.min(dragStart.y,end.y);
+      get('crop-right').value = Math.max(dragStart.x,end.x);
+      get('crop-bottom').value = Math.max(dragStart.y,end.y);
+      render();
+    });
+    canvas.addEventListener('pointerup',()=>{dragStart=null;});
+    canvas.addEventListener('pointercancel',()=>{dragStart=null;});
+    overlay.querySelectorAll('input[type=range]').forEach(input=>input.addEventListener('input',render));
+    get('cropConfirm').addEventListener('change',()=>{get('cropUse').disabled = !cropped || !get('cropConfirm').checked;});
+    function finish(result){
+      if(finished) return;
+      finished = true; overlay.remove(); img.src=''; resolve(result);
+    }
+    get('cropCancel').addEventListener('click',()=>finish(null));
+    get('cropUse').addEventListener('click',async()=>{
+      if(processing || !cropped || !get('cropConfirm').checked) return;
+      const selection = cropped;
+      processing = true;
+      get('cropUse').disabled = true;
+      overlay.querySelectorAll('input').forEach(input=>{input.disabled=true;});
+      try{
+        const blob = await (await fetch(selection.dataUrl)).blob();
+        finish({...selection,blob});
+      }catch(error){
+        if(finished) return;
+        processing = false;
+        overlay.querySelectorAll('input').forEach(input=>{input.disabled=false;});
+        get('cropError').textContent='Uitsnede maken mislukt: '+error.message;
+        get('cropUse').disabled=!cropped || !get('cropConfirm').checked;
+      }
+    });
+    render();
+  });
+}
+
+function toonAiScanKeuze(){
+  const box = document.getElementById('docAiStatus');
+  if(box){
+    box.className='status';
+    box.innerHTML='<p>Uitsnede klaar. Vul leverancier en datum zelf in. AI ontvangt alleen deze uitsnede.</p><button type="button" class="btn ghost" id="btnAiUitsnede">Productregels uitlezen met Claude</button>';
+    document.getElementById('btnAiUitsnede').addEventListener('click',aiScanDocument);
+  }
+}
 
 // Camerafoto's zijn 10+ MB; die eerst terugbrengen naar iets dat uploadt en dat de AI aankan.
 async function verkleinAfbeelding(file, maxZijde = 2000, kwaliteit = 0.82){
@@ -887,29 +1014,47 @@ Regels:
 async function aiScanDocument(){
   const bron = window._docScanBron;
   const box = document.getElementById('docAiStatus');
-  if(!bron || !box) return;
-  box.className = 'status';
-  box.textContent = '✨ AI leest het document…';
+  const save = document.getElementById('btnSaveDoc');
+  if(!bron || !box || !save || save.disabled){toast('Kies eerst een uitsnede en wacht tot de verwerking klaar is');return;}
+  if(!confirm('Deze uitsnede wordt naar Claude (Anthropic) verstuurd. Bevestig dat er geen persoonsgegevens of vertrouwelijke bedrijfsinformatie in staan. Versturen?')) return;
+  save.disabled=true;
+  box.textContent='Claude leest de productregels…';
   try{
-    const blok = bron.soort === 'pdf'
-      ? { type:'document', source:{ type:'base64', media_type:'application/pdf', data: bron.base64 } }
-      : { type:'image',    source:{ type:'base64', media_type: bron.media_type, data: bron.base64 } };
-    const data = await aiMessages({
-      model: AI_SCAN_MODEL,
-      max_tokens: 1500,
-      system: AI_SCAN_SYSTEM,
-      messages:[{ role:'user', content:[ blok, { type:'text', text:'Haal de gegevens uit dit document.' } ] }]
-    });
-    const raw = (data.content || []).filter(c=>c.type==='text').map(c=>c.text).join('');
-    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
-    vulDocVelden(parsed);
-    window._docAiGescand = true;
-    box.className = 'status ok';
-    box.textContent = '✅ Ingevuld door AI — controleer de bedragen voordat je opslaat.';
-  }catch(e){
-    box.className = 'status err';
-    box.textContent = '⚠️ AI-scan lukte niet (' + (e.message||e) + '). Vul zelf in.';
+    const regels = await leesProductUitsnede(bron.base64);
+    if(!save.isConnected) return;
+    vulDocVelden({regels});
+    window._docAiGescand=true;
+    box.textContent='Productregels uitgelezen. Controleer omschrijvingen, aantallen en bedragen voordat je opslaat.';
+  }catch(error){
+    if(box.isConnected) box.textContent='AI-uitlezen mislukt: '+error.message;
+    console.error('WerkHub AI-uitlezen mislukt',error);
+  }finally{
+    save.disabled=false;
+    if(box.isConnected){
+      const retry=document.createElement('button');
+      retry.type='button';retry.className='btn ghost';
+      retry.textContent='Productregels opnieuw uitlezen met Claude';
+      retry.addEventListener('click',aiScanDocument);
+      box.appendChild(retry);
+    }
   }
+}
+
+async function leesProductUitsnede(base64){
+  const data=await aiMessages({
+    model:AI_SCAN_MODEL,max_tokens:2500,
+    system:'Lees uitsluitend productregels uit deze uitsnede. Geef alleen JSON: {"regels":[{"omschrijving":"", "aantal":null, "bedrag":null}]}. Maximaal 25 regels. Verzin niets; onleesbare aantallen of bedragen zijn null. Geen persoonsgegevens, leverancier of documentgegevens teruggeven.',
+    messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:'Lees de productregels uit.'}]}]
+  });
+  const raw=(data.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('').trim();
+  const parsed=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));
+  if(!Array.isArray(parsed.regels) || parsed.regels.length>25 ||
+    parsed.regels.some(r=>!r || typeof r.omschrijving!=='string' ||
+      (r.aantal!==null && (!Number.isFinite(r.aantal) || r.aantal<0)) ||
+      (r.bedrag!==null && !Number.isFinite(r.bedrag)))){
+    throw new Error('Ongeldig AI-resultaat; productregels niet overgenomen');
+  }
+  return parsed.regels.map(r=>({omschrijving:r.omschrijving,aantal:r.aantal,bedrag:r.bedrag}));
 }
 
 function zetVeld(id, waarde){
@@ -1036,7 +1181,7 @@ async function openDocSheet(id){
       <div class="status" id="docScanStatus">${
         (d.bestand_path || d.bestand_url)
           ? `Er hangt al een bestand aan. <a href="#" class="doclink" data-path="${escapeHtml(d.bestand_path||'')}" data-url="${escapeHtml(d.bestand_url||'')}" style="color:var(--blue); font-weight:600">bekijken ↗</a>`
-          : 'Scan of kies een bestand — de AI vult de velden hieronder dan zelf in.'
+          : 'Fotografeer de productregels en snijd bij. Daarna kun je de uitsnede met Claude uitlezen.'
       }</div>
       <div class="status" id="docAiStatus"></div>
     </div>
@@ -1069,8 +1214,10 @@ async function openDocSheet(id){
 
     <div class="field">
       <label>📷 Nieuwe levering / pakbon fotograferen</label>
+      <div class="field"><label>Leverancier bij deze levering</label><input id="fLeveringBedrijf" type="text" value="${escapeHtml(d.leverancier||'')}"></div>
+      <div class="field"><label>Leverdatum</label><input id="fLeveringDatum" type="date" value="${isoDatum(new Date())}"></div>
       <input type="file" id="fLeveringFoto" accept="image/*" capture="environment">
-      <p class="hintje">Foto blijft apart bij deze offerte bewaard, in de privé-opslag. Je offertebestand wordt niet vervangen. Geen automatische AI-verwerking: vergelijk de foto met de producten en vink zelf aan wat volledig binnen is.</p>
+      <p class="hintje">Snijd alleen de productregels uit. Alleen die uitsnede wordt bewaard. Met de aparte AI-knop kun je productregels uitlezen; ontvangst bevestig je zelf.</p>
       <div id="leveringFotoList"></div>
       <div id="leveringFotoStatus" class="hintje" role="status"></div>
     </div>
@@ -1096,20 +1243,47 @@ async function openDocSheet(id){
     document.getElementById('leveringFotoList').innerHTML = leveringFotos.map(f=>`
       <p><a href="#" class="doclink" data-path="${escapeHtml(f.path)}" style="color:var(--blue)">📷 ${escapeHtml(f.naam||'Leveringsfoto')} ↗</a>
       ${f.created_at ? escapeHtml(new Date(f.created_at).toLocaleDateString('nl-NL')) : ''}</p>
-    `).join('') + nieuweFotos.map(f=>`<p>📷 ${escapeHtml(f.naam)} (opslaan met de offerte)</p>`).join('');
+      ${f.leverdatum ? `<p>${escapeHtml(f.leverdatum)} · ${escapeHtml(f.leverancier||'')}</p>` : ''}
+      ${Array.isArray(f.ai_regels) ? `<p>${f.ai_regels.map(r=>escapeHtml(r.omschrijving)+' × '+escapeHtml(String(r.aantal??'[CONTROLEREN]'))).join('<br>')}</p>` : ''}
+    `).join('') + nieuweFotos.map((f,i)=>`<p>📷 ${escapeHtml(f.naam)} · ${escapeHtml(f.leverdatum)} · ${escapeHtml(f.leverancier)} (opslaan met de offerte)</p>
+      <button type="button" class="btn ghost" data-levering-ai="${i}">Pakbonregels uitlezen met Claude</button>
+      ${f.ai_regels ? `<p>${f.ai_regels.map(r=>escapeHtml(r.omschrijving)+' × '+escapeHtml(String(r.aantal??'[CONTROLEREN]'))).join('<br>')}</p>` : ''}`).join('');
+    document.querySelectorAll('[data-levering-ai]').forEach(button=>button.addEventListener('click',async()=>{
+      const save=document.getElementById('btnSaveDoc');
+      if(save.disabled) return;
+      if(!confirm('Alleen deze pakbonuitsnede wordt naar Claude (Anthropic) verstuurd. Bevestig dat er geen persoonsgegevens of vertrouwelijke bedrijfsinformatie in staan. Versturen?')) return;
+      const foto=nieuweFotos[Number(button.dataset.leveringAi)];
+      save.disabled=true;button.disabled=true;
+      fotoStatus.textContent='Claude leest de pakbonregels…';
+      try{
+        const regels=await leesProductUitsnede(await leesBase64(foto.blob));
+        if(!save.isConnected) return;
+        foto.ai_regels=regels;
+        renderLeveringFotos();
+        fotoStatus.textContent='Pakbonregels uitgelezen. Vergelijk met de offerte; ontvangstvinkjes zijn niet aangepast.';
+      }catch(error){
+        fotoStatus.textContent='AI-uitlezen mislukt: '+error.message;
+        console.error('WerkHub pakbon uitlezen mislukt',error);
+      }finally{save.disabled=false;button.disabled=false;}
+    }));
   }
   renderLeveringFotos();
   fotoInput.addEventListener('change', async ()=>{
     const file = fotoInput.files[0];
     if(!file) return;
+    const leverancier = document.getElementById('fLeveringBedrijf').value.trim();
+    const leverdatum = document.getElementById('fLeveringDatum').value;
+    if(!leverancier || !leverdatum){fotoStatus.textContent='Vul leverancier en leverdatum in voordat je een foto kiest';fotoInput.value='';return;}
     const save = document.getElementById('btnSaveDoc');
+    if(save.disabled){fotoStatus.textContent='Wacht tot de huidige verwerking klaar is';fotoInput.value='';return;}
     fotoInput.disabled = true; save.disabled = true;
     fotoStatus.textContent = 'Foto voorbereiden…';
     try{
-      const klein = await verkleinAfbeelding(file);
-      const blob = await (await fetch(klein.dataUrl)).blob();
-      nieuweFotos.push({blob, naam:file.name.replace(/\.[^.]+$/,'')+'.jpg',
-        created_at:new Date().toISOString(), path:null});
+      const klein = await snijDocumentFoto(file);
+      if(!save.isConnected) return;
+      if(!klein){fotoStatus.textContent='Bijsnijden geannuleerd; geen foto toegevoegd';return;}
+      nieuweFotos.push({blob:klein.blob, naam:'levering_productregels_'+Date.now()+'.jpg',
+        leverancier,leverdatum,created_at:new Date().toISOString(), path:null});
       renderLeveringFotos();
       fotoStatus.textContent = 'Foto klaar. Vergelijk de producten en klik op Opslaan. Sluiten zonder opslaan bewaart de foto niet.';
     }catch(error){
@@ -1124,6 +1298,9 @@ async function openDocSheet(id){
     if(btn.disabled) return;
     const titel = document.getElementById('fDocTitel').value.trim();
     if(!titel){ toast('Vul een titel/omschrijving in'); return; }
+    if(window._docBestandBlob && (!document.getElementById('fDocLev').value.trim() || !document.getElementById('fDocDatum').value)){
+      toast('Vul leverancier en documentdatum in voor deze uitsnede'); return;
+    }
     btn.disabled = true;
     fotoInput.disabled = true;
     try{
@@ -1131,10 +1308,8 @@ async function openDocSheet(id){
       let bestand_url  = d.bestand_url || null;
       if(window._docBestandBlob){
         toast('Bestand uploaden…');
-        const oud = bestand_path;
         bestand_path = await uploadDocBestand(window._docBestandBlob, window._docBestandNaam);
         bestand_url = null;               // nieuw bestand staat in de prive bucket
-        if(oud) verwijderDocBestand(oud);
       }
       for(const foto of nieuweFotos){
         if(!foto.path) foto.path = await uploadDocBestand(foto.blob, foto.naam);
@@ -1154,7 +1329,7 @@ async function openDocSheet(id){
         datum: document.getElementById('fDocDatum').value || null,
         notitie: document.getElementById('fDocNotitie').value.trim(),
         regels: window._docRegels || [],
-        levering_fotos: [...leveringFotos, ...nieuweFotos.map(({path,naam,created_at})=>({path,naam,created_at}))],
+        levering_fotos: [...leveringFotos, ...nieuweFotos.map(({path,naam,created_at,leverancier,leverdatum,ai_regels})=>({path,naam,created_at,leverancier,leverdatum,...(ai_regels?{ai_regels}:{})}))],
         bestand_path,
         bestand_url,
         ...(window._docAiGescand ? { ai_gescand_op: new Date().toISOString() } : {})
@@ -1164,6 +1339,7 @@ async function openDocSheet(id){
       }else{
         await sb('work_docs', {method:'POST', body: JSON.stringify(payload)});
       }
+      if(d.bestand_path && d.bestand_path!==bestand_path) await verwijderDocBestand(d.bestand_path);
       closeSheet(); toast('Opgeslagen'); loadDocs();
     }catch(e){
       btn.disabled = false;
