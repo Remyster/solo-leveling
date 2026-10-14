@@ -1,0 +1,50 @@
+PWN-TAKEN V22: TAKEN, SUBTAKEN EN VANDAAG
+=========================================
+
+PWN toont nog drie taakgroepen:
+- Taken: bestaande codes backlog en bezig samen.
+- Wacht op iemand of iets: code wacht_op.
+- Klaar: code klaar.
+
+Bij bewerken zijn alleen Taken, Wacht op iemand of iets en Klaar kiesbaar.
+Bestaande taken met status bezig blijven leesbaar en vallen onder Taken.
+
+Subtaken:
+- Kleine klussen zonder datum of tijd, voor momenten waarop tijd over is.
+- Eigen sectie "Subtaken voor tussendoor".
+- Vereist TAKEN-SUBTAKEN-MIGRATIE.sql.
+- Bestaande taken worden door de migratie niet gewijzigd.
+
+Vaste operatortaken:
+- Kolom work_tasks.herhaling: eenmalig (standaard), dagelijks, wekelijks, maandelijks.
+- Dit is een soort taak, geen status. Status blijft gewoon werken.
+- Knop "Deze keer gedaan": datum schuift 1 dag/week/maand door, status terug naar Nog beginnen.
+- Status Klaar bij een vaste taak = de vaste taak stopt en gaat naar Klaar.
+
+Weergave PWN-tab:
+- Secties: Taken, Wacht op iemand of iets, Subtaken voor tussendoor, Klaar.
+- Alles standaard dicht; open/dicht wordt per apparaat onthouden (localStorage).
+
+Vandaag:
+- Volgende deadline kiest eerst de eerstvolgende taak van vandaag op begintijd.
+- Ongedateerde subtaken worden niet tussen deadlines gezet.
+- Subtaken, urgente dump en uren deze week hebben een eigen rij.
+- Op werkdagen na 15:00 verschijnt lokaal een urenwaarschuwing als vandaag nog
+  geen uren zijn geboekt. De bestaande e-mail/pushinstellingen blijven apart.
+
+Installatie:
+1. Supabase SQL-editor: voer TAKEN-SUBTAKEN-MIGRATIE.sql uit.
+2. Controle: de laatste select toont taaktype taak en eventueel subtaak.
+3. Publiceer index.html en sw.js (cache werkhub-v22).
+
+Tests: tests/TEAM-REGRESSIE.html?auto=1 (lokaal, mocks): 51 controles geslaagd.
+
+Openbare UX-bronnen gebruikt:
+- Todoist Today: taken met datum/tijd en eerstvolgende taak centraal.
+- Things Anytime: ongeplande kleine taken apart van Vandaag.
+- Sunsama planned/actual time: een passieve urenwaarschuwing zonder invoer af te dwingen.
+
+Status:
+[x] 51 lokale mockcontroles geslaagd.
+[ ] TAKEN-SUBTAKEN-MIGRATIE.sql uitvoeren.
+[ ] V22 zelf publiceren en daarna op telefoon/iPad controleren.
