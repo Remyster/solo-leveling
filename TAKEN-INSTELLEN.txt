@@ -1,5 +1,5 @@
-PWN-TAKEN V22: TAKEN, SUBTAKEN EN VANDAAG
-=========================================
+PWN-TAKEN V23: TAKEN, SUBTAKEN, VANDAAG EN WHATSAPP
+===================================================
 
 PWN toont nog drie taakgroepen:
 - Taken: bestaande codes backlog en bezig samen.
@@ -35,9 +35,15 @@ Vandaag:
 Installatie:
 1. Supabase SQL-editor: voer TAKEN-SUBTAKEN-MIGRATIE.sql uit.
 2. Controle: de laatste select toont taaktype taak en eventueel subtaak.
-3. Publiceer index.html en sw.js (cache werkhub-v22).
+3. Publiceer index.html en sw.js (cache werkhub-v23).
 
-Tests: tests/TEAM-REGRESSIE.html?auto=1 (lokaal, mocks): 51 controles geslaagd.
+WhatsApp bij nieuwe persoonlijke taken is een aparte, optionele v23-uitbreiding.
+Voer daarvoor WHATSAPP-MIGRATIE.sql uit en volg uitsluitend
+WHATSAPP-INSTELLEN.txt. Begin in mockmodus; providerregistratie, secrets, deploy
+en een echte test blijven handmatige stappen.
+
+Tests: tests/TEAM-REGRESSIE.html?auto=1 (lokaal, mocks): 52 controles geslaagd.
+WhatsApp-mocks: tests/WHATSAPP-REGRESSIE.html, 8 controles geslaagd.
 
 Openbare UX-bronnen gebruikt:
 - Todoist Today: taken met datum/tijd en eerstvolgende taak centraal.
@@ -45,6 +51,7 @@ Openbare UX-bronnen gebruikt:
 - Sunsama planned/actual time: een passieve urenwaarschuwing zonder invoer af te dwingen.
 
 Status:
-[x] 51 lokale mockcontroles geslaagd.
-[ ] TAKEN-SUBTAKEN-MIGRATIE.sql uitvoeren.
-[ ] V22 zelf publiceren en daarna op telefoon/iPad controleren.
+[x] 52 WerkHub-mockcontroles en 8 WhatsApp-mockcontroles geslaagd.
+[ ] TAKEN-SUBTAKEN-MIGRATIE.sql en WHATSAPP-MIGRATIE.sql uitvoeren.
+[ ] Provider/opt-in/template/secrets volgens WHATSAPP-INSTELLEN.txt instellen.
+[ ] V23 zelf publiceren en daarna op telefoon/iPad controleren.

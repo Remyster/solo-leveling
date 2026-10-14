@@ -1,0 +1,162 @@
+WerkHub WhatsApp bij nieuwe taken
+=================================
+
+STATUS
+- Lokale implementatie gereed; niet gedeployed en geen echt bericht verstuurd.
+- Bestaande e-mail- en pushherinneringen zijn niet gewijzigd.
+- Taaktitels zijn mogelijk interne PWN-informatie. WhatsApp, Meta en Twilio
+  verwerken titel en deadline extern. Houd titels daarom kort en niet gevoelig.
+
+WAT WORDT WEL EN NIET VERSTUURD
+- Wel: titel en deadline, of "Niet ingesteld".
+- Niet: notitie, locatie, contactpersoon, bijlage, teaminformatie of andere velden.
+- Alleen een nieuwe gewone PWN-taak:
+  project = pwn, team_id is leeg, taaktype = taak en status is niet Klaar.
+- Een wijziging gebruikt UPDATE en triggert niet. Team/Pret gebruikt team_id en
+  triggert niet. Subtaken gebruiken taaktype=subtaak en triggeren niet.
+- De trigger maakt een queue-event in dezelfde opslagtransactie. Een fout in de
+  WhatsApp-queue wordt als work_whatsapp_enqueue_failed gelogd zonder taaktekst;
+  de taak zelf blijft opgeslagen.
+
+GEKOZEN PROVIDER EN ACTUELE EISEN (gecontroleerd 14 oktober 2026)
+Twilio WhatsApp Business Platform is gekozen omdat WerkHub al een server-side
+Supabase Edge Function heeft en het verwachte volume laag is.
+
+Officiele vereisten:
+1. Buiten het 24-uurs customer-service-window is een vooraf goedgekeurd
+   WhatsApp-template verplicht. De code gebruikt daarom ContentSid en
+   ContentVariables en nooit vrije Body-tekst.
+2. Expliciete opt-in is verplicht en opt-out moet worden gerespecteerd.
+3. Een geregistreerde WhatsApp-afzender via een Meta Business-account/WABA is
+   vereist. Zet WHATSAPP_LIVE_ENABLED pas op 1 nadat afzender, opt-in en
+   template goedgekeurd zijn.
+4. Twilio documenteert geen idempotency-key voor Messages.create. WerkHub
+   gebruikt daarom at-most-once verzending: een onduidelijke timeout wordt
+   unknown en nooit blind herhaald. Alleen een expliciete tijdelijke HTTP-fout
+   wordt met 5/15/60/180/720 minuten backoff herhaald, maximaal vijf pogingen.
+
+Officiele bronnen:
+- https://www.twilio.com/docs/whatsapp/api
+- https://www.twilio.com/docs/whatsapp/tutorial/send-whatsapp-notification-messages-templates
+- https://www.twilio.com/docs/whatsapp/sandbox
+- https://www.twilio.com/en-us/whatsapp/pricing
+- https://developers.facebook.com/docs/whatsapp/pricing
+- https://business.whatsapp.com/products/platform-pricing#rates
+
+Kosten:
+- De officiele Twilio-calculator toont op 14 oktober 2026 een Twilio-fee van
+  USD 0,005 per bericht, plus de toepasselijke Meta-fee. Voor berichten die in
+  Failed eindigen noemt Twilio daarnaast USD 0,001 processing fee.
+- Meta rekent sinds 1 juli 2025 per afgeleverd templatebericht; categorie,
+  land/regio en volumetier bepalen het tarief.
+- De actuele Meta-ratecards zijn per 1 juli 2026 gepubliceerd.
+- Tarieven zijn landafhankelijk en kunnen wijzigen. Controleer vlak voor
+  livegang de officiele calculator/ratecard; bedragen zijn bewust niet in code
+  vastgelegd. Bij ongeveer vier berichten per dag blijft het volume laag, maar
+  dit is geen prijsbelofte.
+
+1. TWILIO / META HANDMATIG VOORBEREIDEN
+1. Maak of gebruik een Twilio-account en verbind via Twilio Self Sign-up het
+   juiste Meta Business-account en WhatsApp Business Account.
+2. Registreer een geschikte WhatsApp-afzender. Gebruik niet de Sandbox voor
+   productie. De Sandbox ondersteunt alleen vooraf bepaalde testtemplates,
+   geen eigen WerkHub-template.
+3. Leg jouw expliciete opt-in vast volgens de Twilio/Meta-richtlijnen.
+4. Maak in Twilio Content Template Builder een Utility-template:
+
+   Nieuwe WerkHub-taak: {{1}}
+   Deadline: {{2}}
+
+5. Laat dit template door WhatsApp goedkeuren. Noteer daarna alleen lokaal de
+   Content SID die met HX begint.
+6. Zet nog niets live voordat afzender en template als goedgekeurd staan.
+
+2. DATABASEMIGRATIE
+In Supabase Dashboard:
+1. Open SQL Editor > New query.
+2. Plak de volledige inhoud van WHATSAPP-MIGRATIE.sql.
+3. Klik Run.
+4. Controleer dat de eindquery precies een AFTER INSERT-trigger toont.
+
+Deze migratie:
+- raakt work_reminder_jobs, e-mail, push en de bestaande cronjob niet aan;
+- maakt afgeschermde settings/queue-tabellen;
+- maakt task_id uniek voor deduplicatie;
+- claimt alleen queued en zet verlopen sending op unknown, niet opnieuw queued.
+
+3. EERST VEILIG IN MOCKMODUS
+Maak buiten de projectmap een tijdelijk secretsbestand, bijvoorbeeld:
+
+  C:\secure\werkhub-whatsapp.env
+
+Inhoud voor mockmodus:
+
+  WHATSAPP_TEST_MODE=1
+  WHATSAPP_LIVE_ENABLED=0
+
+Voer lokaal in een terminal uit. Plak geen waarden in chat en commit het
+secretsbestand nooit:
+
+  supabase login
+  supabase link --project-ref mdslvdrsggpksqrbtwci
+  supabase secrets set --project-ref mdslvdrsggpksqrbtwci --env-file "C:\secure\werkhub-whatsapp.env"
+  supabase functions deploy werkhub-reminders --project-ref mdslvdrsggpksqrbtwci
+
+Verwijder het tijdelijke secretsbestand daarna veilig.
+
+Mockcontrole:
+1. Open WerkHub > Instellingen > Herinneringen.
+2. Zet de expliciete WhatsApp-opt-in aan en sla op.
+3. Klik Test WhatsApp. De status moet mockmodus melden; er gaat niets extern.
+4. Maak een fictieve gewone persoonlijke PWN-taak.
+5. Controleer zonder taaktekst te tonen:
+
+   select status, attempts, provider_status, last_error, created_at
+   from public.work_whatsapp_events
+   order by created_at desc
+   limit 5;
+
+Verwacht: een event met status accepted en provider_status mock.
+Bewerk dezelfde taak: er mag geen tweede event ontstaan.
+
+4. LIVE SECRETS PAS NA GOEDKEURING
+Maak opnieuw buiten de projectmap een tijdelijk env-bestand met:
+
+  WHATSAPP_TEST_MODE=0
+  WHATSAPP_LIVE_ENABLED=1
+  TWILIO_ACCOUNT_SID=<lokaal invullen>
+  TWILIO_AUTH_TOKEN=<lokaal invullen>
+  TWILIO_WHATSAPP_FROM=<lokaal invullen als whatsapp:E164>
+  WHATSAPP_TO_NUMBER=<lokaal invullen als whatsapp:E164>
+  TWILIO_CONTENT_SID=<goedgekeurde HX Content SID>
+
+Voer opnieuw uit:
+
+  supabase secrets set --project-ref mdslvdrsggpksqrbtwci --env-file "C:\secure\werkhub-whatsapp.env"
+  supabase functions deploy werkhub-reminders --project-ref mdslvdrsggpksqrbtwci
+
+Verwijder daarna het tijdelijke bestand. Bestaande secrets voor e-mail, push,
+REMINDER_OWNER_ID en REMINDER_CRON_SECRET moeten behouden blijven.
+
+5. EEN BEWUSTE LIVE TEST
+1. Controleer nogmaals opt-in, goedgekeurde afzender, Utility-template en kosten.
+2. Open WerkHub > Instellingen > Herinneringen.
+3. Klik zelf eenmalig op Test WhatsApp.
+4. De test verstuurt alleen "WerkHub test" en "Niet ingesteld" via het template.
+5. Controleer echte ontvangst. API-status accepted betekent alleen dat Twilio
+   het verzoek heeft aangenomen; daadwerkelijke bezorging moet je zelf zien.
+
+6. RETRIES EN STORINGEN
+- De taakopslag wacht niet op WhatsApp.
+- Na een nieuwe persoonlijke taak wordt de Edge Function zonder taakdata wakker
+  gemaakt. De bestaande vijfminuten-cron is fallback.
+- Expliciete 408/425/429/5xx-responses worden veilig opnieuw geprobeerd.
+- 4xx-configuratiefouten worden failed.
+- Timeout/netwerkafbreking zonder betrouwbare provideruitkomst wordt unknown en
+  niet automatisch herhaald, om dubbele WhatsApp-berichten te voorkomen.
+- Instellingen toont failed/unknown aantallen. Logs bevatten alleen event-ID,
+  poging, resultaat en foutcode; nooit titel, deadline, nummer of credentials.
+
+GEEN LIVEGANG DOOR DEZE LOKALE WIJZIGING
+De migratie, secrets, deploy, providerregistratie, aankoop en echte test moeten
+door Remy zelf worden uitgevoerd of pas na aparte expliciete toestemming.

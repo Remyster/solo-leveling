@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WerkHub Team-regressie</title>
+<style>
+body{font:15px system-ui;margin:20px}iframe{width:375px;height:650px;border:1px solid #aaa}
+pre{white-space:pre-wrap}button,input{padding:10px}
+</style>
+</head>
+<body>
+<h1>Team-regressie, uitsluitend lokale mocks</h1>
+<p>Kies de lokale index.html van WerkHub. Deze test gebruikt fictieve gegevens,
+geen sessie, geen echte database en geen externe verzoeken. Het testframe
+blokkeert netwerkverkeer met CSP. Een fout maakt de run rood.</p>
+<input id="source" type="file" accept=".html">
+<pre id="result" role="status">Kies index.html om te starten.</pre>
+<div id="frameHost"></div>
+<script>
+const OWNER='11111111-1111-4111-8111-111111111111';
+let db={items:[],tasks:[]}, calls=[], failed=false, emptyWrites=false, seq=0;
+const clone=value=>JSON.parse(JSON.stringify(value));
+const uuid=()=>`00000000-0000-4000-8000-${String(++seq).padStart(12,'0')}`;
+const tick=async()=>{for(let i=0;i<30;i++) await Promise.resolve();};
+async function frameFor(source){
+  const parsed=new DOMParser().parseFromString(source,'text/html');
+  parsed.querySelectorAll('iframe,link,script[src]').forEach(el=>el.remove());
+  parsed.querySelectorAll('img').forEach(el=>el.removeAttribute('src'));
+  const scripts=[...parsed.querySelectorAll('script')];
+  if(scripts.length!==1 || !scripts[0].textContent.includes('boot().catch(error=>{')) throw Error('Onbekende appstructuur; test niet veilig gestart');
+  scripts[0].textContent=scripts[0].textContent
+    .replace('boot().catch(error=>{','Promise.resolve().catch(error=>{')
+    .replace("if('serviceWorker' in navigator && location.protocol !== 'file:'){",'if(false){');
+  const csp=parsed.createElement('meta');
+  csp.httpEquiv='Content-Security-Policy';
+  csp.content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none';";
+  parsed.head.prepend(csp);
+  const frame=document.createElement('iframe');
+  frame.setAttribute('sandbox','allow-scripts allow-same-origin');
+  const loaded=new Promise(resolve=>{frame.onload=resolve;});
+  frame.srcdoc='<!doctype html>'+parsed.documentElement.outerHTML;
+  document.getElementById('frameHost').replaceChildren(frame);
+  await loaded;
+  const w=frame.contentWindow;
+  w.getAuthSession=()=>({user:{id:OWNER}});
+  w.confirm=()=>true;
+  w.aiMessages=()=>{throw Error('Team mag geen AI aanroepen');};
+  w.uploadFoto=()=>{throw Error('Team mag geen fotos uploaden');};
+  w.sb=async(path,opts={})=>{
+    calls.push({path,opts});
+    if(failed) throw Error('Synthetische opslagfout');
+    if(emptyWrites && opts.method) return [];
+    const isTeam=path.startsWith('work_team');
+    const list=isTeam?db.items:db.tasks;
+    const id=path.match(/id=eq\.([^&]+)/)?.[1];
+    if(!opts.method) return clone(id?list.filter(row=>row.id===id):
+      (!isTeam && path.includes('team_id=not.is.null')?list.filter(row=>row.team_id):list));
+    if(opts.method==='DELETE'){
+      const index=list.findIndex(row=>row.id===id);
+      return clone(list.splice(index,1));
+    }
+    const body=JSON.parse(opts.body);
+    if(opts.method==='PATCH'){
+      const row=list.find(row=>row.id===id);
+      if(!row) return [];
+      Object.assign(row,body);
+      return clone([row]);
+    }
+    const added=[];
+    for(const value of Array.isArray(body)?body:[body]){
+      if(value.seed_key && list.some(row=>row.user_id===value.user_id && row.seed_key===value.seed_key)) continue;
+      const row={
+        id:uuid(),user_id:OWNER,created_at:'2026-10-01T12:00:00Z',
+        datum:null,herzieningsdatum:null,activiteitstype:null,verantwoordelijke:'',helpers:'',inhoud:'',
+        checklist:{voorkeur:false,vrijwillig:false,praktisch:false,akkoord:false,kosten:false},...value
+      };
+      list.push(row);added.push(row);
+    }
+    return clone(added);
+  };
+  w.document.getElementById('loginGate').remove();
+  ['appMain','appHeader','appNav'].forEach(id=>w.document.getElementById(id).classList.remove('hidden'));
+  w.switchTab('team');
+  await tick();
+  return w;
+}
+async function run(source){
+  const output=document.getElementById('result');
+  const results=[];
+  function check(label,condition){
+    if(!condition) throw Error(label);
+    results.push('OK: '+label);
+    output.textContent=results.join('\n');
+  }
+  db={items:[],tasks:[]};calls=[];seq=0;failed=false;emptyWrites=false;
+  let w=await frameFor(source);
+  let doc=w.document;
+  const click=id=>doc.getElementById(id).click();
+  const fill=(id,value)=>{doc.getElementById(id).value=value;};
+  const save=async()=>{click('teamPrivacy');click('teamSave');await tick();};
+  check('Team zichtbaar, lege toestand expliciet',!doc.getElementById('tab-team').classList.contains('hidden') && doc.getElementById('teamList').textContent.includes('Geen open teamacties'));
+  check('Zes basisvragen zichtbaar, niets automatisch opgeslagen',doc.querySelectorAll('#teamList .team-warning li').length===6 && db.items.length===0);
+  click('teamSetup');await tick();
+  check('Zes unieke vragen, uitsluitend Nog te bevestigen',db.items.length===6 && db.items.every(row=>row.status==='nog_te_bevestigen'));
+  await w.loadTeam();await w.loadTeam();
+  check('Herhaald laden dupliceert geen basisvragen',db.items.length===6);
+  w.openTeamSheet(null,'moment');
+  check('Moment vraagt geen medische velden of geboortegegevens',!doc.querySelector('input[type=file]')?.closest('#sheetHost') && doc.getElementById('sheetHost').textContent.includes('Geen medische details'));
+  fill('teamOnderwerp','Fictieve lunch');
+  click('teamSave');await tick();
+  check('Privacybevestiging verplicht, niets opgeslagen',db.items.length===6 && doc.getElementById('teamFormError').textContent.includes('privacy'));
+  fill('teamOnderwerp','');click('teamPrivacy');click('teamSave');await tick();
+  check('Leeg onderwerp geweigerd',db.items.length===6 && doc.getElementById('teamFormError').textContent.includes('Onderwerp'));
+  fill('teamOnderwerp','Fictieve lunch');fill('teamInhoud','Vrijblijvend samen lunchen');
+  fill('teamDatum','2099-12-01');fill('teamOwner','Organisator');fill('teamHelpers','Helper');
+  fill('teamStatus','gepland');doc.querySelector('[data-team-check="vrijwillig"]').checked=true;
+  click('teamSave');await tick();
+  const moment=db.items.find(row=>row.soort==='moment');
+  check('Moment met checklist en helpers opgeslagen',moment?.checklist.vrijwillig && moment.helpers==='Helper');
+  check('Aankomend moment in overzicht',doc.getElementById('teamList').textContent.includes('Fictieve lunch'));
+  w.openTeamSheet(moment.id);fill('teamInhoud','Neutrale evaluatie');fill('teamStatus','afgerond');
+  await save();
+  check('Bewerken en afronden bewaard',moment.inhoud==='Neutrale evaluatie' && moment.status==='afgerond');
+  w.openTeamSheet(db.items[0].id);
+  fill('teamInhoud','Bevestigde fictieve testafspraak');fill('teamStatus','bevestigd');fill('teamReview','2000-01-01');
+  w.confirm=()=>false;await save();
+  check('Afspraak niet bevestigd zonder expliciet akkoord',db.items[0].status==='nog_te_bevestigen');
+  w.confirm=()=>true;click('teamSave');await tick();
+  check('Bevestigde afspraak blijft herzienbaar',db.items[0].status==='bevestigd' && doc.getElementById('teamList').textContent.includes('Bevestigde fictieve testafspraak'));
+  w.openTeamSheet(null,'notitie');fill('teamOnderwerp','Fictief idee');fill('teamInhoud','Koffiemoment voorstellen');
+  await save();
+  check('Idee opgeslagen',db.items.some(row=>row.onderwerp==='Fictief idee' && row.status==='open'));
+  w.openTeamSheet(null,'notitie');fill('teamOnderwerp','<img src=x onerror=alert(1)>');
+  fill('teamInhoud','<script>Niet uitvoeren<\/script>');await save();
+  doc.querySelector('[data-team-filter="notitie"]').click();await tick();
+  check('Vrije tekst wordt als tekst weergegeven, geen HTML uitgevoerd',!doc.querySelector('#teamList img,#teamList script') && doc.getElementById('teamList').textContent.includes('<img src=x'));
+  w.openTeamSheet(null,'notitie');click('teamPrivacy');
+  fill('teamInhoud','Gewijzigd');doc.getElementById('teamInhoud').dispatchEvent(new w.Event('input'));
+  check('Wijziging wist privacybevestiging',!doc.getElementById('teamPrivacy').checked);
+  w.closeSheet();
+  failed=true;await w.loadTeam();
+  check('Laadfout zichtbaar, retry beschikbaar',doc.getElementById('teamList').textContent.includes('Synthetische opslagfout') && !!doc.getElementById('teamRetry'));
+  failed=false;click('teamRetry');await tick();
+  w.openTeamSheet(null,'notitie');fill('teamOnderwerp','Niet opgeslagen');failed=true;
+  await save();
+  check('Opslagfout houdt formulier open en doet niet alsof opgeslagen',!!doc.getElementById('teamSave') && !doc.getElementById('teamSave').disabled && !db.items.some(row=>row.onderwerp==='Niet opgeslagen'));
+  failed=false;emptyWrites=true;click('teamSave');await tick();
+  check('Lege opslagresponse is geen succes',doc.getElementById('teamFormError').textContent.includes('Geen wijziging opgeslagen'));
+  emptyWrites=false;w.closeSheet();
+  await w.openTaskSheet(null,'pwn','',null,moment.id);
+  check('Teamactie zonder AI, bijlage of Google-export',!doc.getElementById('btnAiHelp') && !doc.getElementById('fBijlage') && !doc.querySelector('#calLinkWrap a'));
+  fill('fTitel','Fictieve reservering');click('btnSaveTask');await tick();
+  check('Privacycontrole ook bij actie verplicht',db.tasks.length===0 && doc.getElementById('teamTaskError').textContent.includes('privacy'));
+  click('teamTaskPrivacy');fill('fWie','Helper');fill('fNotitie','Vrijblijvende opties uitzoeken');click('btnSaveTask');await tick();
+  const task=db.tasks[0];
+  check('Actie alleen in bestaande work_tasks gekoppeld',db.tasks.length===1 && task.team_id===moment.id && task.project==='pwn');
+  await w.openTaskSheet(task.id,'pwn');
+  emptyWrites=true;click('teamTaskPrivacy');click('btnSaveTask');await tick();
+  check('Lege taakresponse is geen succes',!!doc.getElementById('teamTaskError') && doc.getElementById('teamTaskError').textContent.includes('Geen teamactie gewijzigd'));
+  emptyWrites=false;
+  w.pickStatus('klaar');click('btnSaveTask');await tick();
+  check('Actie afgerond zonder tweede taakadministratie',db.tasks.length===1 && task.status==='klaar');
+  doc.querySelector('[data-team-filter="acties"]').click();await tick();
+  check('Afgeronde actie zichtbaar',doc.getElementById('teamList').textContent.includes('Afgeronde acties') && doc.getElementById('teamList').textContent.includes('Fictieve reservering'));
+  let invalid=0;
+  for(const patch of [
+    {onderwerp:'x'.repeat(121)},{datum:'2026-02-30'},{status:'bevestigd'},
+    {checklist:{medisch_detail:'niet toegestaan'}},{helpers:'x'.repeat(201)}
+  ]){
+    try{w.validateTeamItem({...moment,...patch});}catch(error){invalid++;}
+  }
+  check('Datums, lengtes, status en vaste checklist gevalideerd',invalid===5);
+  const transport=w.sb;
+  const releases=[];
+  w.sb=()=>new Promise(resolve=>{releases.push(()=>resolve([]));});
+  const loading=w.loadTeam();
+  check('Laadstatus zichtbaar tijdens wachten',doc.getElementById('teamList').textContent.includes('Team laden'));
+  w.sb=transport;await w.loadTeam();
+  releases.forEach(release=>release());await loading;
+  check('Oude laadresponse overschrijft nieuw overzicht niet',doc.getElementById('teamList').textContent.includes('Fictieve reservering'));
+  doc.querySelector('[data-team-filter="overzicht"]').click();await tick();
+  const before=db.items.length;
+  w=await frameFor(source);doc=w.document;
+  check('Nieuwe sessie laadt opgeslagen onderwerpen en acties uit transport',db.items.length===before && doc.getElementById('teamList').textContent.includes('Bevestigde fictieve testafspraak'));
+  await w.openTaskSheet(task.id,'pwn');
+  check('Ook openen via PWN behoudt privacybeperkte Team-editor',!doc.getElementById('fBijlage') && !doc.querySelector('#calLinkWrap a'));
+  w.closeSheet();await w.openTaskSheet(null,'pwn');
+  check('Gewone PWN-taak behoudt bestaande bijlagefunctie',!!doc.getElementById('fBijlage'));
+  doc.getElementById('fTitel').value='Fictieve gewone PWN-taak';
+  doc.getElementById('btnSaveTask').click();await tick();
+  check('Gewone PWN-taak opslaan zonder team_id of Team-privacycheck',db.tasks.some(row=>row.titel==='Fictieve gewone PWN-taak' && !Object.hasOwn(row,'team_id')));
+  check('Eenmalige taak stuurt geen herhaling mee (werkt ook voor migratie)',db.tasks.every(row=>!Object.hasOwn(row,'herhaling')));
+  w.closeSheet();
+  await w.openTaskSheet(null,'pwn');
+  check('PWN toont alleen Taken, Wachten en Klaar',!!doc.getElementById('fHerhaling') && [...doc.querySelectorAll('#statusRow button')].map(b=>b.textContent).join('|')==='Taken|Wacht op iemand of iets|Klaar');
+  fill('fTitel','Fictieve weekronde');fill('fDeadline','2099-01-05');fill('fHerhaling','wekelijks');
+  w.pickStatus('backlog');
+  click('btnSaveTask');await tick();
+  const vast=db.tasks.find(row=>row.titel==='Fictieve weekronde');
+  check('Vaste taak opgeslagen met herhaling',vast?.herhaling==='wekelijks' && vast.status==='backlog');
+  await w.openTaskSheet(null,'pwn','',null,null,'subtaak');
+  check('Subtaak heeft bewust geen datum- of tijdvelden',!doc.getElementById('fDeadline') && !doc.getElementById('fBeginTijd') && !doc.getElementById('fHerhaling'));
+  fill('fTitel','Kleine fictieve klus');click('btnSaveTask');await tick();
+  const subtaak=db.tasks.find(row=>row.titel==='Kleine fictieve klus');
+  check('Subtaak wordt zonder datum als apart taaktype opgeslagen',subtaak?.taaktype==='subtaak' && subtaak.deadline===null);
+  try{w.localStorage.removeItem('werkhubTaakSecties');}catch(error){}
+  await w.loadProjecten();
+  const sections=()=>[...doc.querySelectorAll('#projLists details.statuscol')];
+  const sec=key=>doc.querySelector(`#projLists details[data-sectie="${key}"]`);
+  check('Taken, Wachten, Subtaken en Klaar als uitklapbare secties',sections().map(d=>d.dataset.sectie).join()==='taken,wacht_op,subtaken,klaar');
+  check('Alles standaard ingeklapt, Klaar onderaan',sections().every(d=>!d.open) && sections().at(-1).dataset.sectie==='klaar');
+  check('Vaste taak staat onder Taken',sec('taken').textContent.includes('Fictieve weekronde'));
+  check('Subtaak staat alleen in subtakensectie',sec('subtaken').textContent.includes('Kleine fictieve klus') && !sec('taken').textContent.includes('Kleine fictieve klus'));
+  check('Afgeronde teamactie in Klaar',sec('klaar').textContent.includes('Fictieve reservering') && sec('klaar').querySelector('.telling').textContent==='1');
+  sec('taken').querySelector('summary').click();
+  await new Promise(resolve=>setTimeout(resolve,20));
+  check('Sectie openklikken werkt',sec('taken').open);
+  await w.loadProjecten();
+  check('Open/dicht wordt onthouden na herladen',sec('taken').open && !sec('klaar').open);
+  await w.openTaskSheet(vast.id,'pwn');
+  click('btnDezeKeerGedaan');await tick();
+  check('Deze keer gedaan schuift datum een week door, taak blijft bestaan',vast.deadline==='2099-01-12' && vast.status==='backlog' && db.tasks.filter(row=>row.titel==='Fictieve weekronde').length===1);
+  await w.openTaskSheet(vast.id,'pwn');w.pickStatus('klaar');click('btnSaveTask');await tick();
+  await w.loadProjecten();
+  check('Vaste taak op Klaar stopt en staat in Klaar',sec('klaar').textContent.includes('Fictieve weekronde') && !sec('taken').textContent.includes('Fictieve weekronde'));
+  w.closeSheet();w.switchTab('projecten');await tick();
+  check('Summary-knoppen minimaal 44px hoog',sections().every(d=>d.querySelector('summary').getBoundingClientRect().height>=44));
+  w.closeSheet();
+  const navButtons=[...doc.querySelectorAll('nav.tabs button')];
+  check('Mobiele tabknoppen minimaal 44px breed en hoog',navButtons.every(button=>{
+    const box=button.getBoundingClientRect();return box.width>=44 && box.height>=44;
+  }));
+  const testNow=new Date('2026-10-14T13:30:00');
+  const next=w.volgendeTaakVoorVandaag([
+    {titel:'Later vandaag',status:'backlog',deadline:'2026-10-14',begin_tijd:'15:00',taaktype:'taak'},
+    {titel:'Eerder vandaag',status:'backlog',deadline:'2026-10-14',begin_tijd:'12:00',taaktype:'taak'},
+    {titel:'Subtaak niet plannen',status:'backlog',deadline:null,taaktype:'subtaak'}
+  ],testNow);
+  check('Vandaag kiest de eerstvolgende taak op tijd en negeert ongedateerde subtaken',next?.titel==='Later vandaag');
+  check('Urenherinnering verschijnt op werkdag na 15:00 zonder uren',w.urenHerinneringNodig([],new Date('2026-10-14T16:00:00')));
+  check('Urenherinnering verdwijnt zodra vandaag uren zijn geboekt',!w.urenHerinneringNodig([{datum:'2026-10-14',uren:1}],new Date('2026-10-14T16:00:00')));
+  check('WhatsApp wake-up uitsluitend voor nieuwe persoonlijke gewone PWN-taak',
+    w.whatsappWakeVoorTaak({id:null,project:'pwn',teamId:null,taaktype:'taak'})
+    && !w.whatsappWakeVoorTaak({id:'bestaand',project:'pwn',teamId:null,taaktype:'taak'})
+    && !w.whatsappWakeVoorTaak({id:null,project:'pwn',teamId:'team',taaktype:'taak'})
+    && !w.whatsappWakeVoorTaak({id:null,project:'pwn',teamId:null,taaktype:'subtaak'}));
+  check('Geen dubbele taakopslag of AI-transport',calls.every(call=>/^(work_team|work_tasks)/.test(call.path)));
+  output.style.color='green';
+  output.textContent=results.join('\n')+`\n\n${results.length} controles geslaagd. Live SQL/RLS niet met deze mock bewezen.`;
+  document.body.dataset.testResult='passed';
+}
+document.getElementById('source').addEventListener('change',async event=>{
+  const output=document.getElementById('result');
+  try{
+    const file=event.target.files[0];
+    if(!file) return;
+    await run(await file.text());
+  }catch(error){
+    output.style.color='red';output.textContent+='\nMISLUKT: '+error.message;
+    document.body.dataset.testResult='failed';
+    console.error(error);
+  }
+});
+if(new URL(location.href).searchParams.get('auto')==='1'){
+  fetch('../index.html',{cache:'no-store'})
+    .then(response=>response.ok?response.text():Promise.reject(new Error(`index.html gaf HTTP ${response.status}`)))
+    .then(run)
+    .catch(error=>{
+      document.getElementById('result').textContent='TESTFOUT: '+error.message;
+      document.body.dataset.testResult='failed';
+    });
+}
+</script>
+</body>
+</html>

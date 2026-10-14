@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self'; style-src 'unsafe-inline'">
+<title>WerkHub WhatsApp-regressie</title>
+<style>body{font:15px system-ui;margin:20px}pre{white-space:pre-wrap}</style>
+</head>
+<body data-test-result="running">
+<h1>WhatsApp-regressie, uitsluitend lokale mocks</h1>
+<pre id="result">RUNNING</pre>
+<script type="module">
+import {
+  buildDedupKey,
+  buildTwilioTemplateForm,
+  deliveryUpdate,
+  dispatchTwilioTemplate,
+  safeLogSnapshot,
+  shouldQueueWhatsAppTask,
+} from "../supabase/functions/werkhub-reminders/whatsapp-logic.mjs";
+
+const lines = [];
+let failed = 0;
+function check(name, run) {
+  try { run(); lines.push(`PASS ${name}`); }
+  catch (error) { failed++; lines.push(`FAIL ${name}: ${error.message}`); }
+}
+async function checkAsync(name, run) {
+  try { await run(); lines.push(`PASS ${name}`); }
+  catch (error) { failed++; lines.push(`FAIL ${name}: ${error.message}`); }
+}
+function assert(value, message = "assertion") { if (!value) throw new Error(message); }
+
+const task = {
+  id: "task-42", project: "pwn", team_id: null, taaktype: "taak",
+  status: "backlog", titel: "Fictieve pompcontrole", deadline: "2026-10-15",
+};
+
+check("alleen INSERT van persoonlijke gewone PWN-taak", () => {
+  assert(shouldQueueWhatsAppTask(task));
+  assert(!shouldQueueWhatsAppTask(task, "UPDATE"));
+  assert(!shouldQueueWhatsAppTask({ ...task, team_id: "team-1" }));
+  assert(!shouldQueueWhatsAppTask({ ...task, taaktype: "subtaak" }));
+  assert(!shouldQueueWhatsAppTask(task, "INSERT", false));
+});
+
+check("template gebruikt ContentSid en geen vrije Body", () => {
+  const form = buildTwilioTemplateForm({
+    from: `whatsapp:+${"1".repeat(11)}`,
+    to: `whatsapp:+${"2".repeat(11)}`,
+    contentSid: "HX0123456789abcdef0123456789abcdef",
+    task: { ...task, notitie: "NIET VERSTUREN", waar: "NIET VERSTUREN" },
+  });
+  assert(!form.has("Body"));
+  assert(form.has("ContentSid"));
+  const variables = JSON.parse(form.get("ContentVariables"));
+  assert(Object.keys(variables).join(",") === "1,2");
+  assert(!form.toString().includes("NIET+VERSTUREN"));
+});
+
+await checkAsync("provideracceptatie wordt eenmalig vastgelegd", async () => {
+  let calls = 0;
+  const result = await dispatchTwilioTemplate({
+    fetchFn: async () => {
+      calls++;
+      return { ok: true, status: 201, json: async () => ({ sid: "SM-test", status: "queued" }) };
+    },
+    endpoint: "https://api.twilio.test/Messages.json",
+    authorization: "Basic test-secret",
+    form: new URLSearchParams(),
+  });
+  assert(calls === 1 && result.outcome === "accepted");
+  const update = deliveryUpdate(result, 1, new Date("2026-10-14T12:00:00Z"));
+  assert(update.status === "accepted" && update.provider_message_sid === "SM-test");
+});
+
+await checkAsync("expliciete tijdelijke providerfout krijgt backoff", async () => {
+  const result = await dispatchTwilioTemplate({
+    fetchFn: async () => ({ ok: false, status: 503 }),
+    endpoint: "https://api.twilio.test/Messages.json",
+    authorization: "Basic test-secret",
+    form: new URLSearchParams(),
+  });
+  const update = deliveryUpdate(result, 2, new Date("2026-10-14T12:00:00Z"));
+  assert(update.status === "queued");
+  assert(update.available_at === "2026-10-14T12:15:00.000Z");
+});
+
+await checkAsync("onduidelijke netwerkuitkomst wordt nooit blind herhaald", async () => {
+  const result = await dispatchTwilioTemplate({
+    fetchFn: async () => { throw new Error("synthetic timeout"); },
+    endpoint: "https://api.twilio.test/Messages.json",
+    authorization: "Basic test-secret",
+    form: new URLSearchParams(),
+  });
+  assert(result.outcome === "unknown");
+  assert(deliveryUpdate(result, 1).status === "unknown");
+});
+
+check("logs bevatten geen taaktekst deadline telefoon of secret", () => {
+  const snapshot = safeLogSnapshot({
+    eventId: "event-1", attempts: 2,
+    result: { outcome: "retry", code: "provider_http_503" },
+    task, token: "secret", phone: `whatsapp:+${"2".repeat(11)}`,
+  });
+  const text = JSON.stringify(snapshot);
+  assert(!/pompcontrole|2026-10-15|secret|whatsapp:/i.test(text));
+});
+
+check("deduplicatiesleutel blijft stabiel per taak", () => {
+  assert(buildDedupKey(task) === "task:task-42");
+  assert(buildDedupKey(task) === buildDedupKey({ ...task }));
+});
+
+await checkAsync("Edge Function heeft geldige JavaScript-syntax", async () => {
+  const response = await fetch("../supabase/functions/werkhub-reminders/index.js", { cache: "no-store" });
+  assert(response.ok, `Edge Function gaf HTTP ${response.status}`);
+  const source = await response.text();
+  const withoutImports = source.replace(/import\s+[\s\S]*?\s+from\s+["'][^"']+["'];/g, "");
+  new Function(withoutImports);
+});
+
+document.getElementById("result").textContent =
+  `${lines.join("\n")}\n${failed ? `FAILED ${failed}` : "ALL PASS"}`;
+document.body.dataset.testResult = failed ? "failed" : "passed";
+document.title = failed ? "FAILED" : "ALL PASS";
+</script>
+</body>
+</html>
