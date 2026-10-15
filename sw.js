@@ -1,8 +1,19 @@
 // WerkHub: offline-shell en pushmeldingen, geen API-caching.
-const CACHE = 'werkhub-v24';
+const CACHE = 'werkhub-v25';
 const ASSETS = [
   './',
   './index.html',
+  './werkhub.css',
+  './js/kern.js',
+  './js/dump.js',
+  './js/docs.js',
+  './js/projecten.js',
+  './js/vandaag.js',
+  './js/uren.js',
+  './js/ritten.js',
+  './js/instellingen.js',
+  './js/team.js',
+  './js/start.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -43,6 +54,23 @@ self.addEventListener('fetch', e => {
       }catch(error){
         console.warn('WerkHub offline: gecachte pagina gebruiken');
         const cached = await caches.match('./index.html');
+        if(cached) return cached;
+        throw error;
+      }
+    })());
+    return;
+  }
+  // Eigen code (css/js) eerst van het netwerk, zodat index.html en scripts altijd bij elkaar passen.
+  if(/\.(js|css)$/.test(url.pathname) && !url.pathname.endsWith('/sw.js')){
+    e.respondWith((async ()=>{
+      try{
+        const response = await fetch(e.request, {cache:'no-cache'});
+        if(response.ok){
+          try{ const cache = await caches.open(CACHE); await cache.put(e.request, response.clone()); }catch(error){ /* offline-cache optioneel */ }
+        }
+        return response;
+      }catch(error){
+        const cached = await caches.match(e.request);
         if(cached) return cached;
         throw error;
       }

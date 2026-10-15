@@ -63,3 +63,13 @@ V24: SUBTAKEN OOK BIJ DUMP
   tikken op een subtaak opent hem om te bewerken.
 - Vereist TAKEN-SUBTAKEN-MIGRATIE.sql; zonder die migratie toont de sectie een duidelijke melding.
 - Publiceer index.html en sw.js (cache werkhub-v24).
+
+V25: AGENDA ZONDER GOOGLE-IFRAME + CODE IN LOSSE BESTANDEN
+- De werkagenda op Vandaag komt nu uit de edge function werkhub-agenda (geen Google-login,
+  geen cookies). Eenmalig instellen in Supabase > Edge Functions > Secrets:
+    AGENDA_ICS_URLS = Werk=<geheim adres in iCal-indeling>;Prive=<geheim adres>
+  Het geheime iCal-adres staat in Google Calendar > Instellingen > (agenda) > Agenda integreren.
+  Deel dat adres nooit; het staat alleen als secret in Supabase.
+- De code staat nu in werkhub.css en js/*.js (per tab). SB_URL/SB_KEY blijven in index.html
+  staan, omdat de iPad Werkplek ze daar uitleest.
+- Broncode van de edge function: supabase/functions/werkhub-agenda/index.ts.

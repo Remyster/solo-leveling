@@ -23,8 +23,31 @@ let db={items:[],tasks:[]}, calls=[], failed=false, emptyWrites=false, seq=0;
 const clone=value=>JSON.parse(JSON.stringify(value));
 const uuid=()=>`00000000-0000-4000-8000-${String(++seq).padStart(12,'0')}`;
 const tick=async()=>{for(let i=0;i<30;i++) await Promise.resolve();};
+// WerkHub staat sinds v25 in losse bestanden (js/*.js): voeg die weer samen tot één script.
+async function inlineScripts(parsed){
+  for(const link of [...parsed.querySelectorAll('link[rel="stylesheet"][href^="./"]')]){
+    const response=await fetch(new URL('.'+link.getAttribute('href'),location.href),{cache:'no-store'});
+    if(!response.ok) throw Error(`${link.getAttribute('href')} gaf HTTP ${response.status}`);
+    const style=parsed.createElement('style');
+    style.textContent=await response.text();
+    link.replaceWith(style);
+  }
+  const external=[...parsed.querySelectorAll('script[src^="./js/"]')];
+  if(!external.length) return;
+  const parts=[];
+  for(const el of external){
+    const response=await fetch(new URL('.'+el.getAttribute('src'),location.href),{cache:'no-store'});
+    if(!response.ok) throw Error(`${el.getAttribute('src')} gaf HTTP ${response.status}`);
+    parts.push(await response.text());
+    el.remove();
+  }
+  const inline=[...parsed.querySelectorAll('script:not([src])')];
+  if(inline.length!==1) throw Error('Onbekende appstructuur; test niet veilig gestart');
+  inline[0].textContent+='\n'+parts.join('\n');
+}
 async function frameFor(source){
   const parsed=new DOMParser().parseFromString(source,'text/html');
+  await inlineScripts(parsed);
   parsed.querySelectorAll('iframe,link,script[src]').forEach(el=>el.remove());
   parsed.querySelectorAll('img').forEach(el=>el.removeAttribute('src'));
   const scripts=[...parsed.querySelectorAll('script')];
