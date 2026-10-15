@@ -175,6 +175,12 @@
   .ritregels p, .ritregels li{ font-size:14px; line-height:1.45; }
   .ritregels ul, .ritregels ol{ padding-left:20px; margin:6px 0; }
   .ritregels blockquote{ margin:8px 0; padding:10px 12px; border-left:3px solid #08447d; background:rgba(8,68,125,.06); border-radius:6px; font-size:14px; }
+  .subtaak-snel{display:flex; gap:8px; margin:4px 0 10px;}
+  .subtaak-snel input{flex:1; min-width:0; padding:11px 12px; border:1px solid var(--border); border-radius:10px; font:inherit; font-size:15px; background:var(--panel);}
+  .subtaak-snel button{flex:0 0 52px; width:52px; min-width:52px; padding:0; font-size:22px; line-height:1;}
+  .subtaak-kaart{display:flex; align-items:center; gap:10px;}
+  .subtaak-kaart .titel{flex:1; min-width:0; cursor:pointer;}
+  .subtaak-kaart .klaarbtn{flex:0 0 auto; min-width:44px; min-height:44px; border:1px solid var(--border); border-radius:10px; background:var(--green-light); color:var(--green-dark); font-size:18px; font-weight:700;}
   .hintje{font-size:12px; color:var(--sub); line-height:1.45; margin:-2px 0 12px;}
   .badge.prive{background:var(--yellow-bg); color:var(--yellow);}
   .badge.zakelijk{background:var(--green-light); color:var(--green-dark);}
@@ -263,6 +269,17 @@
     </div>
     <p class="hintje">Bewaar hier dingen voor later. Kies bij het opslaan een lijstje en eventueel een herinnering.</p>
     <div id="dumpList"></div>
+
+    <details class="statuscol" id="dumpSubtaken">
+      <summary><span>🧩 Subtaken<span class="uitleg">Kleine klussen zonder datum, voor tussendoor.</span></span><span class="telling" id="dumpSubtakenTelling">–</span></summary>
+      <div class="inhoud">
+        <form class="subtaak-snel" id="subtaakSnelForm">
+          <input type="text" id="subtaakSnelTitel" placeholder="Snel een subtaak erbij…" maxlength="200" autocomplete="off" aria-label="Nieuwe subtaak">
+          <button class="btn primary" type="submit" id="subtaakSnelBtn">+</button>
+        </form>
+        <div id="dumpSubtakenList"><div class="empty-state">Laden…</div></div>
+      </div>
+    </details>
   </section>
 
   <!-- ===== TAB: OFFERTES/BONNEN/BESTELLINGEN ===== -->
@@ -582,7 +599,7 @@ function switchTab(name){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.getElementById('fabDump').classList.toggle('hidden', name!=='dump');
   if(name==='vandaag') loadVandaag();
-  if(name==='dump') loadDump();
+  if(name==='dump'){ loadDump(); loadDumpSubtaken(); }
   if(name==='docs') loadDocs();
   if(name==='projecten') loadProjecten();
   if(name==='team') loadTeam();
@@ -727,6 +744,61 @@ async function loadDump(){
     </div>
   `).join('');
 }
+// ---- Subtaken in de Dump: kleine klussen zonder datum (work_tasks.taaktype = 'subtaak') ----
+async function loadDumpSubtaken(){
+  const lijst = document.getElementById('dumpSubtakenList');
+  const telling = document.getElementById('dumpSubtakenTelling');
+  if(!lijst) return;
+  const sectie = document.getElementById('dumpSubtaken');
+  if(!sectie.dataset.init){ sectie.dataset.init = '1'; sectie.open = takenSectieOpen('dumpSubtaken'); }
+  let rows;
+  try{
+    rows = await sb('work_tasks?project=eq.pwn&taaktype=eq.subtaak&status=neq.klaar&order=created_at.desc');
+  }catch(error){
+    telling.textContent = '!';
+    lijst.innerHTML = /taaktype/i.test(error.message||'')
+      ? '<div class="empty-state">Subtaken zijn nog niet aangezet: voer TAKEN-SUBTAKEN-MIGRATIE.sql uit in Supabase.</div>'
+      : `<div class="empty-state">Subtaken laden mislukt: ${escapeHtml(error.message||'onbekende fout')}</div>`;
+    return;
+  }
+  telling.textContent = String(rows.length);
+  if(!rows.length){ lijst.innerHTML = '<div class="empty-state">Geen subtaken. Voeg er hierboven één toe.</div>'; return; }
+  lijst.innerHTML = rows.map(t=>`
+    <div class="card subtaak-kaart">
+      <div class="titel" onclick="openTaskSheet('${t.id}','pwn')">${escapeHtml(t.titel)}
+        ${t.notitie ? `<div class="meta"><span>${escapeHtml(t.notitie.slice(0,80))}${t.notitie.length>80?'…':''}</span></div>` : ''}
+      </div>
+      <button class="klaarbtn" aria-label="Subtaak klaar" title="Klaar" onclick="subtaakKlaar('${t.id}')">✓</button>
+    </div>`).join('');
+}
+async function subtaakKlaar(id){
+  try{
+    await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({status:'klaar', updated_at:new Date().toISOString()})});
+  }catch(error){ toast('Afvinken mislukt: '+(error.message||'onbekende fout')); return; }
+  toast('Subtaak klaar'); loadDumpSubtaken();
+  if(typeof loadVandaag==='function') loadVandaag();
+}
+document.getElementById('subtaakSnelForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const input = document.getElementById('subtaakSnelTitel');
+  const titel = input.value.trim();
+  if(!titel) return;
+  const btn = document.getElementById('subtaakSnelBtn');
+  btn.disabled = true;
+  try{
+    await sb('work_tasks', {method:'POST', body: JSON.stringify({project:'pwn', titel, status:'backlog', taaktype:'subtaak', updated_at:new Date().toISOString()})});
+    input.value = '';
+    toast('Subtaak toegevoegd');
+    document.getElementById('dumpSubtaken').open = true;
+    loadDumpSubtaken();
+    if(typeof loadVandaag==='function') loadVandaag();
+  }catch(error){
+    const msg = (error && error.message) || '';
+    toast(/taaktype/i.test(msg) ? 'Kan subtaak niet opslaan: voer eerst TAKEN-SUBTAKEN-MIGRATIE.sql uit in Supabase.' : 'Opslaan mislukt: '+(msg||'onbekende fout'));
+  }finally{ btn.disabled = false; }
+});
+document.getElementById('dumpSubtaken').addEventListener('toggle', ()=>onthoudTakenSectie('dumpSubtaken', document.getElementById('dumpSubtaken').open));
+
 function iconVoorType(t){ return {tekst:'📝',link:'🔗',foto:'📷',spraak:'🎙️'}[t]||'📝'; }
 function bewerkDump(id){
   const item = dumpItems.find(it=>it.id===id);
@@ -1719,7 +1791,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     if(!isTeam || btn.isConnected) closeSheet();
     toast('Opgeslagen');
     if(isTeam) loadTeam();
-    else loadProjecten();
+    else { loadProjecten(); loadDumpSubtaken(); }
     if(wakeWhatsApp){
       reminderApi('dispatch-whatsapp', {}).catch(error=>{
         console.warn('WerkHub WhatsApp wake-up mislukt', error?.message || 'request_failed');
@@ -1746,7 +1818,7 @@ async function deleteTask(id, linked=false){
   }
   closeSheet(); toast('Verwijderd');
   if(linked) loadTeam();
-  else loadProjecten();
+  else { loadProjecten(); loadDumpSubtaken(); }
 }
 
 async function aiVulTaakIn(tekst){

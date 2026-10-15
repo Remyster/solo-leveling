@@ -55,3 +55,11 @@ Status:
 [ ] TAKEN-SUBTAKEN-MIGRATIE.sql en WHATSAPP-MIGRATIE.sql uitvoeren.
 [ ] Provider/opt-in/template/secrets volgens WHATSAPP-INSTELLEN.txt instellen.
 [ ] V23 zelf publiceren en daarna op telefoon/iPad controleren.
+
+V24: SUBTAKEN OOK BIJ DUMP
+==========================
+- Tab Dump heeft onder de onthoudlijstjes een sectie "Subtaken" (zelfde subtaken als bij PWN,
+  work_tasks.taaktype = 'subtaak'). Snel toevoegen met het invoerveld, ✓ zet een subtaak op klaar,
+  tikken op een subtaak opent hem om te bewerken.
+- Vereist TAKEN-SUBTAKEN-MIGRATIE.sql; zonder die migratie toont de sectie een duidelijke melding.
+- Publiceer index.html en sw.js (cache werkhub-v24).
