@@ -80,3 +80,9 @@ V26: HERINNERINGEN MET NAAM
 - Lijstje-herinneringen tonen de tekst van de notitie.
 - Teamacties (team_id) blijven neutraal: geen namen of details in mail/push.
 - Edge function werkhub-reminders is opnieuw gepubliceerd (versie 20).
+
+V27: PRIORITEITEN (EISENHOWER)
+- Kolom work_tasks.prioriteit (urgent | belangrijk) is toegevoegd in Supabase.
+- PWN-tab: 🔥 Urgent, 📌 Belangrijk, 🧩 Subtaken (wel doen), ⏳ Wacht op iemand. Klaar is weg.
+- Vinkje op een taak = klaar en uit de lijst (Ongedaan in de melding). Vaste taken schuiven door.
+- Taakscherm: kies Urgent of Belangrijk. AI-hulp vult dit ook in.

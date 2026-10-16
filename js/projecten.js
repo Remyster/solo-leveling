@@ -20,8 +20,43 @@ function volgendeDeadline(deadline, herhaling){
   return isoDatum(d);
 }
 
-function takenSectieOpen(key){
-  try{ return JSON.parse(localStorage.getItem('werkhubTaakSecties')||'{}')[key] === true; }catch(e){ return false; }
+function takenSectieOpen(key, standaard=false){
+  try{
+    const waarde = JSON.parse(localStorage.getItem('werkhubTaakSecties')||'{}')[key];
+    return waarde === undefined ? standaard : waarde === true;
+  }catch(e){ return standaard; }
+}
+
+// Eisenhower: urgent (moet zsm) of belangrijk (inplannen). Zonder keuze: deadline binnen 2 dagen = urgent.
+const prioLabels = {urgent:'🔥 Urgent', belangrijk:'📌 Belangrijk'};
+function prioVan(t){
+  if(t.prioriteit === 'urgent' || t.prioriteit === 'belangrijk') return t.prioriteit;
+  const grens = new Date(); grens.setDate(grens.getDate()+2);
+  return t.deadline && t.deadline <= isoDatum(grens) ? 'urgent' : 'belangrijk';
+}
+let takenOpId = {};
+
+// Vinkje = klaar en weg. Vaste taken schuiven door naar de volgende keer.
+async function vinkAf(id, knop){
+  const t = takenOpId[id];
+  if(!t) return;
+  const kaart = knop.closest('.card');
+  kaart.classList.add('weg');
+  const vast = isVasteTaak(t);
+  const wijziging = vast && t.deadline
+    ? {deadline: volgendeDeadline(t.deadline, t.herhaling), status:'backlog', updated_at:new Date().toISOString()}
+    : {status:'klaar', updated_at:new Date().toISOString()};
+  try{
+    await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(wijziging)});
+    toastActie(vast ? `✓ Gedaan, volgende keer ${wijziging.deadline}` : `✓ Klaar: ${t.titel}`, 'Ongedaan', async ()=>{
+      await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({status:t.status, deadline:t.deadline||null, updated_at:new Date().toISOString()})});
+      loadProjecten(); if(typeof loadDumpSubtaken==='function') loadDumpSubtaken();
+    });
+    setTimeout(()=>{ loadProjecten(); if(typeof loadDumpSubtaken==='function') loadDumpSubtaken(); }, 260);
+  }catch(error){
+    kaart.classList.remove('weg');
+    toast('Afvinken mislukt: '+error.message);
+  }
 }
 function onthoudTakenSectie(key, open){
   try{
@@ -59,17 +94,18 @@ async function loadProjecten(){
       history.replaceState(null,'',url); loadProjecten();
     });
   }
-  if(!tasks.length){ host.innerHTML += '<div class="empty-state">Nog geen taken hier.</div>'; return; }
-  const subtaken = tasks.filter(t=>t.taaktype==='subtaak' && t.status!=='klaar');
-  const gewoneTaken = tasks.filter(t=>t.taaktype!=='subtaak');
+  if(!tasks.some(t=>t.status!=='klaar')){ host.innerHTML += '<div class="empty-state">Alles klaar. Lekker bezig!</div>'; return; }
+  takenOpId = Object.fromEntries(tasks.map(t=>[t.id, t]));
+  const open = tasks.filter(t=>t.status!=='klaar');
+  const gewoneTaken = open.filter(t=>t.taaktype!=='subtaak' && t.status!=='wacht_op');
   const secties = [
-    {key:'taken', titel:'Taken', uitleg:'Nog te doen en mee bezig.', items:gewoneTaken.filter(t=>t.status==='backlog' || t.status==='bezig')},
-    {key:'wacht_op', titel:'Wacht op iemand of iets', uitleg:statusUitleg.wacht_op, items:gewoneTaken.filter(t=>t.status==='wacht_op')},
-    {key:'subtaken', titel:'🧩 Subtaken voor tussendoor', uitleg:'Kleine klussen zonder deadline.', items:subtaken},
-    {key:'klaar', titel:'Klaar', uitleg:statusUitleg.klaar, items:tasks.filter(t=>t.status==='klaar')}
+    {key:'urgent', titel:'🔥 Urgent', uitleg:'Moet zo snel mogelijk.', items:gewoneTaken.filter(t=>prioVan(t)==='urgent'), standaard:true},
+    {key:'belangrijk', titel:'📌 Belangrijk', uitleg:'Moet gebeuren: plan het in je agenda.', items:gewoneTaken.filter(t=>prioVan(t)==='belangrijk'), standaard:true},
+    {key:'subtaken', titel:'🧩 Subtaken (wel doen)', uitleg:'Niet urgent, niet belangrijk: tussendoor.', items:open.filter(t=>t.taaktype==='subtaak' && t.status!=='wacht_op'), standaard:true},
+    {key:'wacht_op', titel:'⏳ Wacht op iemand', uitleg:statusUitleg.wacht_op, items:open.filter(t=>t.status==='wacht_op'), standaard:false}
   ];
   host.insertAdjacentHTML('beforeend', secties.map(s=>`
-    <details class="statuscol" data-sectie="${s.key}" ${takenSectieOpen(s.key) ? 'open' : ''}>
+    <details class="statuscol prio-${s.key}" data-sectie="${s.key}" ${takenSectieOpen(s.key, s.standaard) ? 'open' : ''}>
       <summary><span>${escapeHtml(s.titel)}<span class="uitleg">${escapeHtml(s.uitleg)}</span></span><span class="telling">${s.items.length}</span></summary>
       <div class="inhoud">${s.items.length ? s.items.map(taskCard).join('') : '<div class="empty-state">Niets hier.</div>'}</div>
     </details>`).join(''));
@@ -88,10 +124,11 @@ function fmtTaakDatumTijd(t){
 
 function taskCard(t){
   return `
-    <div class="card" onclick="openTaskSheet('${t.id}','${t.project}')">
+    <div class="card taakkaart" onclick="openTaskSheet('${t.id}','${t.project}')">
+      ${t.status!=='klaar' ? `<button class="vinkje" type="button" aria-label="Klaar" title="Klaar" onclick="event.stopPropagation(); vinkAf('${t.id}', this)"></button>` : ''}
       <div class="titel">${escapeHtml(t.titel)}</div>
       <div class="meta">
-        <span class="badge ${t.status}">${statusLabels[t.status]}</span>
+        ${t.status==='wacht_op' || t.status==='klaar' ? `<span class="badge ${t.status}">${statusLabels[t.status]}</span>` : ''}
         ${t.taaktype==='subtaak' ? '<span class="badge subtaak">Subtaak</span>' : ''}
         ${isVasteTaak(t) ? `<span class="badge herhaling">🔁 ${herhalingLabels[t.herhaling]||escapeHtml(t.herhaling)}</span>` : ''}
         ${t.deadline ? `<span>📅 ${fmtTaakDatumTijd(t)}</span>` : ''}
@@ -130,6 +167,11 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     <div class="field"><label>⏰ Begintijd</label><input type="time" id="fBeginTijd" value="${(t.begin_tijd||'').slice(0,5)}"></div>
     <div class="field"><label>⏰ Eindtijd (optioneel)</label><input type="time" id="fEindTijd" value="${(t.eind_tijd||'').slice(0,5)}"></div>`}
     <div id="calLinkWrap"></div>
+    ${!isTeam && t.taaktype!=='subtaak' ? `<div class="field"><label>Hoe dringend?</label>
+      <div class="segrow" id="prioRow">
+        ${[['urgent','🔥 Urgent (zsm)'],['belangrijk','📌 Belangrijk (inplannen)']].map(([p,label])=>`<button type="button" data-p="${p}" class="${prioVan(t)===p?'sel':''}" onclick="pickPrio('${p}')">${label}</button>`).join('')}
+      </div>
+    </div>` : ''}
     <div class="field"><label>Status</label>
       <div class="segrow" id="statusRow">
         ${[['backlog','Taken'],['wacht_op','Wacht op iemand of iets'],['klaar','Klaar']].map(([s,label])=>`<button data-s="${s}" class="${(t.status===s || (s==='backlog' && t.status==='bezig'))?'sel':''}" onclick="pickStatus('${s}')">${label}</button>`).join('')}
@@ -155,6 +197,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     ${isTeam ? '<p id="teamTaskError" class="team-error" role="alert"></p>' : ''}
   `);
   window._taskStatus = t.status;
+  window._taskPrio = t.taaktype==='subtaak' || isTeam ? null : (t.prioriteit || null);
   window._taskBijlageUrl = t.bijlage_url || '';
   const teamTaskError=document.getElementById('teamTaskError');
   if(isTeam){
@@ -224,6 +267,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     };
     if(!payload.titel){ toast('Vul iets in bij "Wat"'); return; }
     if(!isTeam && (t.taaktype==='subtaak' || t.taaktype!==undefined)) payload.taaktype = t.taaktype || 'taak';
+    if(!isTeam && t.taaktype!=='subtaak' && window._taskPrio) payload.prioriteit = window._taskPrio;
     const herhalingEl = document.getElementById('fHerhaling');
     const herhaling = herhalingEl ? herhalingEl.value : 'eenmalig';
     // Only send herhaling when used, so the app keeps working before TAKEN-HERHALING-MIGRATIE.sql.
@@ -292,6 +336,10 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     }
   });
 }
+function pickPrio(p){
+  window._taskPrio = p;
+  document.querySelectorAll('#prioRow button').forEach(b=>b.classList.toggle('sel', b.dataset.p===p));
+}
 function pickStatus(s){
   window._taskStatus = s;
   document.querySelectorAll('#statusRow button').forEach(b=>b.classList.toggle('sel', b.dataset.s===s));
@@ -319,7 +367,7 @@ async function aiVulTaakIn(tekst){
   try{
     const data = await aiMessages({
       model: AI_MODEL, max_tokens: 200,
-      system: 'Je haalt uit een korte Nederlandse werknotitie de velden Waar (locatie of URL), Wie (contactpersoon of bedrijf) en Deadline (datum in formaat YYYY-MM-DD, alleen als expliciet genoemd of duidelijk afleidbaar, anders leeg) en een korte titel (max 6 woorden). Antwoord UITSLUITEND met geldige JSON: {"titel":"...","waar":"...","wie":"...","deadline":"..."}. Onbekende velden: lege string.',
+      system: `Vandaag is ${isoDatum(new Date())}. Je haalt uit een korte Nederlandse werknotitie de velden Waar (locatie of URL), Wie (contactpersoon of bedrijf), Deadline (datum in formaat YYYY-MM-DD, alleen als expliciet genoemd of duidelijk afleidbaar, anders leeg), een korte titel (max 6 woorden) en prioriteit: "urgent" als het zo snel mogelijk moet (vandaag/morgen, storing, iemand wacht), anders "belangrijk". Antwoord UITSLUITEND met geldige JSON: {"titel":"...","waar":"...","wie":"...","deadline":"...","prioriteit":"urgent|belangrijk"}. Onbekende velden: lege string.`,
       messages:[{role:'user', content: tekst.slice(0,500)}]
     });
     const raw = data.content?.[0]?.text || '{}';
@@ -328,6 +376,7 @@ async function aiVulTaakIn(tekst){
     if(parsed.waar) document.getElementById('fWaar').value = parsed.waar;
     if(parsed.wie) document.getElementById('fWie').value = parsed.wie;
     if(parsed.deadline) document.getElementById('fDeadline').value = parsed.deadline;
+    if(parsed.prioriteit==='urgent' || parsed.prioriteit==='belangrijk') pickPrio(parsed.prioriteit);
     box.innerHTML = '✅ Velden ingevuld — check en pas aan waar nodig.';
   }catch(e){
     box.innerHTML = '⚠️ AI-hulp lukte niet. Vul handmatig in.';

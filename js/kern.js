@@ -145,6 +145,18 @@ async function uploadFoto(file){
   return `${SB_URL}/storage/v1/object/public/notitie-fotos/${path}`;
 }
 
+// Melding met knop (bijv. Ongedaan), blijft 6 seconden staan.
+let toastActieTimer = null;
+function toastActie(msg, label, actie){
+  const t = document.getElementById('toast');
+  t.textContent = '';
+  const tekst = document.createElement('span'); tekst.textContent = msg;
+  const knop = document.createElement('button'); knop.type = 'button'; knop.className = 'toast-actie'; knop.textContent = label;
+  knop.addEventListener('click', async ()=>{ t.classList.remove('show'); try{ await actie(); }catch(e){ toast('Mislukt: '+e.message); } });
+  t.append(tekst, knop); t.classList.add('show');
+  clearTimeout(toastActieTimer);
+  toastActieTimer = setTimeout(()=>t.classList.remove('show'), 6000);
+}
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');

@@ -205,3 +205,16 @@
 .agenda-voet{ display:flex; gap:8px; align-items:center; justify-content:flex-end; font-size:12px; color:var(--sub); margin-top:6px; }
 .agenda-voet span{ flex:1; }
 .agenda-voet a.today-action{ text-decoration:none; }
+
+/* Prioriteiten + vinkje */
+.taakkaart{ position:relative; padding-left:56px !important; transition:opacity .25s, transform .25s; }
+.taakkaart.weg{ opacity:0; transform:translateX(24px); }
+.vinkje{ position:absolute; left:12px; top:50%; transform:translateY(-50%); width:32px; height:32px; min-height:32px; padding:0; border-radius:9px; border:2px solid var(--sub, #888); background:transparent; cursor:pointer; }
+.vinkje:hover, .vinkje:focus-visible{ border-color:var(--teal, #2bb); background:rgba(43,187,170,.15); }
+.vinkje:active::after{ content:'✓'; color:var(--teal, #2bb); font-size:18px; }
+details.prio-urgent > summary{ box-shadow: inset 4px 0 0 #ff7a59; }
+details.prio-belangrijk > summary{ box-shadow: inset 4px 0 0 #f4c96b; }
+details.prio-subtaken > summary{ box-shadow: inset 4px 0 0 #8fd3b0; }
+#toast .toast-actie{ margin-left:10px; padding:4px 10px; border-radius:8px; border:0; background:#f4c96b; color:#1d2b28; font-weight:700; cursor:pointer; }
+.toast{pointer-events:none;}
+.toast.show{pointer-events:auto;}
