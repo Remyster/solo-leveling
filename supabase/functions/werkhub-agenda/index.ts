@@ -4,7 +4,7 @@
 // Zo is er geen Google-login, cookie of iframe nodig in Safari.
 //
 // Secrets (Supabase > Edge Functions > Secrets):
-//   AGENDA_ICS_URLS   een of meer agenda's, gescheiden door een nieuwe regel of ;
+//   AGENDA_ICS_URLS   (secret of rij in tabel server_config) een of meer agenda's, gescheiden door een nieuwe regel of ;
 //                     vorm: Naam=https://calendar.google.com/calendar/ical/.../basic.ics
 //   ALLOWED_USER_IDS  (bestaat al, gedeeld met werkplek-ai)
 //   APP_ORIGIN        (bestaat al) bijv. https://remyster.github.io
@@ -105,6 +105,19 @@ async function fetchIcs(url: string) {
   }
 }
 
+// Reserve: het iCal-adres kan ook in de tabel server_config staan (RLS zonder policies,
+// alleen leesbaar met de service role van deze function).
+async function configValue(key: string) {
+  const url = Deno.env.get("SUPABASE_URL"), service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !service) return "";
+  const response = await fetch(`${url}/rest/v1/server_config?key=eq.${encodeURIComponent(key)}&select=value`, {
+    headers: { apikey: service, Authorization: `Bearer ${service}` },
+  });
+  if (!response.ok) return "";
+  const rows = await response.json();
+  return Array.isArray(rows) && rows[0] ? String(rows[0].value || "") : "";
+}
+
 async function handle(req: Request) {
   const appOrigin = Deno.env.get("APP_ORIGIN") || "";
   if (req.method === "OPTIONS") {
@@ -128,7 +141,7 @@ async function handle(req: Request) {
   if (!allowed.includes(id)) return json(403, { error: "Account not authorized" }, appOrigin);
 
   let sources;
-  try { sources = parseSources(Deno.env.get("AGENDA_ICS_URLS") || ""); }
+  try { sources = parseSources(Deno.env.get("AGENDA_ICS_URLS") || await configValue("AGENDA_ICS_URLS")); }
   catch (error) { return json(503, { error: (error as Error).message, code: "NOT_CONFIGURED" }, appOrigin); }
   if (!sources.length) return json(503, { error: "AGENDA_ICS_URLS ontbreekt", code: "NOT_CONFIGURED" }, appOrigin);
 
