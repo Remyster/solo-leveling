@@ -27,7 +27,7 @@ async function openReminderSettings(){
   openSheet(`
     <button class="closex" onclick="closeSheet()">✕</button>
     <h2>Herinneringen</h2>
-    <p style="font-size:13px">Nederlandse tijd. E-mail en push bevatten geen taaknamen of locaties. WhatsApp gebruikt alleen de titel en eventueel de deadline van een nieuwe persoonlijke PWN-taak. WhatsApp en de provider verwerken dit extern.</p>
+    <p style="font-size:13px">Nederlandse tijd. E-mail en push tonen de taaknaam, tijd en locatie (teamacties blijven neutraal). WhatsApp gebruikt alleen de titel en eventueel de deadline van een nieuwe persoonlijke PWN-taak. WhatsApp en de provider verwerken dit extern.</p>
     <div class="field"><label><input type="checkbox" id="rDaily"> Overzichtsmail om 20:00 voor morgen</label></div>
     <div class="field"><label><input type="checkbox" id="rEmail"> E-mail 45 minuten voor begintijd</label></div>
     <div class="field"><label><input type="checkbox" id="rPush"> Push 45 minuten voor begintijd</label></div>

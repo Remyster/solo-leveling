@@ -73,3 +73,10 @@ V25: AGENDA ZONDER GOOGLE-IFRAME + CODE IN LOSSE BESTANDEN
 - De code staat nu in werkhub.css en js/*.js (per tab). SB_URL/SB_KEY blijven in index.html
   staan, omdat de iPad Werkplek ze daar uitleest.
 - Broncode van de edge function: supabase/functions/werkhub-agenda/index.ts.
+
+V26: HERINNERINGEN MET NAAM
+- E-mail en push tonen nu de taaknaam, begintijd en locatie (onderwerp bijv. "⏰ 10:30 Overleg DOT").
+- Overzichtsmail van 20:00 noemt alle taken van morgen met tijd.
+- Lijstje-herinneringen tonen de tekst van de notitie.
+- Teamacties (team_id) blijven neutraal: geen namen of details in mail/push.
+- Edge function werkhub-reminders is opnieuw gepubliceerd (versie 20).

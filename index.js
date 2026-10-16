@@ -110,27 +110,74 @@ function tomorrowDate(now = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
-function message(kind) {
-  if (kind === "item_email" || kind === "item_push") return {
-    title: "WerkHub: herinnering aan je lijstje",
-    text: `Je hebt een herinnering ingesteld bij een notitie. Open je onthoudlijstjes in WerkHub. ${APP_URL}?tab=dump`,
-  };
+const hhmm = value => String(value || "").slice(0, 5);
+const dayLabel = date => new Intl.DateTimeFormat("nl-NL", {
+  timeZone: "Europe/Amsterdam", weekday: "long", day: "numeric", month: "long",
+}).format(new Date(`${date}T12:00:00Z`));
+const short = (value, max = 90) => {
+  const text = String(value || "").trim().replace(/\s+/g, " ");
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+};
+
+// Haalt de taak, het lijstje of de planning van morgen op, zodat mail en push de naam tonen.
+// Teamacties (team_id) blijven bewust neutraal: daar staan geen namen of details in.
+async function details(job) {
+  if (job.task_id) {
+    const rows = await database(`work_tasks?id=eq.${job.task_id}&select=titel,waar,begin_tijd,eind_tijd,deadline,team_id`);
+    return { task: rows[0] || null };
+  }
+  if (job.item_id) {
+    const rows = await database(`work_items?id=eq.${job.item_id}&select=tekst`);
+    return { item: rows[0] || null };
+  }
+  if (job.kind === "daily_email") {
+    const date = tomorrowDate();
+    const tasks = await database(`work_tasks?project=eq.pwn&status=neq.klaar&deadline=eq.${date}&select=titel,waar,begin_tijd,eind_tijd,team_id&order=begin_tijd.asc.nullslast`);
+    return { date, tasks };
+  }
+  return {};
+}
+
+function message(kind, info = {}) {
+  if (kind === "item_email" || kind === "item_push") {
+    const text = short(info.item?.tekst, 300);
+    return {
+      title: text ? `🔔 ${short(text, 70)}` : "WerkHub: herinnering aan je lijstje",
+      text: `${text || "Je hebt een herinnering ingesteld bij een notitie."}\n\nOpen je lijstjes: ${APP_URL}?tab=dump`,
+    };
+  }
   if (kind === "test_email" || kind === "test_push") return {
     title: "WerkHub: testherinnering",
     text: `Dit is een test, geen geplande taakherinnering. ${APP_URL}?tab=projecten`,
   };
-  if (kind === "daily_email") return {
-    title: "WerkHub: bekijk je planning voor morgen",
-    text: `Je taken voor morgen staan in WerkHub. Controleer ook je echte agenda. Ook taken zonder begintijd staan in de lijst. ${APP_URL}?tab=projecten&datum=${tomorrowDate()}`,
+  if (kind === "daily_email") {
+    const tasks = info.tasks || [];
+    const date = info.date || tomorrowDate();
+    const lines = tasks.map(task => {
+      const name = task.team_id ? "Teamactie (details in WerkHub)" : short(task.titel, 120);
+      const when = task.begin_tijd ? `${hhmm(task.begin_tijd)}${task.eind_tijd ? `–${hhmm(task.eind_tijd)}` : ""}` : "hele dag";
+      const where = !task.team_id && task.waar ? ` · ${short(task.waar, 60)}` : "";
+      return `• ${when}  ${name}${where}`;
+    });
+    return {
+      title: tasks.length ? `📅 Morgen: ${tasks.length === 1 ? (tasks[0].team_id ? "1 taak" : short(tasks[0].titel, 60)) : `${tasks.length} taken`}` : "📅 Morgen: niks gepland",
+      text: `Planning voor ${dayLabel(date)}:\n\n${lines.length ? lines.join("\n") : "Geen taken met deze datum."}\n\nControleer ook je echte agenda.\nOpen in WerkHub: ${APP_URL}?tab=projecten&datum=${date}`,
+    };
+  }
+  const task = info.task;
+  if (!task || task.team_id) return {
+    title: "⏰ WerkHub: een taak begint over 45 minuten",
+    text: `Een geplande taak begint binnenkort. Open WerkHub voor de details. ${APP_URL}?tab=projecten`,
   };
+  const when = `${hhmm(task.begin_tijd)}${task.eind_tijd ? `–${hhmm(task.eind_tijd)}` : ""}`;
   return {
-    title: "WerkHub: een taak begint binnenkort",
-    text: `Een geplande taak begint binnenkort. De herinnering is gepland op 45 minuten vooraf; bezorging kan vertraagd zijn. Open WerkHub voor de tijd en locatie. ${APP_URL}?tab=projecten`,
+    title: `⏰ ${hhmm(task.begin_tijd)} ${short(task.titel, 70)}`,
+    text: `${short(task.titel, 200)}\nOm ${when}${task.waar ? `\nWaar: ${short(task.waar, 120)}` : ""}\n\nBegint over ongeveer 45 minuten.\nOpen in WerkHub: ${APP_URL}?tab=projecten`,
   };
 }
 
 async function sendEmail(user, job) {
-  const content = message(job.kind);
+  const content = message(job.kind, await details(job));
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${required("RESEND_API_KEY")}`,
@@ -148,7 +195,7 @@ async function sendPush(userId, job) {
     required("VAPID_PUBLIC_KEY"), required("VAPID_PRIVATE_KEY"));
   const subscriptions = await database(`work_push_subscriptions?user_id=eq.${userId}`);
   if (!subscriptions.length) throw new HttpError(503, "push_no_subscription");
-  const content = message(job.kind);
+  const content = message(job.kind, await details(job));
   let delivered = 0;
   let retry = false;
   for (const subscription of subscriptions) {
