@@ -86,3 +86,8 @@ V27: PRIORITEITEN (EISENHOWER)
 - PWN-tab: 🔥 Urgent, 📌 Belangrijk, 🧩 Subtaken (wel doen), ⏳ Wacht op iemand. Klaar is weg.
 - Vinkje op een taak = klaar en uit de lijst (Ongedaan in de melding). Vaste taken schuiven door.
 - Taakscherm: kies Urgent of Belangrijk. AI-hulp vult dit ook in.
+
+V28: OFFERTES/BONNEN HELEMAAL UITLEZEN
+- Foto of PDF kiezen = het hele document wordt bewaard (privé-bucket) en Claude leest het meteen helemaal uit:
+  soort, leverancier, factuurnummer, datum, bedragen en productregels. Geen bijsnijden of pop-up meer.
+- Pakbonfoto's: hele foto, regels worden meteen uitgelezen.

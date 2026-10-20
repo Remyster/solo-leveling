@@ -58,6 +58,7 @@ document.getElementById('fileInput').addEventListener('change', async e=>{
   if(file) await verwerkDocumentFoto(file);
 });
 
+// Hele foto of hele PDF: wordt bewaard en meteen volledig uitgelezen door Claude.
 async function verwerkDocumentFoto(file){
   const save = document.getElementById('btnSaveDoc');
   if(!save || save.disabled){toast('Wacht tot de huidige verwerking klaar is');return;}
@@ -65,21 +66,32 @@ async function verwerkDocumentFoto(file){
   setScanStatus('Bestand inlezen…');
   try{
     if(file.type === 'application/pdf' || /\.pdf$/i.test(file.name)){
-      throw new Error('Maak van de productpagina een foto of schermafbeelding en kies die om bij te snijden. Een volledige PDF wordt niet overgenomen of verstuurd.');
+      if(file.size > 15*1024*1024) throw new Error('PDF is groter dan 15 MB');
+      const base64 = await leesBase64(file);
+      if(!save.isConnected) return;
+      window._docBestandBlob = file.type ? file : new Blob([file], {type:'application/pdf'});
+      window._docBestandNaam = (file.name || ('document_' + Date.now() + '.pdf')).replace(/[^a-zA-Z0-9._-]/g,'_');
+      window._docScanBron = { soort:'pdf', media_type:'application/pdf', base64 };
+      const host = document.getElementById('docScanThumb');
+      if(host) host.innerHTML = `<div class="scanthumb pdfthumb">📄 ${escapeHtml(file.name || 'PDF')}</div>`;
+      setScanStatus(`PDF — ${kbLabel(file.size)} — wordt opgeslagen bij bewaren`, 'ok');
+    }else{
+      if(!file.type.startsWith('image/')) throw new Error('Kies een foto, schermafbeelding of PDF');
+      const klein = await verkleinAfbeelding(file, 2000, 0.85);
+      if(!save.isConnected) return;
+      const blob = await (await fetch(klein.dataUrl)).blob();
+      window._docBestandBlob = blob;
+      window._docBestandNaam = 'document_' + Date.now() + '.jpg';
+      window._docScanBron = { soort:'image', media_type:'image/jpeg', base64: klein.base64 };
+      toonScanPreview(klein.dataUrl, `Foto — ${kbLabel(blob.size)}`);
     }
-    const klein = await snijDocumentFoto(file);
-    if(!save.isConnected) return;
-    if(!klein){setScanStatus('Bijsnijden geannuleerd; de bestaande bijlage blijft behouden');return;}
-    window._docBestandBlob = klein.blob;
-    window._docBestandNaam = 'productregels_' + Date.now() + '.jpg';
-    window._docScanBron = { soort:'image', media_type:'image/jpeg', base64: klein.base64 };
-    toonScanPreview(klein.dataUrl, `Uitsnede — ${kbLabel(klein.blob.size)}`);
-    toonAiScanKeuze();
   }catch(err){
     if(save.isConnected) setScanStatus('Inlezen mislukt: ' + (err.message||err), 'err');
+    return;
   }finally{
     save.disabled = false;
   }
+  await aiScanDocument();
 }
 
 // bestandslinks: data uit data-attributen, nooit uit een inline onclick
@@ -235,14 +247,6 @@ async function snijDocumentFoto(file){
   });
 }
 
-function toonAiScanKeuze(){
-  const box = document.getElementById('docAiStatus');
-  if(box){
-    box.className='status';
-    box.innerHTML='<p>Uitsnede klaar. Vul leverancier en datum zelf in. AI ontvangt alleen deze uitsnede.</p><button type="button" class="btn ghost" id="btnAiUitsnede">Productregels uitlezen met Claude</button>';
-    document.getElementById('btnAiUitsnede').addEventListener('click',aiScanDocument);
-  }
-}
 
 // Camerafoto's zijn 10+ MB; die eerst terugbrengen naar iets dat uploadt en dat de AI aankan.
 async function verkleinAfbeelding(file, maxZijde = 2000, kwaliteit = 0.82){
@@ -340,16 +344,16 @@ async function aiScanDocument(){
   const bron = window._docScanBron;
   const box = document.getElementById('docAiStatus');
   const save = document.getElementById('btnSaveDoc');
-  if(!bron || !box || !save || save.disabled){toast('Kies eerst een uitsnede en wacht tot de verwerking klaar is');return;}
-  if(!confirm('Deze uitsnede wordt naar Claude (Anthropic) verstuurd. Bevestig dat er geen persoonsgegevens of vertrouwelijke bedrijfsinformatie in staan. Versturen?')) return;
+  if(!bron || !box || !save || save.disabled){toast('Kies eerst een foto of PDF en wacht tot de verwerking klaar is');return;}
   save.disabled=true;
-  box.textContent='Claude leest de productregels…';
+  box.className='status';
+  box.textContent = bron.soort==='pdf' ? 'Claude leest de hele PDF…' : 'Claude leest het document…';
   try{
-    const regels = await leesProductUitsnede(bron.base64);
+    const gegevens = await leesDocument(bron);
     if(!save.isConnected) return;
-    vulDocVelden({regels});
+    vulDocVelden(gegevens);
     window._docAiGescand=true;
-    box.textContent='Productregels uitgelezen. Controleer omschrijvingen, aantallen en bedragen voordat je opslaat.';
+    box.textContent='Uitgelezen: soort, leverancier, datum, bedragen en productregels zijn ingevuld. Kijk ze even na en sla op.';
   }catch(error){
     if(box.isConnected) box.textContent='AI-uitlezen mislukt: '+error.message;
     console.error('WerkHub AI-uitlezen mislukt',error);
@@ -358,28 +362,36 @@ async function aiScanDocument(){
     if(box.isConnected){
       const retry=document.createElement('button');
       retry.type='button';retry.className='btn ghost';
-      retry.textContent='Productregels opnieuw uitlezen met Claude';
+      retry.textContent='Opnieuw uitlezen met Claude';
       retry.addEventListener('click',aiScanDocument);
       box.appendChild(retry);
     }
   }
 }
 
-async function leesProductUitsnede(base64){
+async function leesDocument(bron){
+  const blok = bron.soort==='pdf'
+    ? {type:'document',source:{type:'base64',media_type:'application/pdf',data:bron.base64}}
+    : {type:'image',source:{type:'base64',media_type:bron.media_type || 'image/jpeg',data:bron.base64}};
   const data=await aiMessages({
-    model:AI_SCAN_MODEL,max_tokens:2500,
-    system:'Lees uitsluitend productregels uit deze uitsnede. Geef alleen JSON: {"regels":[{"omschrijving":"", "aantal":null, "bedrag":null}]}. Maximaal 25 regels. Verzin niets; onleesbare aantallen of bedragen zijn null. Geen persoonsgegevens, leverancier of documentgegevens teruggeven.',
-    messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:'Lees de productregels uit.'}]}]
+    model:AI_SCAN_MODEL,max_tokens:2000,
+    system:AI_SCAN_SYSTEM,
+    messages:[{role:'user',content:[blok,{type:'text',text:'Lees dit hele document uit.'}]}]
   });
   const raw=(data.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('').trim();
-  const parsed=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));
-  if(!Array.isArray(parsed.regels) || parsed.regels.length>25 ||
-    parsed.regels.some(r=>!r || typeof r.omschrijving!=='string' ||
-      (r.aantal!==null && (!Number.isFinite(r.aantal) || r.aantal<0)) ||
-      (r.bedrag!==null && !Number.isFinite(r.bedrag)))){
-    throw new Error('Ongeldig AI-resultaat; productregels niet overgenomen');
-  }
-  return parsed.regels.map(r=>({omschrijving:r.omschrijving,aantal:r.aantal,bedrag:r.bedrag}));
+  let parsed;
+  try{ parsed=JSON.parse((raw.match(/\{[\s\S]*\}/)||[raw])[0]); }
+  catch(error){ throw new Error('Claude gaf geen leesbaar resultaat'); }
+  const getal = v => (v===null || v===undefined || v==='') ? null : (Number.isFinite(Number(v)) ? Number(v) : null);
+  const tekst = (v, max=200) => typeof v==='string' ? v.trim().slice(0,max) : '';
+  return {
+    type: ['offerte','bon','bestelling'].includes(parsed.type) ? parsed.type : '',
+    titel: tekst(parsed.titel,120), leverancier: tekst(parsed.leverancier,120), factuurnummer: tekst(parsed.factuurnummer,80),
+    datum: /^\d{4}-\d{2}-\d{2}$/.test(parsed.datum||'') ? parsed.datum : '',
+    bedrag_incl: getal(parsed.bedrag_incl), bedrag_excl: getal(parsed.bedrag_excl), btw_bedrag: getal(parsed.btw_bedrag), btw_pct: getal(parsed.btw_pct),
+    regels: (Array.isArray(parsed.regels) ? parsed.regels : []).slice(0,25).filter(r=>r && typeof r.omschrijving==='string')
+      .map(r=>({omschrijving:r.omschrijving.slice(0,200), aantal:getal(r.aantal), bedrag:getal(r.bedrag)}))
+  };
 }
 
 function zetVeld(id, waarde){
@@ -506,7 +518,7 @@ async function openDocSheet(id){
       <div class="status" id="docScanStatus">${
         (d.bestand_path || d.bestand_url)
           ? `Er hangt al een bestand aan. <a href="#" class="doclink" data-path="${escapeHtml(d.bestand_path||'')}" data-url="${escapeHtml(d.bestand_url||'')}" style="color:var(--blue); font-weight:600">bekijken ↗</a>`
-          : 'Fotografeer de productregels en snijd bij. Daarna kun je de uitsnede met Claude uitlezen.'
+          : 'Maak een foto of kies een PDF. Claude leest het hele document meteen uit.'
       }</div>
       <div class="status" id="docAiStatus"></div>
     </div>
@@ -542,7 +554,7 @@ async function openDocSheet(id){
       <div class="field"><label>Leverancier bij deze levering</label><input id="fLeveringBedrijf" type="text" value="${escapeHtml(d.leverancier||'')}"></div>
       <div class="field"><label>Leverdatum</label><input id="fLeveringDatum" type="date" value="${isoDatum(new Date())}"></div>
       <input type="file" id="fLeveringFoto" accept="image/*" capture="environment">
-      <p class="hintje">Snijd alleen de productregels uit. Alleen die uitsnede wordt bewaard. Met de aparte AI-knop kun je productregels uitlezen; ontvangst bevestig je zelf.</p>
+      <p class="hintje">De hele foto wordt bewaard en Claude leest de pakbonregels meteen uit. Ontvangst bevestig je zelf.</p>
       <div id="leveringFotoList"></div>
       <div id="leveringFotoStatus" class="hintje" role="status"></div>
     </div>
@@ -576,7 +588,6 @@ async function openDocSheet(id){
     document.querySelectorAll('[data-levering-ai]').forEach(button=>button.addEventListener('click',async()=>{
       const save=document.getElementById('btnSaveDoc');
       if(save.disabled) return;
-      if(!confirm('Alleen deze pakbonuitsnede wordt naar Claude (Anthropic) verstuurd. Bevestig dat er geen persoonsgegevens of vertrouwelijke bedrijfsinformatie in staan. Versturen?')) return;
       const foto=nieuweFotos[Number(button.dataset.leveringAi)];
       save.disabled=true;button.disabled=true;
       fotoStatus.textContent='Claude leest de pakbonregels…';
@@ -604,13 +615,14 @@ async function openDocSheet(id){
     fotoInput.disabled = true; save.disabled = true;
     fotoStatus.textContent = 'Foto voorbereiden…';
     try{
-      const klein = await snijDocumentFoto(file);
+      const verkleind = await verkleinAfbeelding(file, 2000, 0.85);
       if(!save.isConnected) return;
-      if(!klein){fotoStatus.textContent='Bijsnijden geannuleerd; geen foto toegevoegd';return;}
-      nieuweFotos.push({blob:klein.blob, naam:'levering_productregels_'+Date.now()+'.jpg',
+      const blob = await (await fetch(verkleind.dataUrl)).blob();
+      nieuweFotos.push({blob, naam:'levering_'+Date.now()+'.jpg',
         leverancier,leverdatum,created_at:new Date().toISOString(), path:null});
       renderLeveringFotos();
-      fotoStatus.textContent = 'Foto klaar. Vergelijk de producten en klik op Opslaan. Sluiten zonder opslaan bewaart de foto niet.';
+      fotoStatus.textContent = 'Foto klaar. Claude leest de pakbonregels…';
+      setTimeout(()=>document.querySelector(`[data-levering-ai="${nieuweFotos.length-1}"]`)?.click(), 0);
     }catch(error){
       fotoStatus.textContent = 'Foto verwerken mislukt: ' + error.message;
     }finally{
@@ -624,7 +636,7 @@ async function openDocSheet(id){
     const titel = document.getElementById('fDocTitel').value.trim();
     if(!titel){ toast('Vul een titel/omschrijving in'); return; }
     if(window._docBestandBlob && (!document.getElementById('fDocLev').value.trim() || !document.getElementById('fDocDatum').value)){
-      toast('Vul leverancier en documentdatum in voor deze uitsnede'); return;
+      toast('Vul leverancier en documentdatum in (of laat Claude het document uitlezen)'); return;
     }
     btn.disabled = true;
     fotoInput.disabled = true;
