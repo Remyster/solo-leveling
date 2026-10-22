@@ -43,7 +43,6 @@ WHATSAPP-INSTELLEN.txt. Begin in mockmodus; providerregistratie, secrets, deploy
 en een echte test blijven handmatige stappen.
 
 Tests: tests/TEAM-REGRESSIE.html?auto=1 (lokaal, mocks): 52 controles geslaagd.
-WhatsApp-mocks: tests/WHATSAPP-REGRESSIE.html, 8 controles geslaagd.
 
 Openbare UX-bronnen gebruikt:
 - Todoist Today: taken met datum/tijd en eerstvolgende taak centraal.

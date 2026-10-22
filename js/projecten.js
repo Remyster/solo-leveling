@@ -366,11 +366,11 @@ async function aiVulTaakIn(tekst){
   box.innerHTML = '⏳ Bezig met analyseren…';
   try{
     const data = await aiMessages({
-      model: AI_MODEL, max_tokens: 200,
+      model: AI_MODEL, max_tokens: 1024, output_config: AI_OPTS,
       system: `Vandaag is ${isoDatum(new Date())}. Je haalt uit een korte Nederlandse werknotitie de velden Waar (locatie of URL), Wie (contactpersoon of bedrijf), Deadline (datum in formaat YYYY-MM-DD, alleen als expliciet genoemd of duidelijk afleidbaar, anders leeg), een korte titel (max 6 woorden) en prioriteit: "urgent" als het zo snel mogelijk moet (vandaag/morgen, storing, iemand wacht), anders "belangrijk". Antwoord UITSLUITEND met geldige JSON: {"titel":"...","waar":"...","wie":"...","deadline":"...","prioriteit":"urgent|belangrijk"}. Onbekende velden: lege string.`,
       messages:[{role:'user', content: tekst.slice(0,500)}]
     });
-    const raw = data.content?.[0]?.text || '{}';
+    const raw = aiTekst(data) || '{}';
     const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
     if(parsed.titel) document.getElementById('fTitel').value = parsed.titel;
     if(parsed.waar) document.getElementById('fWaar').value = parsed.waar;

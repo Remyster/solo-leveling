@@ -1,5 +1,8 @@
 // ============ CONFIG ============
-const AI_MODEL = 'claude-haiku-4-5-20251001';
+const AI_MODEL = 'claude-haiku-5-5';        // ~10x goedkoper dan 4.5; denkt eerst na, zie aiTekst()
+// Haiku 5.5 denkt standaard eerst na, en dat denken telt mee in max_tokens.
+// effort 'low' houdt dat kort bij simpele klusjes zoals velden uit een notitie halen.
+const AI_OPTS = { effort: 'low' };
 const AI_SCAN_MODEL = 'claude-sonnet-5';   // leest bonnen/offertes uit, heeft beeld + pdf nodig
 
 function getAiKey(){ return localStorage.getItem('werkhub_ai_key') || ''; }
@@ -37,6 +40,12 @@ async function aiMessages(body){
   });
   if(!res.ok) throw new Error(res.status + ' ' + (await res.text().catch(()=> '')).slice(0,120));
   return await res.json();
+}
+
+// Een antwoord kan beginnen met een thinking-blok; content[0] is dan geen tekst.
+// Pak dus altijd alle text-blokken bij elkaar.
+function aiTekst(data){
+  return (data?.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
 }
 
 // ============ AUTH ============
