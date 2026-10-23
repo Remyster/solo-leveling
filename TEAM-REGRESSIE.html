@@ -226,7 +226,19 @@ async function run(source){
   check('Subtaak heeft bewust geen datum- of tijdvelden',!doc.getElementById('fDeadline') && !doc.getElementById('fBeginTijd') && !doc.getElementById('fHerhaling'));
   fill('fTitel','Kleine fictieve klus');click('btnSaveTask');await tick();
   const subtaak=db.tasks.find(row=>row.titel==='Kleine fictieve klus');
-  check('Subtaak wordt zonder datum als apart taaktype opgeslagen',subtaak?.taaktype==='subtaak' && subtaak.deadline===null);
+  check('Subtaak wordt zonder datum als apart taaktype opgeslagen',subtaak?.taaktype==='subtaak' && subtaak.deadline===null && !Object.hasOwn(subtaak,'belangrijk_vanaf'));
+  await w.openTaskSheet(null,'pwn','',null,null,'subtaak');
+  check('Subtaak heeft wel een optioneel veld Wordt belangrijk op',!!doc.getElementById('fBelangrijkVanaf'));
+  fill('fTitel','Fictieve subtaak al belangrijk');fill('fBelangrijkVanaf','2000-01-01');click('btnSaveTask');await tick();
+  await w.openTaskSheet(null,'pwn','',null,null,'subtaak');
+  fill('fTitel','Fictieve subtaak later belangrijk');fill('fBelangrijkVanaf','2099-03-01');click('btnSaveTask');await tick();
+  const subBelangrijk=db.tasks.find(row=>row.titel==='Fictieve subtaak al belangrijk');
+  check('Belangrijk-vanaf staat in eigen kolom, deadline blijft leeg (geen WhatsApp)',subBelangrijk?.belangrijk_vanaf==='2000-01-01' && subBelangrijk.deadline===null && subBelangrijk.taaktype==='subtaak');
+  await w.openTaskSheet(null,'pwn');
+  check('Herhaling kent Elke 2 weken',[...doc.querySelectorAll('#fHerhaling option')].some(o=>o.value==='tweewekelijks'));
+  check('Prioknoppen heten Urgent (zsm) en Belangrijk (ingepland)',[...doc.querySelectorAll('#prioRow button')].map(b=>b.textContent).join('|')==='🔥 Urgent (zsm)|📌 Belangrijk (ingepland)');
+  w.closeSheet();
+  check('Tweewekelijks schuift 14 dagen door',w.volgendeDeadline('2099-01-05','tweewekelijks')==='2099-01-19');
   try{w.localStorage.removeItem('werkhubTaakSecties');}catch(error){}
   await w.loadProjecten();
   const sections=()=>[...doc.querySelectorAll('#projLists details.statuscol')];
@@ -234,6 +246,9 @@ async function run(source){
   check('Urgent, Belangrijk, Subtaken en Wacht op als uitklapbare secties',sections().map(d=>d.dataset.sectie).join()==='urgent,belangrijk,subtaken,wacht_op');
   check('Urgent, Belangrijk en Subtaken standaard open, Wacht op dicht',sections().filter(d=>d.open).map(d=>d.dataset.sectie).join()==='urgent,belangrijk,subtaken');
   check('Vaste taak staat onder Urgent of Belangrijk',(sec('urgent').textContent+sec('belangrijk').textContent).includes('Fictieve weekronde'));
+  check('Sectie Belangrijk heet Belangrijk (ingepland)',sec('belangrijk').querySelector('summary').textContent.includes('Belangrijk (ingepland)'));
+  check('Subtaak met verstreken datum staat onder Belangrijk, niet onder Subtaken',sec('belangrijk').textContent.includes('Fictieve subtaak al belangrijk') && !sec('subtaken').textContent.includes('Fictieve subtaak al belangrijk'));
+  check('Subtaak met datum in de toekomst blijft bij Subtaken met de datum erbij',sec('subtaken').textContent.includes('Fictieve subtaak later belangrijk') && sec('subtaken').textContent.includes('belangrijk vanaf'));
   check('Subtaak staat alleen in subtakensectie',sec('subtaken').textContent.includes('Kleine fictieve klus') && !(sec('urgent').textContent+sec('belangrijk').textContent).includes('Kleine fictieve klus'));
   check('Afgeronde teamactie is weg (klaar = uit de lijst)',!doc.querySelector('#projLists').textContent.includes('Fictieve reservering'));
   sec('wacht_op').querySelector('summary').click();

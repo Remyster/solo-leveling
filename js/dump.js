@@ -149,6 +149,7 @@ async function loadDumpSubtaken(){
   lijst.innerHTML = rows.map(t=>`
     <div class="card subtaak-kaart">
       <div class="titel" onclick="openTaskSheet('${t.id}','pwn')">${escapeHtml(t.titel)}
+        ${t.belangrijk_vanaf ? `<div class="meta"><span>⏰ belangrijk vanaf ${fmtKorteDatum(t.belangrijk_vanaf)}</span></div>` : ''}
         ${t.notitie ? `<div class="meta"><span>${escapeHtml(t.notitie.slice(0,80))}${t.notitie.length>80?'…':''}</span></div>` : ''}
       </div>
       <button class="klaarbtn" aria-label="Subtaak klaar" title="Klaar" onclick="subtaakKlaar('${t.id}')">✓</button>
