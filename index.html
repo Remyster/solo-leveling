@@ -39,7 +39,7 @@
       <div class="row"><span class="ico">⏰</span><div><div class="lbl">Volgende deadline</div><div class="val" id="wDeadline">–</div></div></div>
       <div class="row"><span class="ico">✅</span><div><div class="lbl">Mee bezig</div><div class="val" id="wActief">–</div></div></div>
       <div class="row"><span class="ico">🧩</span><div><div class="lbl">Subtaken voor tussendoor</div><div class="val" id="wSubtaken">–</div></div><button class="today-action" data-go="projecten">Open</button></div>
-      <div class="row"><span class="ico">🔥</span><div><div class="lbl">Urgente dump</div><div class="val" id="wUrgent">–</div></div></div>
+      <div class="row"><span class="ico">📥</span><div><div class="lbl">Dump: nog te sorteren</div><div class="val" id="wUrgent">–</div></div><button class="today-action" data-go="dump">Sorteer</button></div>
       <div class="row"><span class="ico">⏱️</span><div><div class="lbl">Uren deze week</div><div class="val" id="wUren">–</div></div><button class="today-action" data-go="uren">Invullen</button></div>
     </div>
     <div id="urenReminder" class="hours-warning hidden"><span>⏱️</span><span>Vandaag zijn nog geen uren ingevuld.</span><button data-go="uren">Nu invullen</button></div>
@@ -61,16 +61,15 @@
       <button id="dumpFoto"><span class="emoji">📷</span>Foto</button>
     </div>
     <input type="file" id="fotoInput" accept="image/*" capture="environment" class="hidden">
-    <h2>📥 Onthoudlijstjes</h2>
-    <div class="filterrow" id="dumpCategorieRow">
-      <button data-c="inbox" class="sel">Inbox</button>
-      <button data-c="kopen">Kopen</button>
-      <button data-c="akf_dwat">AKF/DWAT</button>
-      <button data-c="uf_ro">UF-RO</button>
-      <button data-c="lab">LAB/Analyseruimte</button>
-    </div>
-    <p class="hintje">Bewaar hier dingen voor later. Kies bij het opslaan een lijstje en eventueel een herinnering.</p>
-    <div id="dumpList"></div>
+    <p class="hintje">Gooi het erin. AI stelt voor waar het hoort: een taak, subtaak, iets om te kopen of een notitie in je Werkmap. Jij tikt ✓. Wat hier blijft staan heeft nog geen plek.</p>
+    <details class="statuscol" id="dumpTeSorteren" open>
+      <summary><span>📥 Nog te sorteren<span class="uitleg">Leeg = alles verwerkt.</span></span><span class="telling" id="dumpTeSorterenTelling"></span></summary>
+      <div class="inhoud" id="dumpList"><div class="empty-state">Laden…</div></div>
+    </details>
+    <details class="statuscol" id="dumpKopen" open>
+      <summary><span>🛒 Kopen<span class="uitleg">Vink af als je het gekocht hebt.</span></span><span class="telling" id="dumpKopenTelling">–</span></summary>
+      <div class="inhoud" id="dumpKopenList"><div class="empty-state">Laden…</div></div>
+    </details>
 
     <details class="statuscol" id="dumpSubtaken">
       <summary><span>🧩 Subtaken<span class="uitleg">Kleine klussen zonder datum, voor tussendoor.</span></span><span class="telling" id="dumpSubtakenTelling">–</span></summary>

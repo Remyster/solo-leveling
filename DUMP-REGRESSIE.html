@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WerkHub Dump-regressie</title>
+<style>
+body{font:15px system-ui;margin:20px}iframe{width:375px;height:650px;border:1px solid #aaa}
+pre{white-space:pre-wrap}button,input{padding:10px}
+</style>
+</head>
+<body>
+<h1>Dump-regressie (v31), uitsluitend lokale mocks</h1>
+<p>Test de zelfsorterende Dump met fictieve gegevens: geen sessie, geen echte database,
+geen echte AI-call. Het testframe blokkeert netwerkverkeer met CSP. Een fout maakt de run rood.
+Automatisch: open deze pagina met <code>?auto=1</code> via een lokale server.</p>
+<input id="source" type="file" accept=".html">
+<pre id="result" role="status">Kies index.html om te starten.</pre>
+<div id="frameHost"></div>
+<script>
+const OWNER='11111111-1111-4111-8111-111111111111';
+let db={}, calls=[], seq=0, faalTabel=null, aiAntwoord=null, aiCalls=[], wakes=0;
+const clone=value=>JSON.parse(JSON.stringify(value));
+const uuid=()=>`00000000-0000-4000-8000-${String(++seq).padStart(12,'0')}`;
+const tick=async()=>{for(let i=0;i<40;i++) await Promise.resolve();};
+const wacht=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+// WerkHub staat sinds v25 in losse bestanden (js/*.js): voeg die weer samen tot één script.
+async function inlineScripts(parsed){
+  for(const link of [...parsed.querySelectorAll('link[rel="stylesheet"][href^="./"]')]){
+    const response=await fetch(new URL('.'+link.getAttribute('href'),location.href),{cache:'no-store'});
+    if(!response.ok) throw Error(`${link.getAttribute('href')} gaf HTTP ${response.status}`);
+    const style=parsed.createElement('style');
+    style.textContent=await response.text();
+    link.replaceWith(style);
+  }
+  const external=[...parsed.querySelectorAll('script[src^="./js/"]')];
+  if(!external.length) return;
+  const parts=[];
+  for(const el of external){
+    const response=await fetch(new URL('.'+el.getAttribute('src'),location.href),{cache:'no-store'});
+    if(!response.ok) throw Error(`${el.getAttribute('src')} gaf HTTP ${response.status}`);
+    parts.push(await response.text());
+    el.remove();
+  }
+  const inline=[...parsed.querySelectorAll('script:not([src])')];
+  if(inline.length!==1) throw Error('Onbekende appstructuur; test niet veilig gestart');
+  inline[0].textContent+='\n'+parts.join('\n');
+}
+async function frameFor(source){
+  const parsed=new DOMParser().parseFromString(source,'text/html');
+  await inlineScripts(parsed);
+  parsed.querySelectorAll('iframe,link,script[src]').forEach(el=>el.remove());
+  parsed.querySelectorAll('img').forEach(el=>el.removeAttribute('src'));
+  const scripts=[...parsed.querySelectorAll('script')];
+  if(scripts.length!==1 || !scripts[0].textContent.includes('boot().catch(error=>{')) throw Error('Onbekende appstructuur; test niet veilig gestart');
+  scripts[0].textContent=scripts[0].textContent
+    .replace('boot().catch(error=>{','Promise.resolve().catch(error=>{')
+    .replace("if('serviceWorker' in navigator && location.protocol !== 'file:'){",'if(false){');
+  const csp=parsed.createElement('meta');
+  csp.httpEquiv='Content-Security-Policy';
+  csp.content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none';";
+  parsed.head.prepend(csp);
+  const frame=document.createElement('iframe');
+  frame.setAttribute('sandbox','allow-scripts allow-same-origin');
+  const loaded=new Promise(resolve=>{frame.onload=resolve;});
+  frame.srcdoc='<!doctype html>'+parsed.documentElement.outerHTML;
+  document.getElementById('frameHost').replaceChildren(frame);
+  await loaded;
+  const w=frame.contentWindow;
+  w.getAuthSession=()=>({user:{id:OWNER}});
+  w.confirm=()=>true;
+  w.uploadFoto=()=>{throw Error('Geen uploads in deze test');};
+  w.reminderApi=async(action)=>{ if(action==='dispatch-whatsapp') wakes++; return {settings:{task_email:true}}; };
+  w.aiMessages=async body=>{
+    aiCalls.push(body);
+    if(aiAntwoord instanceof Error) throw aiAntwoord;
+    // Haiku 5.5 begint vaak met een denkblok; de Dump moet alleen de tekst lezen.
+    return {content:[{type:'thinking',thinking:'even nadenken'},{type:'text',text:JSON.stringify(aiAntwoord||{})}]};
+  };
+  w.sb=async(path,opts={})=>{
+    calls.push({path,opts});
+    const tabel=path.split('?')[0];
+    if(faalTabel===tabel && opts.method) throw Error('Synthetische fout in '+tabel);
+    const list=db[tabel]||(db[tabel]=[]);
+    const id=path.match(/id=eq\.([^&]+)/)?.[1];
+    if(!opts.method){
+      let rows=id?list.filter(row=>row.id===id):list.slice();
+      if(path.includes('gesorteerd=eq.false')) rows=rows.filter(row=>!row.gesorteerd);
+      if(path.includes('categorie=neq.kopen')) rows=rows.filter(row=>row.categorie!=='kopen');
+      if(path.includes('taaktype=eq.subtaak')) rows=rows.filter(row=>row.taaktype==='subtaak');
+      if(path.includes('status=neq.klaar')) rows=rows.filter(row=>row.status!=='klaar');
+      return clone(rows);
+    }
+    const body=JSON.parse(opts.body);
+    if(opts.method==='PATCH'){
+      const row=list.find(row=>row.id===id);
+      if(!row) return [];
+      Object.assign(row,body);
+      return clone([row]);
+    }
+    const added=[];
+    for(const value of Array.isArray(body)?body:[body]){
+      const row={id:uuid(),created_at:'2026-10-23T09:00:00Z',...value};
+      list.push(row);added.push(row);
+    }
+    return clone(added);
+  };
+  w.loadVandaag=async()=>{};
+  w.loadAgenda=async()=>{};
+  w.document.getElementById('loginGate').remove();
+  ['appMain','appHeader','appNav'].forEach(id=>w.document.getElementById(id).classList.remove('hidden'));
+  w.switchTab('dump');
+  await tick();
+  return w;
+}
+async function run(source){
+  const output=document.getElementById('result');
+  const results=[];
+  function check(label,condition){
+    if(!condition) throw Error(label);
+    results.push('OK: '+label);
+    output.textContent=results.join('\n');
+  }
+  db={work_items:[],work_tasks:[],werkplek_documents:[]};calls=[];seq=0;faalTabel=null;aiAntwoord=null;aiCalls=[];wakes=0;
+  const w=await frameFor(source);
+  const doc=w.document;
+  const $=id=>doc.getElementById(id);
+  const typ=async(tekst)=>{ $('dumpTekstVal').value=tekst; $('dumpTekstVal').dispatchEvent(new w.Event('input')); await wacht(1350); await tick(); };
+  const kiesKnop=k=>doc.querySelector(`#dumpKeuzeRow button[data-k="${k}"]`);
+  const gekozen=()=>doc.querySelector('#dumpKeuzeRow button.sel')?.dataset.k;
+  const opslaan=async()=>{ $('dumpSaveBtn').click(); await wacht(30); await tick(); };
+
+  check('Dump toont Nog te sorteren, Kopen en Subtaken, alles leeg',
+    !!$('dumpTeSorteren') && !!$('dumpKopen') && !!$('dumpSubtaken') && $('dumpList').textContent.includes('Alles verwerkt'));
+  check('Oude lijstjes AKF/DWAT, UF-RO en LAB zijn geen knoppen meer',!doc.querySelector('[data-c="uf_ro"],[data-c="lab"],[data-c="akf_dwat"]'));
+
+  // 1. AI kiest subtaak
+  aiAntwoord={bestemming:'subtaak',titel:'Kabels opruimen in de kelder',deadline:'',reden:'klein klusje'};
+  w.openDumpSheet('tekst');
+  check('Zes bestemmingen, start op Later sorteren',doc.querySelectorAll('#dumpKeuzeRow button').length===6 && gekozen()==='inbox');
+  await typ('kabels in de kelder nog even opruimen als ik tijd heb');
+  check('AI-voorstel kiest subtaak en vult de titel',gekozen()==='subtaak' && $('dumpTitelVal').value==='Kabels opruimen in de kelder' && $('dumpAiStatus').textContent.includes('Subtaak'));
+  check('AI-call via Haiku 5.5 met effort low en genoeg tokens',aiCalls[0]?.model==='claude-haiku-5-5' && aiCalls[0]?.output_config?.effort==='low' && aiCalls[0]?.max_tokens>=1024);
+  await opslaan();
+  const sub=db.work_tasks.find(t=>t.titel==='Kabels opruimen in de kelder');
+  check('Subtaak in PWN, zonder datum, volledige tekst als notitie',sub?.taaktype==='subtaak' && sub.deadline===null && sub.project==='pwn' && sub.notitie.includes('kelder'));
+  check('Spoor in de Dump: gesorteerd en verwerkt als subtaak',db.work_items.some(r=>r.gesorteerd===true && r.verwerkt_als==='subtaak' && r.tekst.includes('kelder')));
+  check('Subtaak stuurt geen WhatsApp',wakes===0);
+
+  // 2. AI kiest urgent met deadline
+  aiAntwoord={bestemming:'urgent',titel:'Pomp Overveen lekt',deadline:'2099-01-02',waar:'Overveen',reden:'storing'};
+  w.openDumpSheet('spraak',{tekst:'pomp in overveen lekt, morgen eerste klus'});
+  await wacht(60);await tick();
+  check('Ingesproken tekst krijgt meteen een voorstel',gekozen()==='urgent' && $('dumpDeadlineVal').value==='2099-01-02' && !$('dumpDeadlineVeld').classList.contains('hidden'));
+  await opslaan();
+  const urg=db.work_tasks.find(t=>t.titel==='Pomp Overveen lekt');
+  check('Urgente taak met prioriteit, deadline en waar',urg?.prioriteit==='urgent' && urg.deadline==='2099-01-02' && urg.waar==='Overveen' && urg.taaktype==='taak');
+  check('Nieuwe gewone taak wekt WhatsApp-controle, net als het taakformulier',wakes===1);
+
+  // 3. Eigen keuze gaat voor
+  aiAntwoord={bestemming:'notitie',titel:'Iets'};
+  w.openDumpSheet('tekst');
+  kiesKnop('kopen').click();
+  await typ('nieuwe accu voor de boormachine');
+  check('Jouw keuze blijft staan als de AI iets anders denkt',gekozen()==='kopen' && $('dumpAiStatus').textContent.includes('jouw keuze'));
+  check('Bij Kopen geen titel/deadline maar wel herinnering',$('dumpTaakVelden').classList.contains('hidden') && !$('dumpLaterVelden').classList.contains('hidden'));
+  await opslaan();
+  check('Kopen blijft in de Dump onder Kopen',db.work_items.some(r=>r.categorie==='kopen' && !r.gesorteerd && r.verwerkt_als==='kopen') && $('dumpKopenList').textContent.includes('accu'));
+
+  // 4. Notitie naar de Werkplek
+  aiAntwoord={bestemming:'notitie',titel:'Meetwaarde UF-RO filter 3',reden:'informatie, geen actie'};
+  w.openDumpSheet('tekst');
+  await typ('UF-RO filter 3 transmembraandruk 0,42 bar na spoeling');
+  await opslaan();
+  const blad=db.werkplek_documents[0];
+  check('Notitie wordt een schriftblad in map Uit de Dump',blad?.kind==='page' && blad.folder_title==='📥 Uit de Dump' && blad.title==='Meetwaarde UF-RO filter 3');
+  check('Schriftblad voldoet aan het Werkplek-formaat (id gelijk, tekstblok, lege streken, view)',
+    blad.data.id===blad.id && blad.data.kind==='page' && Array.isArray(blad.data.strokes) && blad.data.strokes.length===0 &&
+    blad.data.text==='' && blad.data.pages===1 && blad.data.view.scale===1 &&
+    blad.data.textBlocks.length===1 && blad.data.textBlocks[0].text.includes('0,42 bar') && blad.data.textBlocks[0].text.length<=20000);
+  check('Spoor: verwerkt als notitie',db.work_items.some(r=>r.verwerkt_als==='notitie' && r.gesorteerd));
+
+  // 5. AI faalt
+  aiAntwoord=new Error('proxy plat');
+  w.openDumpSheet('tekst');
+  await typ('iets onduidelijks');
+  check('AI-fout: duidelijke melding, keuze blijft Later sorteren',gekozen()==='inbox' && $('dumpAiStatus').textContent.includes('kies zelf'));
+  await opslaan();
+  check('Later sorteren staat onder Nog te sorteren met een Sorteer-knop',$('dumpList').textContent.includes('iets onduidelijks') && $('dumpList').textContent.includes('Sorteer'));
+
+  // 6. Oud item met oud lijstje en herinnering wordt een subtaak: niets kwijt
+  db.work_items.push({id:'oud-1',type:'tekst',tekst:'filterkast AKF schoonmaken',categorie:'akf_dwat',gesorteerd:false,urgent:false,herinner_at:'2099-03-01T08:00:00Z',created_at:'2026-09-01T08:00:00Z'});
+  await w.loadDump();
+  check('Oud item met lijstje AKF/DWAT staat zichtbaar onder Nog te sorteren',$('dumpList').textContent.includes('filterkast') && $('dumpList').textContent.includes('AKF/DWAT'));
+  aiAntwoord={bestemming:'subtaak',titel:'Filterkast AKF schoonmaken'};
+  w.bewerkDump('oud-1');await wacht(60);await tick();
+  await opslaan();
+  const oud=db.work_items.find(r=>r.id==='oud-1');
+  check('Oud item: lijstje, tekst en herinnering blijven, alleen gesorteerd + spoor',oud.categorie==='akf_dwat' && oud.herinner_at==='2099-03-01T08:00:00Z' && oud.tekst.includes('filterkast') && oud.gesorteerd===true && oud.verwerkt_als==='subtaak');
+  check('Geen dubbele dump aangemaakt voor een bestaand item',db.work_items.filter(r=>r.tekst.includes('filterkast')).length===1);
+
+  // 7. Bestemming faalt: dump blijft staan
+  const voor=db.work_items.length;
+  aiAntwoord={bestemming:'belangrijk',titel:'Offerte nakijken'};
+  faalTabel='work_tasks';
+  w.openDumpSheet('tekst');
+  await typ('offerte van de leverancier nakijken');
+  await opslaan();
+  check('Als de taak niet opgeslagen kan worden: geen spoor, formulier blijft open',db.work_items.length===voor && !!$('dumpSaveBtn') && !$('dumpSaveBtn').disabled);
+  faalTabel='werkplek_documents';
+  kiesKnop('notitie').click();await opslaan();
+  check('Ook bij een mislukte notitie blijft alles staan',db.work_items.length===voor && db.werkplek_documents.length===1 && !!$('dumpSaveBtn'));
+  faalTabel=null;w.closeSheet();
+
+  // 8. Gekocht en weergave
+  const accu=db.work_items.find(r=>r.tekst.includes('accu'));
+  await w.archiveerDump(accu.id);await tick();
+  check('✓ Gekocht haalt hem van de lijst maar wist niets',accu.gesorteerd===true && db.work_items.includes(accu) && !$('dumpKopenList').textContent.includes('accu'));
+  db.work_items.push({id:'xss',type:'tekst',tekst:'<img src=x onerror=alert(1)>',categorie:'inbox',gesorteerd:false,created_at:'2026-10-01T08:00:00Z'});
+  await w.loadDump();
+  check('Tekst wordt als tekst getoond, geen HTML uitgevoerd',!doc.querySelector('#dumpList img') && $('dumpList').textContent.includes('<img src=x'));
+  check('Geen andere tabellen aangeraakt dan Dump, taken en Werkplek',calls.every(c=>/^(work_items|work_tasks|werkplek_documents)/.test(c.path)));
+
+  output.style.color='green';
+  output.textContent=results.join('\n')+`\n\n${results.length} controles geslaagd. Live SQL/RLS en een echte AI-call niet met deze mock bewezen.`;
+  document.body.dataset.testResult='passed';
+}
+document.getElementById('source').addEventListener('change',async event=>{
+  const output=document.getElementById('result');
+  try{
+    const file=event.target.files[0];
+    if(!file) return;
+    await run(await file.text());
+  }catch(error){
+    output.style.color='red';output.textContent+='\nMISLUKT: '+error.message;
+    document.body.dataset.testResult='failed';
+    console.error(error);
+  }
+});
+if(new URL(location.href).searchParams.get('auto')==='1'){
+  fetch('../index.html',{cache:'no-store'})
+    .then(response=>response.ok?response.text():Promise.reject(new Error(`index.html gaf HTTP ${response.status}`)))
+    .then(run)
+    .catch(error=>{
+      const output=document.getElementById('result');
+      output.style.color='red';output.textContent+='\nMISLUKT: '+error.message;
+      document.body.dataset.testResult='failed';
+    });
+}
+</script>
+</body>
+</html>

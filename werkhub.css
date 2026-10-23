@@ -81,6 +81,10 @@
   .segrow{display:flex; gap:6px; flex-wrap:wrap;}
   .segrow button{flex:1; min-width:70px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:8px 6px; color:var(--sub); font-size:12px; font-weight:600;}
   .segrow button.sel{background:var(--blue); color:#fff; border-color:var(--blue);}
+  /* Dump v31: 6 bestemmingen in een raster van 2 (telefoon) of 3 breed, elk minstens 44px hoog */
+  .dumpkeuze{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
+  @media (min-width:520px){ .dumpkeuze{grid-template-columns:repeat(3,1fr);} }
+  .dumpkeuze button{min-height:44px; font-size:13px;}
   .sheet-actions{display:flex; gap:10px; margin-top:16px;}
   .btn{flex:1; border:none; border-radius:12px; padding:13px; font-size:15px; font-weight:700;}
   .btn.primary{background:var(--blue); color:#fff;}

@@ -46,7 +46,7 @@ async function loadVandaag(){
   const [wkStart, wkEind] = weekBereik();
   const [tasks, dumps, uren] = await Promise.all([
     sb('work_tasks?status=neq.klaar&order=deadline.asc.nullslast'),
-    sb('work_items?gesorteerd=eq.false&urgent=eq.true&order=created_at.desc'),
+    sb('work_items?gesorteerd=eq.false&categorie=neq.kopen&select=tekst,urgent&order=created_at.desc'),
     sb(`work_load?select=code,uren,datum&datum=gte.${isoDatum(wkStart)}&datum=lte.${isoDatum(wkEind)}`)
   ]);
 
@@ -69,8 +69,9 @@ async function loadVandaag(){
     ? `${subtaken.length} beschikbaar · ${escapeHtml(subtaken[0].titel)}`
     : '<span class="empty">geen subtaken</span>';
 
+  // Sinds v31 wordt een urgente dump meteen een urgente taak; hier staat dus wat nog geen plek heeft.
   document.getElementById('wUrgent').innerHTML = dumps.length
-    ? escapeHtml(dumps[0].tekst||'(foto)') : '<span class="empty">geen urgente dumps</span>';
+    ? `${dumps.length} · ${escapeHtml(dumps[0].tekst||'(foto)')}` : '<span class="empty">alles verwerkt</span>';
 
   document.getElementById('urenReminder').classList.toggle('hidden', !urenHerinneringNodig(uren));
 }

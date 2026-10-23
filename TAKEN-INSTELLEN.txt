@@ -43,6 +43,14 @@ WHATSAPP-INSTELLEN.txt. Begin in mockmodus; providerregistratie, secrets, deploy
 en een echte test blijven handmatige stappen.
 
 Tests: tests/TEAM-REGRESSIE.html?auto=1 (lokaal, mocks): 60 controles geslaagd.
+Dump: DUMP-REGRESSIE.html?auto=1 (lokaal, mocks): 27 controles geslaagd.
+
+Dump v31 (zelfsorterend): elke dump krijgt een AI-voorstel (Haiku 5.5 via ai-proxy) en
+gaat naar een PWN-taak (urgent/belangrijk), subtaak, de Kopen-lijst, of als schriftblad
+naar de Werkplek (werkplek_documents, map "📥 Uit de Dump"). Wat nog geen plek heeft
+blijft onder Nog te sorteren. work_items.verwerkt_als onthoudt waar een dump heen ging;
+er wordt nooit iets gewist. De oude lijstjes AKF/DWAT, UF-RO en LAB zijn geen keuze
+meer (die mappen staan in de Werkplek); oude items met zo'n lijstje blijven zichtbaar.
 
 Openbare UX-bronnen gebruikt:
 - Todoist Today: taken met datum/tijd en eerstvolgende taak centraal.
