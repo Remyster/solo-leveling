@@ -28,8 +28,11 @@ function takenSectieOpen(key, standaard=false){
   }catch(e){ return standaard; }
 }
 
-// Eisenhower: urgent (moet zsm) of belangrijk (staat al ingepland). Zonder keuze: deadline binnen 2 dagen = urgent.
-const prioLabels = {urgent:'🔥 Urgent (zsm)', belangrijk:'📌 Belangrijk (ingepland)'};
+// Eisenhower-matrix: urgent+belangrijk = Doen, belangrijk = Plannen, urgent maar niet belangrijk = Delegeren,
+// geen van beide = Rest. Taken: urgent of belangrijk (zonder keuze: deadline binnen 2 dagen = urgent).
+// Subtaken: prioriteit 'delegeren' of leeg (= Rest). Vaste taken (herhaling) krijgen een eigen bak.
+const prioLabels = {urgent:'🔥 Doen', belangrijk:'📌 Plannen', delegeren:'🤝 Delegeren', rest:'🧩 Rest'};
+const vandaagOfEerder = t => !!t.deadline && t.deadline <= isoDatum(new Date());
 
 // Een subtaak met belangrijk_vanaf schuift op die dag vanzelf door naar Belangrijk.
 // Bewust een eigen kolom en niet deadline: de WhatsApp-herinneringen kijken naar
@@ -110,9 +113,12 @@ async function loadProjecten(){
   const open = tasks.filter(t=>t.status!=='klaar');
   const gewoneTaken = open.filter(t=>t.taaktype!=='subtaak' && t.status!=='wacht_op');
   const secties = [
-    {key:'urgent', titel:'🔥 Urgent (zsm)', uitleg:'Moet zo snel mogelijk.', items:gewoneTaken.filter(t=>prioVan(t)==='urgent'), standaard:true},
-    {key:'belangrijk', titel:'📌 Belangrijk (ingepland)', uitleg:'Staat in je agenda: je weet wanneer je het doet.', items:[...gewoneTaken.filter(t=>prioVan(t)==='belangrijk'), ...open.filter(t=>subtaakNuBelangrijk(t) && t.status!=='wacht_op')], standaard:true},
-    {key:'subtaken', titel:'🧩 Subtaken (wel doen)', uitleg:'Niet urgent, niet belangrijk: tussendoor.', items:open.filter(t=>t.taaktype==='subtaak' && !subtaakNuBelangrijk(t) && t.status!=='wacht_op'), standaard:true},
+    // Een vaste taak staat in Vaste taken, en op de dag zelf (of te laat) ook bovenaan bij Doen.
+    {key:'urgent', titel:'🔥 Doen', uitleg:'Urgent én belangrijk: nu, anders gaat het mis.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='urgent'), ...gewoneTaken.filter(t=>isVasteTaak(t) && vandaagOfEerder(t))], standaard:true},
+    {key:'belangrijk', titel:'📌 Plannen', uitleg:'Belangrijk, niet urgent: geef het een moment in je agenda.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='belangrijk'), ...open.filter(t=>subtaakNuBelangrijk(t) && t.status!=='wacht_op')], standaard:true},
+    {key:'vast', titel:'🔁 Vaste taken', uitleg:'Komen elke dag/week/maand vanzelf terug. Vinkje = deze keer gedaan.', items:gewoneTaken.filter(t=>isVasteTaak(t) && !vandaagOfEerder(t)), standaard:false},
+    {key:'delegeren', titel:'🤝 Delegeren', uitleg:'Urgent, niet belangrijk: moet snel, maar niet per se door jou.', items:open.filter(t=>t.taaktype==='subtaak' && t.prioriteit==='delegeren' && !subtaakNuBelangrijk(t) && t.status!=='wacht_op'), standaard:true},
+    {key:'subtaken', titel:'🧩 Rest', uitleg:'Niet urgent, niet belangrijk: tussendoor, als je tijd over hebt.', items:open.filter(t=>t.taaktype==='subtaak' && t.prioriteit!=='delegeren' && !subtaakNuBelangrijk(t) && t.status!=='wacht_op'), standaard:true},
     {key:'wacht_op', titel:'⏳ Wacht op iemand', uitleg:statusUitleg.wacht_op, items:open.filter(t=>t.status==='wacht_op'), standaard:false}
   ];
   host.insertAdjacentHTML('beforeend', secties.map(s=>`
@@ -140,7 +146,7 @@ function taskCard(t){
       <div class="titel">${escapeHtml(t.titel)}</div>
       <div class="meta">
         ${t.status==='wacht_op' || t.status==='klaar' ? `<span class="badge ${t.status}">${statusLabels[t.status]}</span>` : ''}
-        ${t.taaktype==='subtaak' ? '<span class="badge subtaak">Subtaak</span>' : ''}
+        ${t.taaktype==='subtaak' ? `<span class="badge subtaak">${t.prioriteit==='delegeren' ? '🤝 Delegeren' : 'Subtaak'}</span>` : ''}
         ${t.taaktype==='subtaak' && t.belangrijk_vanaf ? `<span>${subtaakNuBelangrijk(t) ? '⏰ belangrijk sinds' : '⏰ belangrijk vanaf'} ${fmtKorteDatum(t.belangrijk_vanaf)}</span>` : ''}
         ${isVasteTaak(t) ? `<span class="badge herhaling">🔁 ${herhalingLabels[t.herhaling]||escapeHtml(t.herhaling)}</span>` : ''}
         ${t.deadline ? `<span>📅 ${fmtTaakDatumTijd(t)}</span>` : ''}
@@ -180,9 +186,12 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     <div class="field"><label>⏰ Begintijd</label><input type="time" id="fBeginTijd" value="${(t.begin_tijd||'').slice(0,5)}"></div>
     <div class="field"><label>⏰ Eindtijd (optioneel)</label><input type="time" id="fEindTijd" value="${(t.eind_tijd||'').slice(0,5)}"></div>`}
     <div id="calLinkWrap"></div>
-    ${!isTeam && t.taaktype!=='subtaak' ? `<div class="field"><label>Hoe dringend?</label>
+    ${!isTeam ? `<div class="field"><label>Hoe dringend?</label>
       <div class="segrow" id="prioRow">
-        ${[['urgent','🔥 Urgent (zsm)'],['belangrijk','📌 Belangrijk (ingepland)']].map(([p,label])=>`<button type="button" data-p="${p}" class="${prioVan(t)===p?'sel':''}" onclick="pickPrio('${p}')">${label}</button>`).join('')}
+        ${(t.taaktype==='subtaak'
+          ? [['delegeren','🤝 Delegeren','urgent, niet belangrijk'],['rest','🧩 Rest','tussendoor']]
+          : [['urgent','🔥 Doen','urgent + belangrijk: nu'],['belangrijk','📌 Plannen','belangrijk: geef het een moment']]
+        ).map(([p,label,klein])=>`<button type="button" data-p="${p}" class="${(t.taaktype==='subtaak' ? (t.prioriteit==='delegeren'?'delegeren':'rest') : prioVan(t))===p?'sel':''}" onclick="pickPrio('${p}')">${label}<small class="prio-klein">${klein}</small></button>`).join('')}
       </div>
     </div>` : ''}
     <div class="field"><label>Status</label>
@@ -210,7 +219,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     ${isTeam ? '<p id="teamTaskError" class="team-error" role="alert"></p>' : ''}
   `);
   window._taskStatus = t.status;
-  window._taskPrio = t.taaktype==='subtaak' || isTeam ? null : (t.prioriteit || null);
+  window._taskPrio = isTeam ? null : t.taaktype==='subtaak' ? (t.prioriteit==='delegeren' ? 'delegeren' : 'rest') : (t.prioriteit || null);
   window._taskBijlageUrl = t.bijlage_url || '';
   const teamTaskError=document.getElementById('teamTaskError');
   if(isTeam){
@@ -280,7 +289,8 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     };
     if(!payload.titel){ toast('Vul iets in bij "Wat"'); return; }
     if(!isTeam && (t.taaktype==='subtaak' || t.taaktype!==undefined)) payload.taaktype = t.taaktype || 'taak';
-    if(!isTeam && t.taaktype!=='subtaak' && window._taskPrio) payload.prioriteit = window._taskPrio;
+    if(!isTeam && t.taaktype==='subtaak') payload.prioriteit = window._taskPrio==='delegeren' ? 'delegeren' : null;
+    else if(!isTeam && window._taskPrio) payload.prioriteit = window._taskPrio;
     const herhalingEl = document.getElementById('fHerhaling');
     const herhaling = herhalingEl ? herhalingEl.value : 'eenmalig';
     // Only send herhaling when used, so the app keeps working before TAKEN-HERHALING-MIGRATIE.sql.
@@ -382,7 +392,7 @@ async function aiVulTaakIn(tekst){
   try{
     const data = await aiMessages({
       model: AI_MODEL, max_tokens: 1024, output_config: AI_OPTS,
-      system: `Vandaag is ${isoDatum(new Date())}. Je haalt uit een korte Nederlandse werknotitie de velden Waar (locatie of URL), Wie (contactpersoon of bedrijf), Deadline (datum in formaat YYYY-MM-DD, alleen als expliciet genoemd of duidelijk afleidbaar, anders leeg), een korte titel (max 6 woorden) en prioriteit: "urgent" als het zo snel mogelijk moet (vandaag/morgen, storing, iemand wacht), anders "belangrijk". Antwoord UITSLUITEND met geldige JSON: {"titel":"...","waar":"...","wie":"...","deadline":"...","prioriteit":"urgent|belangrijk"}. Onbekende velden: lege string.`,
+      system: `Vandaag is ${isoDatum(new Date())}. Je haalt uit een korte Nederlandse werknotitie de velden Waar (locatie of URL), Wie (contactpersoon of bedrijf), Deadline (datum in formaat YYYY-MM-DD, alleen als expliciet genoemd of duidelijk afleidbaar, anders leeg), een korte titel (max 6 woorden) en prioriteit: "urgent" als het zo snel mogelijk moet én belangrijk is (vandaag/morgen, storing, iemand wacht), anders "belangrijk". Antwoord UITSLUITEND met geldige JSON: {"titel":"...","waar":"...","wie":"...","deadline":"...","prioriteit":"urgent|belangrijk"}. Onbekende velden: lege string.`,
       messages:[{role:'user', content: tekst.slice(0,500)}]
     });
     const raw = aiTekst(data) || '{}';

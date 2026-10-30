@@ -8,9 +8,10 @@ let dumpItems = [];
 // die mappen staan in de Werkplek. Een oud item met zo'n lijstje verschijnt onder Nog te sorteren.
 const DUMP_CATEGORIEEN = {inbox:'Inbox', kopen:'Kopen', akf_dwat:'AKF/DWAT', uf_ro:'UF-RO', lab:'LAB/Analyseruimte'};
 const DUMP_BESTEMMINGEN = [
-  ['urgent',     '🔥 Taak: urgent'],
-  ['belangrijk', '📌 Taak: belangrijk'],
-  ['subtaak',    '🧩 Subtaak'],
+  ['urgent',     '🔥 Doen (urgent + belangrijk)'],
+  ['belangrijk', '📌 Plannen (belangrijk)'],
+  ['delegeren',  '🤝 Delegeren (urgent, niet belangrijk)'],
+  ['subtaak',    '🧩 Rest (tussendoor)'],
   ['kopen',      '🛒 Kopen'],
   ['notitie',    '📝 Notitie → Werkmap'],
   ['inbox',      '📥 Later sorteren']
@@ -57,9 +58,10 @@ async function dumpAiVoorstel(tekst){
   const data = await aiMessages({
     model: AI_MODEL, max_tokens: 1024, output_config: AI_OPTS,
     system: `Vandaag is ${isoDatum(new Date())}. Je sorteert een snelle notitie van Remy, operator/monteur bij drinkwaterbedrijf PWN, die hij onderweg op zijn telefoon heeft ingesproken of getypt. Kies precies één bestemming:
-- "urgent": werktaak die zo snel mogelijk moet (storing, vandaag/morgen, iemand wacht erop).
-- "belangrijk": werktaak die moet gebeuren maar een vast moment krijgt in de agenda.
-- "subtaak": klein klusje voor tussendoor, geen haast, geen datum.
+- "urgent": urgent én belangrijk, zelf doen: zo snel mogelijk (storing, vandaag/morgen, iemand wacht erop).
+- "belangrijk": belangrijk maar niet urgent: moet gebeuren en krijgt een moment in de agenda.
+- "delegeren": moet snel maar is niet belangrijk voor Remy zelf: kan iemand anders doen (doorsturen, iemand vragen).
+- "subtaak": niet urgent, niet belangrijk: klein klusje voor tussendoor, geen datum.
 - "kopen": iets wat gekocht of besteld moet worden.
 - "notitie": informatie om te bewaren (meetwaarde, uitleg, idee, gespreksnotitie), geen actie.
 - "inbox": alleen als het echt onduidelijk is.
@@ -135,7 +137,7 @@ function openDumpSheet(type, item = {}){
   const status = document.getElementById('dumpAiStatus');
 
   function toonVelden(){
-    const taakAchtig = ['urgent','belangrijk','subtaak','notitie'].includes(keuze);
+    const taakAchtig = ['urgent','belangrijk','delegeren','subtaak','notitie'].includes(keuze);
     document.getElementById('dumpTaakVelden').classList.toggle('hidden', !taakAchtig);
     document.getElementById('dumpDeadlineVeld').classList.toggle('hidden', !['urgent','belangrijk'].includes(keuze));
     document.getElementById('dumpLaterVelden').classList.toggle('hidden', taakAchtig);
@@ -207,19 +209,20 @@ async function dumpVerwerk({type, item, tekst, keuze, voorstel, titel, deadline,
     else await sb('work_items', {method:'POST', body:JSON.stringify({type, tekst:tekstOfFoto, foto_url:item.foto_url||null, urgent:false, categorie:'inbox', gesorteerd:true, verwerkt_als})});
   };
 
-  if(keuze==='urgent' || keuze==='belangrijk' || keuze==='subtaak'){
-    const subtaak = keuze==='subtaak';
+  if(['urgent','belangrijk','delegeren','subtaak'].includes(keuze)){
+    const subtaak = keuze==='subtaak' || keuze==='delegeren';
     const payload = {project:'pwn', titel: titel || dumpTitelUit(tekstOfFoto) || 'Taak uit de dump',
       waar: voorstel?.waar || '', wie: voorstel?.wie || '', status:'backlog',
       taaktype: subtaak ? 'subtaak' : 'taak', deadline: subtaak ? null : (deadline || null),
       notitie: tekst, bijlage_url: item.foto_url || '', updated_at: new Date().toISOString()};
     if(!subtaak) payload.prioriteit = keuze;
+    if(keuze==='delegeren') payload.prioriteit = 'delegeren';
     await sb('work_tasks', {method:'POST', body:JSON.stringify(payload)});
     await markeer(subtaak ? 'subtaak' : 'taak');
     if(!subtaak && whatsappWakeVoorTaak({id:null, project:'pwn', teamId:null, taaktype:'taak'})){
       reminderApi('dispatch-whatsapp', {}).catch(error=>console.warn('WerkHub WhatsApp wake-up mislukt', error?.message || 'request_failed'));
     }
-    return subtaak ? '🧩 Subtaak toegevoegd' : (keuze==='urgent' ? '🔥 Urgente taak toegevoegd' : '📌 Belangrijke taak toegevoegd');
+    return keuze==='delegeren' ? '🤝 Toegevoegd bij Delegeren' : subtaak ? '🧩 Toegevoegd bij Rest' : (keuze==='urgent' ? '🔥 Toegevoegd bij Doen' : '📌 Toegevoegd bij Plannen');
   }
 
   if(keuze==='notitie'){
