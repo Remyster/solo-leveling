@@ -149,6 +149,13 @@
   .totrow .bar i{display:block; height:100%; background:var(--blue); border-radius:999px;}
   .totrow .u{font-size:13px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; min-width:52px; text-align:right;}
   .totaal{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .weeknav{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 10px;}
+  .weeknav[hidden]{display:none;}
+  .weeknav button{min-height:44px; min-width:44px; padding:6px 12px; border-radius:12px;}
+  .weeknav .weekkies{display:flex; align-items:center; gap:8px; font-weight:700;}
+  .weeknav .weekkies input{min-height:44px; border-radius:12px; padding:4px 8px;}
+  .reistotaal{display:flex; flex-wrap:wrap; gap:6px 16px; margin:2px 0 10px; padding:8px 10px; border-radius:10px; background:var(--bg, #f3f6f8); font-size:14px;}
+  .reistotaal b{font-variant-numeric:tabular-nums;}
   .totaal .groot{font-size:22px; font-weight:800; color:var(--blue-dark); font-variant-numeric:tabular-nums;}
   .wl{padding:2px 12px;}
   .wlrow{display:flex; align-items:flex-start; gap:9px; padding:10px 2px;}

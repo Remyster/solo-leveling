@@ -1,5 +1,8 @@
 // ============ WORKLOAD (urenregistratie) ============
 let urenPeriode = 'week';
+let urenWeekStart = null;   // maandag van de gekozen week; null = deze week
+// Reistijd boek je als code REISTIJD (of iets met REIS erin); die telt apart mee in de totalen.
+const isReistijd = code => /REIS/i.test(code || '');
 
 function fmtUren(n){
   return Number(n||0).toFixed(2).replace(/0+$/,'').replace(/\.$/,'').replace('.', ',');
@@ -14,7 +17,7 @@ function weekBereik(d = new Date()){
   return [start, eind];
 }
 function periodeBereik(){
-  if(urenPeriode==='week') return weekBereik();
+  if(urenPeriode==='week') return weekBereik(urenWeekStart || new Date());
   if(urenPeriode==='maand'){
     const n = new Date();
     return [new Date(n.getFullYear(), n.getMonth(), 1), new Date(n.getFullYear(), n.getMonth()+1, 0)];
@@ -26,13 +29,42 @@ function periodeLabel(){
   if(!b) return 'Alles';
   const o = {day:'numeric', month:'short'};
   if(urenPeriode==='maand') return new Date().toLocaleDateString('nl-NL',{month:'long', year:'numeric'});
-  return `Week ${isoWeek(new Date()).split('-')[1]} · ${b[0].toLocaleDateString('nl-NL',o)} t/m ${b[1].toLocaleDateString('nl-NL',o)}`;
+  return `Week ${isoWeek(b[0]).split('-')[1]} · ${b[0].toLocaleDateString('nl-NL',o)} t/m ${b[1].toLocaleDateString('nl-NL',o)}`;
 }
+
+// Week kiezen: ◀ ▶ bladeren, of een dag aantikken en dan geldt de week van die dag.
+function tekenWeekNav(){
+  const host = document.getElementById('urenWeekNav');
+  if(!host) return;
+  host.hidden = urenPeriode !== 'week';
+  if(host.hidden) return;
+  const [start] = periodeBereik();
+  const ditIsNu = isoDatum(start) === isoDatum(weekBereik()[0]);
+  host.innerHTML = `
+    <button data-w="-1" aria-label="Vorige week">◀</button>
+    <label class="weekkies">Week ${isoWeek(start).split('-')[1]}<input type="date" id="urenWeekDag" value="${isoDatum(start)}" aria-label="Kies een dag in de week"></label>
+    <button data-w="1" aria-label="Volgende week">▶</button>
+    ${ditIsNu ? '' : '<button data-w="0">Deze week</button>'}`;
+}
+document.getElementById('urenWeekNav').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-w]');
+  if(!btn) return;
+  const stap = Number(btn.dataset.w);
+  if(stap === 0) urenWeekStart = null;
+  else { const d = new Date(periodeBereik()[0]); d.setDate(d.getDate() + 7*stap); urenWeekStart = d; }
+  loadUren();
+});
+document.getElementById('urenWeekNav').addEventListener('change', e=>{
+  if(e.target.id !== 'urenWeekDag' || !e.target.value) return;
+  urenWeekStart = weekBereik(new Date(e.target.value + 'T12:00'))[0];
+  loadUren();
+});
 
 document.getElementById('urenPeriodeRow').addEventListener('click', e=>{
   const btn = e.target.closest('button[data-p]');
   if(!btn) return;
   urenPeriode = btn.dataset.p;
+  if(urenPeriode !== 'week') urenWeekStart = null;
   document.querySelectorAll('#urenPeriodeRow button').forEach(b=>b.classList.toggle('sel', b===btn));
   loadUren();
 });
@@ -80,6 +112,7 @@ async function loadUren(){
   if(!inpDatum.value) inpDatum.value = isoDatum(new Date());
   const host = document.getElementById('urenList');
   host.innerHTML = '<div class="empty-state">Laden…</div>';
+  tekenWeekNav();
   const b = periodeBereik();
   const q = b ? `&datum=gte.${isoDatum(b[0])}&datum=lte.${isoDatum(b[1])}` : '';
   const [rijen, alleCodes] = await Promise.all([
@@ -95,6 +128,7 @@ function tekenCodeChips(rijen){
   const telling = {};
   (rijen||[]).forEach(r=>{ telling[r.code] = (telling[r.code]||0) + 1; });
   const top = Object.keys(telling).sort((a,b)=>telling[b]-telling[a]).slice(0,8);
+  if(!top.some(isReistijd)) top.push('REISTIJD');   // reistijd altijd met één tik te kiezen
   const huidig = document.getElementById('fUrenCode').value.trim().toUpperCase();
   document.getElementById('urenCodeChips').innerHTML = top
     .map(c=>`<button data-c="${escapeHtml(c)}" class="${c===huidig?'sel':''}">${escapeHtml(c)}</button>`).join('');
@@ -112,11 +146,16 @@ function tekenUrenTotalen(rijen){
   if(!rijen.length){ host.innerHTML = ''; return; }
   const per = urenPerCode(rijen);
   const max = per[0][1] || 1;
+  const reis = rijen.filter(r=>isReistijd(r.code)).reduce((s,r)=>s + Number(r.uren||0), 0);
   host.innerHTML = `
     <div class="card">
       <div class="totaal">
         <div><div class="titel">${periodeLabel()}</div></div>
         <div class="groot">${fmtUren(totaal)} u</div>
+      </div>
+      <div class="reistotaal">
+        <span>🚗 Reistijd <b>${fmtUren(reis)} u</b></span>
+        <span>🔧 Werk zonder reistijd <b>${fmtUren(totaal - reis)} u</b></span>
       </div>
       ${per.map(([code,u])=>`
         <div class="totrow">
@@ -198,7 +237,8 @@ async function kopieerUren(){
   const rijen = await sb(`work_load?order=datum.asc,created_at.asc${q}`);
   if(!rijen.length){ toast('Niks te kopiëren'); return; }
   const totaal = rijen.reduce((s,r)=>s + Number(r.uren||0), 0);
-  const regels = [`${periodeLabel()} — ${fmtUren(totaal)} uur`, ''];
+  const reis = rijen.filter(r=>isReistijd(r.code)).reduce((s,r)=>s + Number(r.uren||0), 0);
+  const regels = [`${periodeLabel()} — ${fmtUren(totaal)} uur`, `Reistijd: ${fmtUren(reis)} u · werk zonder reistijd: ${fmtUren(totaal - reis)} u`, ''];
   urenPerCode(rijen).forEach(([code, u])=>{
     regels.push(`${code} — ${fmtUren(u)} u`);
     rijen.filter(r=>r.code===code).forEach(r=>{
