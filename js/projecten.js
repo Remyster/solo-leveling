@@ -28,10 +28,10 @@ function takenSectieOpen(key, standaard=false){
   }catch(e){ return standaard; }
 }
 
-// Eisenhower-matrix: urgent+belangrijk = Doen, belangrijk = Plannen, urgent maar niet belangrijk = Delegeren,
+// Eisenhower-matrix: urgent+belangrijk = Doen, belangrijk = Gepland (zonder datum: Plannen), urgent maar niet belangrijk = Delegeren,
 // geen van beide = Rest. Taken: urgent of belangrijk (zonder keuze: deadline binnen 2 dagen = urgent).
 // Subtaken: prioriteit 'delegeren' of leeg (= Rest). Vaste taken (herhaling) krijgen een eigen bak.
-const prioLabels = {urgent:'🔥 Doen', belangrijk:'📌 Plannen', delegeren:'🤝 Delegeren', rest:'🧩 Rest'};
+const prioLabels = {urgent:'🔥 Doen', belangrijk:'📌 Gepland', delegeren:'🤝 Delegeren', rest:'🧩 Rest'};
 const vandaagOfEerder = t => !!t.deadline && t.deadline <= isoDatum(new Date());
 
 // Een subtaak met belangrijk_vanaf schuift op die dag vanzelf door naar Belangrijk.
@@ -115,7 +115,7 @@ async function loadProjecten(){
   const secties = [
     // Een vaste taak staat in Vaste taken, en op de dag zelf (of te laat) ook bovenaan bij Doen.
     {key:'urgent', titel:'🔥 Doen', uitleg:'Urgent én belangrijk: nu, anders gaat het mis.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='urgent'), ...gewoneTaken.filter(t=>isVasteTaak(t) && vandaagOfEerder(t))], standaard:true},
-    {key:'belangrijk', titel:'📌 Plannen', uitleg:'Belangrijk, niet urgent: geef het een moment in je agenda.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='belangrijk'), ...open.filter(t=>subtaakNuBelangrijk(t) && t.status!=='wacht_op')], standaard:true},
+    {key:'belangrijk', titel:'📌 Gepland', uitleg:'Belangrijk, niet urgent: staat in je agenda. Zonder datum staat hij onder Plannen.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='belangrijk'), ...open.filter(t=>subtaakNuBelangrijk(t) && t.status!=='wacht_op')], standaard:true},
     {key:'vast', titel:'🔁 Vaste taken', uitleg:'Komen elke dag/week/maand vanzelf terug. Vinkje = deze keer gedaan.', items:gewoneTaken.filter(t=>isVasteTaak(t) && !vandaagOfEerder(t)), standaard:false},
     {key:'delegeren', titel:'🤝 Delegeren', uitleg:'Urgent, niet belangrijk: moet snel, maar niet per se door jou.', items:open.filter(t=>t.taaktype==='subtaak' && t.prioriteit==='delegeren' && !subtaakNuBelangrijk(t) && t.status!=='wacht_op'), standaard:true},
     {key:'subtaken', titel:'🧩 Rest', uitleg:'Niet urgent, niet belangrijk: tussendoor, als je tijd over hebt.', items:open.filter(t=>t.taaktype==='subtaak' && t.prioriteit!=='delegeren' && !subtaakNuBelangrijk(t) && t.status!=='wacht_op'), standaard:true},
@@ -124,11 +124,19 @@ async function loadProjecten(){
   host.insertAdjacentHTML('beforeend', secties.map(s=>`
     <details class="statuscol prio-${s.key}" data-sectie="${s.key}" ${takenSectieOpen(s.key, s.standaard) ? 'open' : ''}>
       <summary><span>${escapeHtml(s.titel)}<span class="uitleg">${escapeHtml(s.uitleg)}</span></span><span class="telling">${s.items.length}</span></summary>
-      <div class="inhoud">${s.items.length ? s.items.map(taskCard).join('') : '<div class="empty-state">Niets hier.</div>'}</div>
+      <div class="inhoud">${s.items.length ? sectieInhoud(s) : '<div class="empty-state">Niets hier.</div>'}</div>
     </details>`).join(''));
   host.querySelectorAll('details.statuscol').forEach(d=>{
     d.addEventListener('toggle', ()=>onthoudTakenSectie(d.dataset.sectie, d.open));
   });
+}
+
+// Gepland: eerst wat al een datum heeft, daaronder "Plannen" = belangrijk maar nog zonder moment.
+function sectieInhoud(s){
+  if(s.key !== 'belangrijk') return s.items.map(taskCard).join('');
+  const metDatum = s.items.filter(t=>t.deadline || t.belangrijk_vanaf), zonder = s.items.filter(t=>!t.deadline && !t.belangrijk_vanaf);
+  return (metDatum.length ? metDatum.map(taskCard).join('') : '<div class="empty-state">Nog niets met een datum.</div>')
+    + (zonder.length ? `<div class="subsectie"><h4>🗓️ Plannen <small>nog zonder datum: geef het een moment</small><span class="telling">${zonder.length}</span></h4>${zonder.map(taskCard).join('')}</div>` : '');
 }
 
 function fmtTaakDatumTijd(t){
@@ -181,7 +189,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     <div class="field"><label>📍 Waar (locatie/URL)</label><input type="text" id="fWaar" value="${escapeHtml(t.waar||'')}"></div>
     <div class="field"><label>👤 Wie (contactpersoon)</label><input type="text" id="fWie" value="${escapeHtml(t.wie||'')}"></div>
     ${t.taaktype==='subtaak' ? `<div class="field"><label>⏰ Wordt belangrijk op (optioneel)</label><input type="date" id="fBelangrijkVanaf" value="${t.belangrijk_vanaf||''}"></div>
-    <p class="hintje">Leeg laten = gewoon een klusje voor tussendoor. Met een datum schuift de subtaak die dag vanzelf naar 📌 Belangrijk. Geen tijd en geen WhatsApp-herinnering.</p>` : `
+    <p class="hintje">Leeg laten = gewoon een klusje voor tussendoor. Met een datum schuift de subtaak die dag vanzelf naar 📌 Gepland. Geen tijd en geen WhatsApp-herinnering.</p>` : `
     <div class="field"><label>📅 Deadline</label><input type="date" id="fDeadline" value="${t.deadline||''}"></div>
     <div class="field"><label>⏰ Begintijd</label><input type="time" id="fBeginTijd" value="${(t.begin_tijd||'').slice(0,5)}"></div>
     <div class="field"><label>⏰ Eindtijd (optioneel)</label><input type="time" id="fEindTijd" value="${(t.eind_tijd||'').slice(0,5)}"></div>`}
@@ -190,7 +198,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
       <div class="segrow" id="prioRow">
         ${(t.taaktype==='subtaak'
           ? [['delegeren','🤝 Delegeren','urgent, niet belangrijk'],['rest','🧩 Rest','tussendoor']]
-          : [['urgent','🔥 Doen','urgent + belangrijk: nu'],['belangrijk','📌 Plannen','belangrijk: geef het een moment']]
+          : [['urgent','🔥 Doen','urgent + belangrijk: nu'],['belangrijk','📌 Gepland','belangrijk: krijgt een moment']]
         ).map(([p,label,klein])=>`<button type="button" data-p="${p}" class="${(t.taaktype==='subtaak' ? (t.prioriteit==='delegeren'?'delegeren':'rest') : prioVan(t))===p?'sel':''}" onclick="pickPrio('${p}')">${label}<small class="prio-klein">${klein}</small></button>`).join('')}
       </div>
     </div>` : ''}

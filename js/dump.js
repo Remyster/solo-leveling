@@ -9,7 +9,7 @@ let dumpItems = [];
 const DUMP_CATEGORIEEN = {inbox:'Inbox', kopen:'Kopen', akf_dwat:'AKF/DWAT', uf_ro:'UF-RO', lab:'LAB/Analyseruimte'};
 const DUMP_BESTEMMINGEN = [
   ['urgent',     '🔥 Doen (urgent + belangrijk)'],
-  ['belangrijk', '📌 Plannen (belangrijk)'],
+  ['belangrijk', '📌 Gepland (belangrijk)'],
   ['delegeren',  '🤝 Delegeren (urgent, niet belangrijk)'],
   ['subtaak',    '🧩 Rest (tussendoor)'],
   ['kopen',      '🛒 Kopen'],
@@ -222,7 +222,7 @@ async function dumpVerwerk({type, item, tekst, keuze, voorstel, titel, deadline,
     if(!subtaak && whatsappWakeVoorTaak({id:null, project:'pwn', teamId:null, taaktype:'taak'})){
       reminderApi('dispatch-whatsapp', {}).catch(error=>console.warn('WerkHub WhatsApp wake-up mislukt', error?.message || 'request_failed'));
     }
-    return keuze==='delegeren' ? '🤝 Toegevoegd bij Delegeren' : subtaak ? '🧩 Toegevoegd bij Rest' : (keuze==='urgent' ? '🔥 Toegevoegd bij Doen' : '📌 Toegevoegd bij Plannen');
+    return keuze==='delegeren' ? '🤝 Toegevoegd bij Delegeren' : subtaak ? '🧩 Toegevoegd bij Rest' : (keuze==='urgent' ? '🔥 Toegevoegd bij Doen' : '📌 Toegevoegd bij Gepland');
   }
 
   if(keuze==='notitie'){

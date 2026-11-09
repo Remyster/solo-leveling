@@ -234,3 +234,8 @@ details.prio-subtaken > summary{ box-shadow: inset 4px 0 0 #8fd3b0; }
 .toast.show{pointer-events:auto;}
 
 .pdfthumb{ padding:12px; border:1px dashed var(--border,#ccc); border-radius:10px; font-weight:600; }
+
+  .subsectie{margin-top:10px; padding-top:8px; border-top:1px dashed var(--line, #d4dde3);}
+  .subsectie h4{display:flex; align-items:baseline; gap:8px; margin:0 0 8px; font-size:14px;}
+  .subsectie h4 small{font-weight:500; color:var(--sub, #6b7a85);}
+  .subsectie h4 .telling{margin-left:auto;}
