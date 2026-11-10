@@ -1,5 +1,5 @@
 // WerkHub: offline-shell en pushmeldingen, geen API-caching.
-const CACHE = 'werkhub-v35';
+const CACHE = 'werkhub-v36';
 const ASSETS = [
   './',
   './index.html',

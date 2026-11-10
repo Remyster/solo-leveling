@@ -50,53 +50,108 @@ function prioVan(t){
 }
 let takenOpId = {};
 
-// Vaste taak gedaan: de volgende keer telt vanaf vandaag, niet vanaf de geplande datum.
-// (Oogdouche gepland op 26 nov maar op 10 nov al gedaan? Dan volgende keer 10 dec, niet 26 dec.)
-function volgendeNaGedaan(t){ return volgendeDeadline(isoDatum(new Date()), t.herhaling); }
-// Overslaan: deze keer niet, gewoon de eerstvolgende keer volgens het ritme (altijd na vandaag).
-function volgendeNaOverslaan(t){
+// ---- Vaste taken: ritme houden of verschuiven ----
+// ritme_datum = de oorspronkelijke ritmedag als je een keer "alleen deze keer" uitstelde.
+// Voorbeeld: LWS meten wo 11 nov, één dag uitgesteld -> deadline do 12, ritme_datum wo 11.
+// Na afvinken gaat hij dan weer naar wo 18, niet naar do 19.
+const plusDagen = n => { const d = new Date(); d.setDate(d.getDate()+n); return isoDatum(d); };
+const ritmeDag = t => t.ritme_datum || t.deadline || isoDatum(new Date());
+function volgendeInRitme(t){
   const vandaag = isoDatum(new Date());
-  let d = volgendeDeadline(t.deadline || vandaag, t.herhaling);
+  let d = volgendeDeadline(ritmeDag(t), t.herhaling);
   for(let i=0; i<400 && d <= vandaag; i++) d = volgendeDeadline(d, t.herhaling);
   return d;
 }
-const plusDagen = n => { const d = new Date(); d.setDate(d.getDate()+n); return isoDatum(d); };
+const volgendeVanafVandaag = t => volgendeDeadline(isoDatum(new Date()), t.herhaling);
+const weekdag = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('nl-NL',{weekday:'long'});
+const datumLang = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('nl-NL',{weekday:'short', day:'numeric', month:'short'});
+
+// Kleine keuze in een sheet: geeft de gekozen waarde terug, of null bij annuleren.
+function kiesVast(titel, uitleg, opties){
+  return new Promise(resolve=>{
+    openSheet(`
+      <button class="closex" onclick="closeSheet()">✕</button>
+      <h2>${escapeHtml(titel)}</h2>
+      <p class="hintje">${escapeHtml(uitleg)}</p>
+      <div class="vast-keuze">${opties.map((o,i)=>`<button class="btn ${i===0?'primary':'ghost'}" data-k="${i}"><b>${escapeHtml(o.label)}</b><small>${escapeHtml(o.sub)}</small></button>`).join('')}</div>`);
+    const host = document.getElementById('sheetHost');
+    let klaar = false;
+    host.querySelectorAll('.vast-keuze button').forEach(b=>b.addEventListener('click', ()=>{ klaar = true; const o = opties[Number(b.dataset.k)]; closeSheet(); resolve(o.waarde); }));
+    // Sluiten met ✕ of buiten de sheet = niets doen.
+    const kijk = new MutationObserver(()=>{ if(!host.querySelector('.vast-keuze')){ kijk.disconnect(); if(!klaar) resolve(null); } });
+    kijk.observe(host, {childList:true, subtree:true});
+  });
+}
+
+async function patchTaak(id, body){
+  await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({...body, updated_at:new Date().toISOString()})});
+}
+function terugdraaien(t){
+  return async ()=>{
+    await patchTaak(t.id, {status:t.status, deadline:t.deadline||null, ritme_datum:t.ritme_datum||null});
+    loadProjecten(); if(typeof loadDumpSubtaken==='function') loadDumpSubtaken();
+  };
+}
+
+// Vaste taak afvinken. Op de geplande dag: gewoon door in het ritme. Op een andere dag: vragen.
+async function vasteTaakGedaan(t){
+  const inRitme = volgendeInRitme(t), vanafVandaag = volgendeVanafVandaag(t);
+  let volgende = inRitme;
+  if(isoDatum(new Date()) !== ritmeDag(t) && inRitme !== vanafVandaag){
+    volgende = await kiesVast('Gedaan! Wanneer de volgende keer?', `${t.titel} stond voor ${datumLang(ritmeDag(t))}.`, [
+      {label:`🔁 In het ritme: ${datumLang(inRitme)}`, sub:'Het vaste ritme blijft zoals het was.', waarde:inRitme},
+      {label:`📅 Vanaf vandaag: ${datumLang(vanafVandaag)}`, sub:'Het ritme schuift mee met vandaag.', waarde:vanafVandaag}
+    ]);
+    if(!volgende) return false;
+  }
+  await patchTaak(t.id, {deadline:volgende, ritme_datum:null, status:'backlog'});
+  toastActie(`✓ Gedaan, volgende keer ${datumLang(volgende)}`, 'Ongedaan', terugdraaien(t));
+  return true;
+}
 
 // Vaste taak die vandaag (of te laat) op de lijst staat: +1 dag, +2 dagen of overslaan.
 async function verzetVast(id, wat, knop){
   const t = takenOpId[id];
   if(!t) return;
-  const nieuw = wat === 'overslaan' ? volgendeNaOverslaan(t) : plusDagen(Number(wat));
-  knop?.closest('.card')?.classList.add('weg');
   try{
-    await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({deadline:nieuw, updated_at:new Date().toISOString()})});
-    toastActie(wat === 'overslaan' ? `⏭ Overgeslagen, volgende keer ${fmtKorteDatum(nieuw)}` : `⏩ Verzet naar ${fmtKorteDatum(nieuw)}`, 'Ongedaan', async ()=>{
-      await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({deadline:t.deadline||null, updated_at:new Date().toISOString()})});
-      loadProjecten();
-    });
-    setTimeout(loadProjecten, 260);
+    if(wat === 'overslaan'){
+      const nieuw = volgendeInRitme(t);
+      await patchTaak(id, {deadline:nieuw, ritme_datum:null});
+      toastActie(`⏭ Overgeslagen, volgende keer ${datumLang(nieuw)}`, 'Ongedaan', terugdraaien(t));
+    } else {
+      const nieuw = plusDagen(Number(wat));
+      let eenmalig = true;
+      if(t.herhaling !== 'dagelijks'){
+        const daarna = volgendeInRitme({...t, deadline:nieuw, ritme_datum:ritmeDag(t)});
+        const keuze = await kiesVast(`${t.titel} naar ${datumLang(nieuw)}`, 'Is dit alleen deze keer, of voortaan?', [
+          {label:'Alleen deze keer', sub:`Volgende keer weer in het ritme: ${datumLang(daarna)}.`, waarde:'eenmalig'},
+          {label:'Vanaf nu', sub:`Het ritme schuift mee: voortaan op ${weekdag(nieuw)}.`, waarde:'vast'}
+        ]);
+        if(!keuze) return;
+        eenmalig = keuze === 'eenmalig';
+      }
+      await patchTaak(id, {deadline:nieuw, ritme_datum: eenmalig ? ritmeDag(t) : null});
+      toastActie(`⏩ ${eenmalig ? 'Deze keer' : 'Voortaan'} ${datumLang(nieuw)}`, 'Ongedaan', terugdraaien(t));
+    }
+    loadProjecten();
   }catch(error){
-    knop?.closest('.card')?.classList.remove('weg');
     toast('Verzetten mislukt: ' + (error.message||error));
   }
 }
 
-// Vinkje = klaar en weg. Vaste taken schuiven door naar de volgende keer (gerekend vanaf vandaag).
+// Vinkje = klaar en weg. Vaste taken schuiven door naar de volgende keer.
 async function vinkAf(id, knop){
   const t = takenOpId[id];
   if(!t) return;
   const kaart = knop.closest('.card');
-  kaart.classList.add('weg');
-  const vast = isVasteTaak(t);
-  const wijziging = vast
-    ? {deadline: volgendeNaGedaan(t), status:'backlog', updated_at:new Date().toISOString()}
-    : {status:'klaar', updated_at:new Date().toISOString()};
   try{
-    await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(wijziging)});
-    toastActie(vast ? `✓ Gedaan, volgende keer ${fmtKorteDatum(wijziging.deadline)}` : `✓ Klaar: ${t.titel}`, 'Ongedaan', async ()=>{
-      await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({status:t.status, deadline:t.deadline||null, updated_at:new Date().toISOString()})});
-      loadProjecten(); if(typeof loadDumpSubtaken==='function') loadDumpSubtaken();
-    });
+    if(isVasteTaak(t)){
+      if(await vasteTaakGedaan(t)) { kaart.classList.add('weg'); setTimeout(loadProjecten, 260); }
+      return;
+    }
+    kaart.classList.add('weg');
+    await patchTaak(id, {status:'klaar'});
+    toastActie(`✓ Klaar: ${t.titel}`, 'Ongedaan', terugdraaien(t));
     setTimeout(()=>{ loadProjecten(); if(typeof loadDumpSubtaken==='function') loadDumpSubtaken(); }, 260);
   }catch(error){
     kaart.classList.remove('weg');
@@ -188,7 +243,7 @@ function taskCard(t){
         ${t.taaktype==='subtaak' ? `<span class="badge subtaak">${t.prioriteit==='delegeren' ? '🤝 Delegeren' : 'Subtaak'}</span>` : ''}
         ${t.taaktype==='subtaak' && t.belangrijk_vanaf ? `<span>${subtaakNuBelangrijk(t) ? '⏰ belangrijk sinds' : '⏰ belangrijk vanaf'} ${fmtKorteDatum(t.belangrijk_vanaf)}</span>` : ''}
         ${isVasteTaak(t) ? `<span class="badge herhaling">🔁 ${herhalingLabels[t.herhaling]||escapeHtml(t.herhaling)}</span>` : ''}
-        ${t.deadline ? `<span>📅 ${fmtTaakDatumTijd(t)}</span>` : ''}
+        ${t.deadline ? `<span>📅 ${fmtTaakDatumTijd(t)}${t.ritme_datum && t.ritme_datum !== t.deadline ? ` <small>(verzet, ritme ${escapeHtml(fmtKorteDatum(t.ritme_datum))})</small>` : ''}</span>` : ''}
         ${t.wie ? `<span>👤 ${escapeHtml(t.wie)}</span>` : ''}
         ${t.waar ? `<span>📍 ${escapeHtml(t.waar)}</span>` : ''}
       </div>
@@ -247,7 +302,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     ${!isTeam && t.taaktype!=='subtaak' ? `<div class="field"><label>🔁 Soort taak</label>
       <select id="fHerhaling">${Object.entries(herhalingLabels).map(([k,v])=>`<option value="${k}" ${(t.herhaling||'eenmalig')===k?'selected':''}>${k==='eenmalig'?'Eenmalige taak':'Vaste taak: '+v.toLowerCase()}</option>`).join('')}</select>
       <div class="statushelp">Vaste operatortaken staan apart bovenaan. Status Klaar = de vaste taak stopt.</div>
-      ${id && isVasteTaak(t) && t.status!=='klaar' ? `<button class="btn ghost" id="btnDezeKeerGedaan" style="width:100%;margin-top:8px">✓ Vandaag gedaan (volgende keer ${escapeHtml(fmtKorteDatum(volgendeNaGedaan(t)))})</button>` : ''}
+      ${id && isVasteTaak(t) && t.status!=='klaar' ? `<button class="btn ghost" id="btnDezeKeerGedaan" style="width:100%;margin-top:8px">✓ Deze keer gedaan</button>` : ''}
     </div>` : ''}
     ${!isTeam ? `<div class="field"><label>📎 Bijlage (foto/document)</label>
       <input type="file" id="fBijlage" accept="image/*,.pdf">
@@ -306,11 +361,9 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
   renderCalLink();
 
   const dezeKeerBtn = document.getElementById('btnDezeKeerGedaan');
-  if(dezeKeerBtn) dezeKeerBtn.addEventListener('click', ()=>{
-    const deadlineEl = document.getElementById('fDeadline');
-    deadlineEl.value = volgendeDeadline(isoDatum(new Date()), document.getElementById('fHerhaling').value);
-    pickStatus('backlog');
-    document.getElementById('btnSaveTask').click();
+  if(dezeKeerBtn) dezeKeerBtn.addEventListener('click', async ()=>{
+    closeSheet();
+    try{ if(await vasteTaakGedaan(t)) loadProjecten(); }catch(error){ toast('Afvinken mislukt: '+(error.message||error)); }
   });
 
   document.getElementById('btnSaveTask').addEventListener('click', async ()=>{
@@ -340,6 +393,8 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     // Only send herhaling when used, so the app keeps working before TAKEN-HERHALING-MIGRATIE.sql.
     const herhalingMeesturen = !isTeam && (herhaling !== 'eenmalig' || (id && t.herhaling !== undefined));
     if(herhalingMeesturen) payload.herhaling = herhaling;
+    // Datum met de hand aangepast? Dan is dat de nieuwe ritmedag.
+    if(id && t.ritme_datum && payload.deadline !== (t.deadline||null)) payload.ritme_datum = null;
     const belangrijkVanafEl = document.getElementById('fBelangrijkVanaf');
     if(!isTeam && belangrijkVanafEl && (belangrijkVanafEl.value || t.belangrijk_vanaf)) payload.belangrijk_vanaf = belangrijkVanafEl.value || null;
     if(isTeam){
