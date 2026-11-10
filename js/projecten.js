@@ -50,19 +50,50 @@ function prioVan(t){
 }
 let takenOpId = {};
 
-// Vinkje = klaar en weg. Vaste taken schuiven door naar de volgende keer.
+// Vaste taak gedaan: de volgende keer telt vanaf vandaag, niet vanaf de geplande datum.
+// (Oogdouche gepland op 26 nov maar op 10 nov al gedaan? Dan volgende keer 10 dec, niet 26 dec.)
+function volgendeNaGedaan(t){ return volgendeDeadline(isoDatum(new Date()), t.herhaling); }
+// Overslaan: deze keer niet, gewoon de eerstvolgende keer volgens het ritme (altijd na vandaag).
+function volgendeNaOverslaan(t){
+  const vandaag = isoDatum(new Date());
+  let d = volgendeDeadline(t.deadline || vandaag, t.herhaling);
+  for(let i=0; i<400 && d <= vandaag; i++) d = volgendeDeadline(d, t.herhaling);
+  return d;
+}
+const plusDagen = n => { const d = new Date(); d.setDate(d.getDate()+n); return isoDatum(d); };
+
+// Vaste taak die vandaag (of te laat) op de lijst staat: +1 dag, +2 dagen of overslaan.
+async function verzetVast(id, wat, knop){
+  const t = takenOpId[id];
+  if(!t) return;
+  const nieuw = wat === 'overslaan' ? volgendeNaOverslaan(t) : plusDagen(Number(wat));
+  knop?.closest('.card')?.classList.add('weg');
+  try{
+    await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({deadline:nieuw, updated_at:new Date().toISOString()})});
+    toastActie(wat === 'overslaan' ? `⏭ Overgeslagen, volgende keer ${fmtKorteDatum(nieuw)}` : `⏩ Verzet naar ${fmtKorteDatum(nieuw)}`, 'Ongedaan', async ()=>{
+      await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({deadline:t.deadline||null, updated_at:new Date().toISOString()})});
+      loadProjecten();
+    });
+    setTimeout(loadProjecten, 260);
+  }catch(error){
+    knop?.closest('.card')?.classList.remove('weg');
+    toast('Verzetten mislukt: ' + (error.message||error));
+  }
+}
+
+// Vinkje = klaar en weg. Vaste taken schuiven door naar de volgende keer (gerekend vanaf vandaag).
 async function vinkAf(id, knop){
   const t = takenOpId[id];
   if(!t) return;
   const kaart = knop.closest('.card');
   kaart.classList.add('weg');
   const vast = isVasteTaak(t);
-  const wijziging = vast && t.deadline
-    ? {deadline: volgendeDeadline(t.deadline, t.herhaling), status:'backlog', updated_at:new Date().toISOString()}
+  const wijziging = vast
+    ? {deadline: volgendeNaGedaan(t), status:'backlog', updated_at:new Date().toISOString()}
     : {status:'klaar', updated_at:new Date().toISOString()};
   try{
     await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify(wijziging)});
-    toastActie(vast ? `✓ Gedaan, volgende keer ${wijziging.deadline}` : `✓ Klaar: ${t.titel}`, 'Ongedaan', async ()=>{
+    toastActie(vast ? `✓ Gedaan, volgende keer ${fmtKorteDatum(wijziging.deadline)}` : `✓ Klaar: ${t.titel}`, 'Ongedaan', async ()=>{
       await sb(`work_tasks?id=eq.${id}`, {method:'PATCH', body: JSON.stringify({status:t.status, deadline:t.deadline||null, updated_at:new Date().toISOString()})});
       loadProjecten(); if(typeof loadDumpSubtaken==='function') loadDumpSubtaken();
     });
@@ -161,6 +192,11 @@ function taskCard(t){
         ${t.wie ? `<span>👤 ${escapeHtml(t.wie)}</span>` : ''}
         ${t.waar ? `<span>📍 ${escapeHtml(t.waar)}</span>` : ''}
       </div>
+      ${isVasteTaak(t) && t.status!=='klaar' && vandaagOfEerder(t) ? `<div class="vast-acties" onclick="event.stopPropagation()">
+        <button type="button" onclick="verzetVast('${t.id}','1',this)">+1 dag</button>
+        <button type="button" onclick="verzetVast('${t.id}','2',this)">+2 dagen</button>
+        <button type="button" onclick="verzetVast('${t.id}','overslaan',this)">⏭ Overslaan</button>
+      </div>` : ''}
     </div>`;
 }
 
@@ -211,7 +247,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     ${!isTeam && t.taaktype!=='subtaak' ? `<div class="field"><label>🔁 Soort taak</label>
       <select id="fHerhaling">${Object.entries(herhalingLabels).map(([k,v])=>`<option value="${k}" ${(t.herhaling||'eenmalig')===k?'selected':''}>${k==='eenmalig'?'Eenmalige taak':'Vaste taak: '+v.toLowerCase()}</option>`).join('')}</select>
       <div class="statushelp">Vaste operatortaken staan apart bovenaan. Status Klaar = de vaste taak stopt.</div>
-      ${id && isVasteTaak(t) && t.status!=='klaar' ? `<button class="btn ghost" id="btnDezeKeerGedaan" style="width:100%;margin-top:8px">✓ Deze keer gedaan${t.deadline ? ' (datum naar '+escapeHtml(volgendeDeadline(t.deadline,t.herhaling))+')' : ''}</button>` : ''}
+      ${id && isVasteTaak(t) && t.status!=='klaar' ? `<button class="btn ghost" id="btnDezeKeerGedaan" style="width:100%;margin-top:8px">✓ Vandaag gedaan (volgende keer ${escapeHtml(fmtKorteDatum(volgendeNaGedaan(t)))})</button>` : ''}
     </div>` : ''}
     ${!isTeam ? `<div class="field"><label>📎 Bijlage (foto/document)</label>
       <input type="file" id="fBijlage" accept="image/*,.pdf">
@@ -272,7 +308,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
   const dezeKeerBtn = document.getElementById('btnDezeKeerGedaan');
   if(dezeKeerBtn) dezeKeerBtn.addEventListener('click', ()=>{
     const deadlineEl = document.getElementById('fDeadline');
-    if(deadlineEl.value) deadlineEl.value = volgendeDeadline(deadlineEl.value, document.getElementById('fHerhaling').value);
+    deadlineEl.value = volgendeDeadline(isoDatum(new Date()), document.getElementById('fHerhaling').value);
     pickStatus('backlog');
     document.getElementById('btnSaveTask').click();
   });

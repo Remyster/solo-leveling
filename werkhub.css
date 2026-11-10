@@ -239,3 +239,6 @@ details.prio-subtaken > summary{ box-shadow: inset 4px 0 0 #8fd3b0; }
   .subsectie h4{display:flex; align-items:baseline; gap:8px; margin:0 0 8px; font-size:14px;}
   .subsectie h4 small{font-weight:500; color:var(--sub, #6b7a85);}
   .subsectie h4 .telling{margin-left:auto;}
+
+  .vast-acties{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .vast-acties button{min-height:36px; padding:4px 12px; border-radius:999px; border:1px solid var(--line, #d4dde3); background:var(--card, #fff); font-size:13px; font-weight:600;}
