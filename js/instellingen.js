@@ -59,7 +59,7 @@ async function openReminderSettings(){
     whatsapp.checked = !!data.whatsappEnabled;
     publicKey = data.vapidPublicKey;
     const checked = data.settings?.last_checked_at;
-    const recent = checked && Date.now()-new Date(checked).getTime() < 10*60000;
+    const recent = checked && Date.now()-new Date(checked).getTime() < 20*60000; // cron draait elke 15 min
     status.textContent = recent
       ? `Servercontrole: ${new Date(checked).toLocaleTimeString('nl-NL')}. ${data.subscriptions} toestel(len) geregistreerd.`
       : 'Nog geen recente servercontrole. Herinneringen zijn niet bewezen actief; controleer de cron-instelling.';
