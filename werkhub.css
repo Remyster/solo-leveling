@@ -246,3 +246,15 @@ details.prio-subtaken > summary{ box-shadow: inset 4px 0 0 #8fd3b0; }
   .vast-keuze{display:grid; gap:10px; margin-top:12px;}
   .vast-keuze .btn{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; padding:12px 14px; min-height:56px;}
   .vast-keuze .btn small{font-weight:500; opacity:.8;}
+
+/* ===== NU DOEN (Vandaag) ===== */
+.nu-doen{background:#fff; border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow); border-left:5px solid #e8743b; transition:opacity .25s, transform .25s;}
+.nu-doen.rustig{border-left-color:#7fb08a;}
+.nu-doen.weg{opacity:0; transform:translateX(24px);}
+.nu-doen .nu-lbl{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#66798c; display:flex; justify-content:space-between; gap:8px;}
+.nu-doen .nu-lbl span{text-transform:none; letter-spacing:0;}
+.nu-doen .nu-titel{font-size:20px; font-weight:700; line-height:1.3; color:#10233a; margin:6px 0 2px;}
+.nu-doen .nu-meta{font-size:13px; color:#66798c;}
+.nu-doen .nu-knoppen{display:flex; gap:8px; margin-top:12px;}
+.nu-doen .nu-knoppen .btn{flex:1; min-height:44px;}
+.nu-doen .nu-knoppen .btn.primary{flex:1.6;}

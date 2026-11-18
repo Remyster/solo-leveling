@@ -74,6 +74,76 @@ async function loadVandaag(){
     ? `${dumps.length} · ${escapeHtml(dumps[0].tekst||'(foto)')}` : '<span class="empty">alles verwerkt</span>';
 
   document.getElementById('urenReminder').classList.toggle('hidden', !urenHerinneringNodig(uren));
+  renderNuDoen(tasks);
+}
+
+// ============ NU DOEN ============
+// Eén taak, groot, met een vinkje. Dezelfde regels als de bak 🔥 Doen op het PWN-tabblad
+// (prioriteit urgent, of een vaste taak die vandaag of eerder moest), zodat Vandaag en PWN
+// nooit iets anders zeggen. Is Doen leeg, dan de eerstvolgende taak met een deadline.
+// "Later" verbergt een taak alleen voor deze sessie; er verandert niets in de database.
+const NU_LATER_KEY = 'werkhubNuLater';
+function nuLaterIds(){ try{ return JSON.parse(sessionStorage.getItem(NU_LATER_KEY)||'[]'); }catch(e){ return []; } }
+function kiesNuDoen(tasks){
+  const later = new Set(nuLaterIds());
+  const kandidaat = tasks.filter(t=>t.project==='pwn' && t.status!=='klaar' && t.status!=='wacht_op' && t.taaktype!=='subtaak' && !later.has(t.id));
+  const vast = t => typeof isVasteTaak==='function' && isVasteTaak(t);
+  const doen = sortTakenOpDeadlineEnTijd(kandidaat.filter(t=>
+    (!vast(t) && typeof prioVan==='function' && prioVan(t)==='urgent') ||
+    (vast(t) && typeof vandaagOfEerder==='function' && vandaagOfEerder(t))));
+  if(doen.length) return { taak: doen[0], bron: 'doen', rest: doen.length - 1 };
+  const volgende = volgendeTaakVoorVandaag(kandidaat);
+  return volgende ? { taak: volgende, bron: 'deadline', rest: 0 } : null;
+}
+let nuDoenTaken = [];
+function renderNuDoen(tasks){
+  nuDoenTaken = tasks;
+  const host = document.getElementById('nuDoen');
+  if(!host) return;
+  const keuze = kiesNuDoen(tasks);
+  host.classList.remove('hidden');
+  if(!keuze){
+    host.className = 'nu-doen rustig';
+    host.innerHTML = `<div class="nu-lbl">Nu doen</div><div class="nu-titel">Niks dat nu moet.</div>
+      <div class="nu-meta">Pak iets uit Gepland, of neem even pauze.</div>`;
+    return;
+  }
+  const t = keuze.taak;
+  const wanneer = t.deadline ? fmtTaakDatumTijd(t) : 'geen datum';
+  const bron = keuze.bron==='doen' ? `🔥 Doen${keuze.rest ? ` · nog ${keuze.rest} daarna` : ''}` : '📅 eerstvolgende deadline';
+  host.className = 'nu-doen';
+  host.innerHTML = `<div class="nu-lbl">Nu doen <span>${escapeHtml(bron)}</span></div>
+    <div class="nu-titel">${escapeHtml(t.titel)}</div>
+    <div class="nu-meta">${escapeHtml(wanneer)}</div>
+    <div class="nu-knoppen">
+      <button class="btn primary" id="nuKlaar">✓ Klaar</button>
+      <button class="btn ghost" id="nuLater">Later</button>
+      <button class="btn ghost" data-go="projecten">Alles</button>
+    </div>`;
+  host.querySelector('#nuKlaar').onclick = ()=>nuDoenKlaar(t);
+  host.querySelector('#nuLater').onclick = ()=>{
+    const ids = nuLaterIds(); ids.push(t.id);
+    try{ sessionStorage.setItem(NU_LATER_KEY, JSON.stringify(ids)); }catch(e){}
+    renderNuDoen(nuDoenTaken);
+  };
+  host.querySelector('[data-go]').onclick = ()=>switchTab('projecten');
+}
+async function nuDoenKlaar(t){
+  const host = document.getElementById('nuDoen');
+  try{
+    if(typeof isVasteTaak==='function' && isVasteTaak(t)){
+      if(!(await vasteTaakGedaan(t))) return;   // toont zelf de Ongedaan-toast
+    }else{
+      host.classList.add('weg');
+      await patchTaak(t.id, {status:'klaar'});
+      toastActie(`✓ Klaar: ${t.titel}`, 'Ongedaan', async ()=>{ await terugdraaien(t)(); loadVandaag(); });
+    }
+    if(navigator.vibrate) navigator.vibrate(15);
+    setTimeout(loadVandaag, 260);
+  }catch(error){
+    host.classList.remove('weg');
+    toast('Afvinken mislukt: ' + (error.message || error));
+  }
 }
 
 document.querySelectorAll('[data-go]').forEach(button=>button.addEventListener('click',()=>switchTab(button.dataset.go)));
