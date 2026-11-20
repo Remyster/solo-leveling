@@ -10,7 +10,6 @@ const DUMP_CATEGORIEEN = {inbox:'Inbox', kopen:'Kopen', akf_dwat:'AKF/DWAT', uf_
 const DUMP_BESTEMMINGEN = [
   ['urgent',     '🔥 Doen (urgent + belangrijk)'],
   ['belangrijk', '📌 Gepland (belangrijk)'],
-  ['delegeren',  '🤝 Delegeren (urgent, niet belangrijk)'],
   ['subtaak',    '🧩 Rest (tussendoor)'],
   ['kopen',      '🛒 Kopen'],
   ['notitie',    '📝 Notitie → Werkmap'],
@@ -60,7 +59,6 @@ async function dumpAiVoorstel(tekst){
     system: `Vandaag is ${isoDatum(new Date())}. Je sorteert een snelle notitie van Remy, operator/monteur bij drinkwaterbedrijf PWN, die hij onderweg op zijn telefoon heeft ingesproken of getypt. Kies precies één bestemming:
 - "urgent": urgent én belangrijk, zelf doen: zo snel mogelijk (storing, vandaag/morgen, iemand wacht erop).
 - "belangrijk": belangrijk maar niet urgent: moet gebeuren en krijgt een moment in de agenda.
-- "delegeren": moet snel maar is niet belangrijk voor Remy zelf: kan iemand anders doen (doorsturen, iemand vragen).
 - "subtaak": niet urgent, niet belangrijk: klein klusje voor tussendoor, geen datum.
 - "kopen": iets wat gekocht of besteld moet worden.
 - "notitie": informatie om te bewaren (meetwaarde, uitleg, idee, gespreksnotitie), geen actie.
@@ -72,7 +70,7 @@ Antwoord UITSLUITEND met geldige JSON: {"bestemming":"...","titel":"korte titel,
   const j = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
   const geldig = DUMP_BESTEMMINGEN.map(([k])=>k);
   return {
-    bestemming: geldig.includes(j.bestemming) ? j.bestemming : 'inbox',
+    bestemming: j.bestemming==='delegeren' ? 'urgent' : geldig.includes(j.bestemming) ? j.bestemming : 'inbox',
     titel: String(j.titel||'').slice(0,120),
     deadline: /^\d{4}-\d{2}-\d{2}$/.test(j.deadline||'') ? j.deadline : '',
     waar: String(j.waar||'').slice(0,200),
@@ -222,7 +220,7 @@ async function dumpVerwerk({type, item, tekst, keuze, voorstel, titel, deadline,
     if(!subtaak && whatsappWakeVoorTaak({id:null, project:'pwn', teamId:null, taaktype:'taak'})){
       reminderApi('dispatch-whatsapp', {}).catch(error=>console.warn('WerkHub WhatsApp wake-up mislukt', error?.message || 'request_failed'));
     }
-    return keuze==='delegeren' ? '🤝 Toegevoegd bij Delegeren' : subtaak ? '🧩 Toegevoegd bij Rest' : (keuze==='urgent' ? '🔥 Toegevoegd bij Doen' : '📌 Toegevoegd bij Gepland');
+    return keuze==='delegeren' ? '🔥 Toegevoegd bij Doen' : subtaak ? '🧩 Toegevoegd bij Rest' : (keuze==='urgent' ? '🔥 Toegevoegd bij Doen' : '📌 Toegevoegd bij Gepland');
   }
 
   if(keuze==='notitie'){

@@ -28,10 +28,12 @@ function takenSectieOpen(key, standaard=false){
   }catch(e){ return standaard; }
 }
 
-// Eisenhower-matrix: urgent+belangrijk = Doen, belangrijk = Gepland (zonder datum: Plannen), urgent maar niet belangrijk = Delegeren,
+// Eisenhower-matrix: urgent+belangrijk = Doen, belangrijk = Gepland (zonder datum: Plannen),
 // geen van beide = Rest. Taken: urgent of belangrijk (zonder keuze: deadline binnen 2 dagen = urgent).
-// Subtaken: prioriteit 'delegeren' of leeg (= Rest). Vaste taken (herhaling) krijgen een eigen bak.
-const prioLabels = {urgent:'🔥 Doen', belangrijk:'📌 Gepland', delegeren:'🤝 Delegeren', rest:'🧩 Rest'};
+// Delegeren bestaat niet meer (v37): Remy doet zulke taken meteen. Oude subtaken met prioriteit
+// 'delegeren' staan daarom bij 🔥 Doen (zie oudeDelegeerTaak). Subtaken: leeg (= Rest). Vaste taken (herhaling) krijgen een eigen bak.
+const prioLabels = {urgent:'🔥 Doen', belangrijk:'📌 Gepland', delegeren:'🔥 Doen', rest:'🧩 Rest'};
+const oudeDelegeerTaak = t => t.taaktype==='subtaak' && t.prioriteit==='delegeren' && !subtaakNuBelangrijk(t);
 const vandaagOfEerder = t => !!t.deadline && t.deadline <= isoDatum(new Date());
 
 // Een subtaak met belangrijk_vanaf schuift op die dag vanzelf door naar Belangrijk.
@@ -200,10 +202,9 @@ async function loadProjecten(){
   const gewoneTaken = open.filter(t=>t.taaktype!=='subtaak' && t.status!=='wacht_op');
   const secties = [
     // Een vaste taak staat in Vaste taken, en op de dag zelf (of te laat) ook bovenaan bij Doen.
-    {key:'urgent', titel:'🔥 Doen', uitleg:'Urgent én belangrijk: nu, anders gaat het mis.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='urgent'), ...gewoneTaken.filter(t=>isVasteTaak(t) && vandaagOfEerder(t))], standaard:true},
+    {key:'urgent', titel:'🔥 Doen', uitleg:'Urgent én belangrijk: nu, anders gaat het mis.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='urgent'), ...gewoneTaken.filter(t=>isVasteTaak(t) && vandaagOfEerder(t)), ...open.filter(t=>oudeDelegeerTaak(t) && t.status!=='wacht_op')], standaard:true},
     {key:'belangrijk', titel:'📌 Gepland', uitleg:'Belangrijk, niet urgent: staat in je agenda. Zonder datum staat hij onder Plannen.', items:[...gewoneTaken.filter(t=>!isVasteTaak(t) && prioVan(t)==='belangrijk'), ...open.filter(t=>subtaakNuBelangrijk(t) && t.status!=='wacht_op')], standaard:true},
     {key:'vast', titel:'🔁 Vaste taken', uitleg:'Komen elke dag/week/maand vanzelf terug. Vinkje = deze keer gedaan.', items:gewoneTaken.filter(t=>isVasteTaak(t) && !vandaagOfEerder(t)), standaard:false},
-    {key:'delegeren', titel:'🤝 Delegeren', uitleg:'Urgent, niet belangrijk: moet snel, maar niet per se door jou.', items:open.filter(t=>t.taaktype==='subtaak' && t.prioriteit==='delegeren' && !subtaakNuBelangrijk(t) && t.status!=='wacht_op'), standaard:true},
     {key:'subtaken', titel:'🧩 Rest', uitleg:'Niet urgent, niet belangrijk: tussendoor, als je tijd over hebt.', items:open.filter(t=>t.taaktype==='subtaak' && t.prioriteit!=='delegeren' && !subtaakNuBelangrijk(t) && t.status!=='wacht_op'), standaard:true},
     {key:'wacht_op', titel:'⏳ Wacht op iemand', uitleg:statusUitleg.wacht_op, items:open.filter(t=>t.status==='wacht_op'), standaard:false}
   ];
@@ -240,7 +241,7 @@ function taskCard(t){
       <div class="titel">${escapeHtml(t.titel)}</div>
       <div class="meta">
         ${t.status==='wacht_op' || t.status==='klaar' ? `<span class="badge ${t.status}">${statusLabels[t.status]}</span>` : ''}
-        ${t.taaktype==='subtaak' ? `<span class="badge subtaak">${t.prioriteit==='delegeren' ? '🤝 Delegeren' : 'Subtaak'}</span>` : ''}
+        ${t.taaktype==='subtaak' ? `<span class="badge subtaak">${t.prioriteit==='delegeren' ? '🔥 Doen' : 'Subtaak'}</span>` : ''}
         ${t.taaktype==='subtaak' && t.belangrijk_vanaf ? `<span>${subtaakNuBelangrijk(t) ? '⏰ belangrijk sinds' : '⏰ belangrijk vanaf'} ${fmtKorteDatum(t.belangrijk_vanaf)}</span>` : ''}
         ${isVasteTaak(t) ? `<span class="badge herhaling">🔁 ${herhalingLabels[t.herhaling]||escapeHtml(t.herhaling)}</span>` : ''}
         ${t.deadline ? `<span>📅 ${fmtTaakDatumTijd(t)}${t.ritme_datum && t.ritme_datum !== t.deadline ? ` <small>(verzet, ritme ${escapeHtml(fmtKorteDatum(t.ritme_datum))})</small>` : ''}</span>` : ''}
@@ -288,7 +289,7 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     ${!isTeam ? `<div class="field"><label>Hoe dringend?</label>
       <div class="segrow" id="prioRow">
         ${(t.taaktype==='subtaak'
-          ? [['delegeren','🤝 Delegeren','urgent, niet belangrijk'],['rest','🧩 Rest','tussendoor']]
+          ? [['delegeren','🔥 Doen','meteen doen'],['rest','🧩 Rest','tussendoor']]
           : [['urgent','🔥 Doen','urgent + belangrijk: nu'],['belangrijk','📌 Gepland','belangrijk: krijgt een moment']]
         ).map(([p,label,klein])=>`<button type="button" data-p="${p}" class="${(t.taaktype==='subtaak' ? (t.prioriteit==='delegeren'?'delegeren':'rest') : prioVan(t))===p?'sel':''}" onclick="pickPrio('${p}')">${label}<small class="prio-klein">${klein}</small></button>`).join('')}
       </div>

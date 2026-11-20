@@ -86,9 +86,10 @@ const NU_LATER_KEY = 'werkhubNuLater';
 function nuLaterIds(){ try{ return JSON.parse(sessionStorage.getItem(NU_LATER_KEY)||'[]'); }catch(e){ return []; } }
 function kiesNuDoen(tasks){
   const later = new Set(nuLaterIds());
-  const kandidaat = tasks.filter(t=>t.project==='pwn' && t.status!=='klaar' && t.status!=='wacht_op' && t.taaktype!=='subtaak' && !later.has(t.id));
+  const kandidaat = tasks.filter(t=>t.project==='pwn' && t.status!=='klaar' && t.status!=='wacht_op' && (t.taaktype!=='subtaak' || (typeof oudeDelegeerTaak==='function' && oudeDelegeerTaak(t))) && !later.has(t.id));
   const vast = t => typeof isVasteTaak==='function' && isVasteTaak(t);
   const doen = sortTakenOpDeadlineEnTijd(kandidaat.filter(t=>
+    (typeof oudeDelegeerTaak==='function' && oudeDelegeerTaak(t)) ||
     (!vast(t) && typeof prioVan==='function' && prioVan(t)==='urgent') ||
     (vast(t) && typeof vandaagOfEerder==='function' && vandaagOfEerder(t))));
   if(doen.length) return { taak: doen[0], bron: 'doen', rest: doen.length - 1 };
