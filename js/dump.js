@@ -269,6 +269,7 @@ function dumpKaart(it, metSorteer){
           ? `<button class="btn primary" onclick="bewerkDump('${it.id}')">✨ Sorteer</button>`
           : `<button class="btn ghost" onclick="bewerkDump('${it.id}')">Bewerk</button>`}
         <button class="btn ghost" onclick="archiveerDump('${it.id}')">${metSorteer ? 'Weg ermee' : '✓ Gekocht'}</button>
+        <button class="btn ghost dump-weg" onclick="verwijderDump('${it.id}')" title="Verwijderen" aria-label="Verwijderen">✕</button>
       </div>
     </div>`;
 }
@@ -356,6 +357,21 @@ function bewerkDump(id){
   if(item) openDumpSheet(item.type, item);
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ✕ = echt verwijderen (v42). Met Ongedaan zet hij de hele regel precies zo terug.
+async function verwijderDump(id){
+  const item = dumpItems.find(it=>it.id===id);
+  if(!item) return;
+  try{
+    await sb(`work_items?id=eq.${id}`, {method:'DELETE'});
+  }catch(error){ toast('Verwijderen mislukt: '+error.message); return; }
+  toastActie('🗑 Verwijderd', 'Ongedaan', async ()=>{
+    try{ await sb('work_items', {method:'POST', body: JSON.stringify([item])}); }
+    catch(error){ toast('Terugzetten mislukt: '+error.message); }
+    loadDump();
+  });
+  loadDump();
+}
 
 async function archiveerDump(id){
   const item = dumpItems.find(it=>it.id===id);

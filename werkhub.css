@@ -264,3 +264,6 @@ details.prio-subtaken > summary{ box-shadow: inset 4px 0 0 #8fd3b0; }
 .snelkies button{background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:6px 12px; color:var(--sub); font-size:13px; font-weight:600;}
 .snelkies button.sel{background:var(--blue); color:#fff; border-color:var(--blue);}
 .field input[type=date], .field input[type=time]{cursor:pointer;}
+
+/* v42: ✕ verwijderen naast Bewerk / Gekocht */
+.sheet-actions .dump-weg{flex:0 0 auto; min-width:44px; color:var(--red,#c0392b);}
