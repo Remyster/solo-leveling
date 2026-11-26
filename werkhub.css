@@ -258,3 +258,9 @@ details.prio-subtaken > summary{ box-shadow: inset 4px 0 0 #8fd3b0; }
 .nu-doen .nu-knoppen{display:flex; gap:8px; margin-top:12px;}
 .nu-doen .nu-knoppen .btn{flex:1; min-height:44px;}
 .nu-doen .nu-knoppen .btn.primary{flex:1.6;}
+
+/* v41: snelknoppen onder datum/tijd */
+.snelkies{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+.snelkies button{background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:6px 12px; color:var(--sub); font-size:13px; font-weight:600;}
+.snelkies button.sel{background:var(--blue); color:#fff; border-color:var(--blue);}
+.field input[type=date], .field input[type=time]{cursor:pointer;}

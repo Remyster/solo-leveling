@@ -1,3 +1,26 @@
+// Datum en tijd kiezen zonder typen (v41): tikken op een datum- of tijdveld opent altijd het
+// kalender-/klokvenster (showPicker), plus snelknoppen onder Deadline en Begintijd.
+function snelDatumKnoppen(id){
+  const opties = [['Vandaag',0],['Morgen',1],['Overmorgen',2],['Volgende week',7]];
+  return `<div class="snelkies" data-voor="${id}">${opties.map(([l,d])=>`<button type="button" data-dagen="${d}">${l}</button>`).join('')}<button type="button" data-leeg="1">✕</button></div>`;
+}
+function snelTijdKnoppen(id){
+  return `<div class="snelkies" data-voor="${id}">${['07:00','09:00','11:00','13:00','15:00'].map(t=>`<button type="button" data-tijd="${t}">${t}</button>`).join('')}<button type="button" data-leeg="1">✕</button></div>`;
+}
+document.addEventListener('click', e=>{
+  const veld = e.target.closest?.('input[type=date], input[type=time], input[type=datetime-local]');
+  if(veld && typeof veld.showPicker === 'function'){ try{ veld.showPicker(); }catch(err){ /* sommige browsers alleen bij echte tik */ } }
+  const knop = e.target.closest?.('.snelkies button');
+  if(!knop) return;
+  const doel = document.getElementById(knop.parentElement.dataset.voor);
+  if(!doel) return;
+  if(knop.dataset.leeg) doel.value = '';
+  else if(knop.dataset.tijd) doel.value = knop.dataset.tijd;
+  else { const d = new Date(); d.setDate(d.getDate() + Number(knop.dataset.dagen)); doel.value = isoDatum(d); }
+  doel.dispatchEvent(new Event('input', {bubbles:true}));
+  doel.dispatchEvent(new Event('change', {bubbles:true}));
+  knop.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('sel', b===knop && !knop.dataset.leeg));
+});
 // ============ PROJECTEN TAB (alleen PWN) ============
 const statusLabels = {backlog:'Nog beginnen', bezig:'Mee bezig', wacht_op:'Wacht op iemand of iets', klaar:'Klaar'};
 const statusUitleg = {
@@ -282,8 +305,8 @@ async function openTaskSheet(id, project, prefillTekst, dumpId, teamId, taaktype
     <div class="field"><label>👤 Wie (contactpersoon)</label><input type="text" id="fWie" value="${escapeHtml(t.wie||'')}"></div>
     ${t.taaktype==='subtaak' ? `<div class="field"><label>⏰ Wordt belangrijk op (optioneel)</label><input type="date" id="fBelangrijkVanaf" value="${t.belangrijk_vanaf||''}"></div>
     <p class="hintje">Leeg laten = gewoon een klusje voor tussendoor. Met een datum schuift de subtaak die dag vanzelf naar 📌 Gepland. Geen tijd en geen WhatsApp-herinnering.</p>` : `
-    <div class="field"><label>📅 Deadline</label><input type="date" id="fDeadline" value="${t.deadline||''}"></div>
-    <div class="field"><label>⏰ Begintijd</label><input type="time" id="fBeginTijd" value="${(t.begin_tijd||'').slice(0,5)}"></div>
+    <div class="field"><label>📅 Deadline</label><input type="date" id="fDeadline" value="${t.deadline||''}">${snelDatumKnoppen('fDeadline')}</div>
+    <div class="field"><label>⏰ Begintijd</label><input type="time" id="fBeginTijd" value="${(t.begin_tijd||'').slice(0,5)}">${snelTijdKnoppen('fBeginTijd')}</div>
     <div class="field"><label>⏰ Eindtijd (optioneel)</label><input type="time" id="fEindTijd" value="${(t.eind_tijd||'').slice(0,5)}"></div>`}
     <div id="calLinkWrap"></div>
     ${!isTeam ? `<div class="field"><label>Hoe dringend?</label>
